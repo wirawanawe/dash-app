@@ -1,6 +1,6 @@
 import { User } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { verifyJwtToken } from "@/lib/auth";
 import bcrypt from "bcrypt";
 
 export async function PUT(request) {
@@ -11,7 +11,7 @@ export async function PUT(request) {
       return NextResponse.json({ error: "Token diperlukan" }, { status: 401 });
     }
 
-    const decoded = await verifyToken(token);
+    const decoded = await verifyJwtToken(token);
     const user = await User.findUnique({
       where: { id: decoded.userId },
     });

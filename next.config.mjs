@@ -13,9 +13,7 @@ const nextConfig = {
     domains: ["localhost", "your-domain.com"],
     unoptimized: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: [],
-  },
+  serverExternalPackages: [],
   serverRuntimeConfig: {
     timeout: 30000, // 30 seconds
   },
