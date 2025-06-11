@@ -1,0 +1,65 @@
+FIX FOR ERROR: HTTP error! Status: 500 in examinations page
+
+1. DATABASE CONNECTION ISSUE:
+   The root cause is: "Access denied for user 'root'@'localhost' (using password: NO)"
+   
+   Solution options:
+   
+   a) Update your .env file with correct MySQL credentials:
+      DB_HOST=localhost
+      DB_USER=root
+      DB_PASSWORD=your_actual_mysql_password  (replace with your actual MySQL password)
+      DB_NAME=phc_dashboard
+   
+   b) OR configure MySQL to allow root access without password:
+      - Using MySQL CLI: ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';
+      
+   c) OR create a new database user with correct permissions:
+      - CREATE USER 'phc_user'@'localhost' IDENTIFIED BY 'your_password';
+      - GRANT ALL PRIVILEGES ON phc_dashboard.* TO 'phc_user'@'localhost';
+      - FLUSH PRIVILEGES;
+      - Then update .env with these credentials
+      
+2. IMPROVED ERROR HANDLING:
+   The current error handling in app/examinations/page.js is good, but we can make the error messages more specific:
+
+   Example improvement to fetchExaminations():
+   
+   ```javascript
+   const fetchExaminations = async () => {
+     try {
+       setIsLoading(true);
+       
+       let response;
+       try {
+         response = await fetch("/api/examinations");
+         if (!response.ok) {
+           const errorData = await response.json().catch(() => ({}));
+           console.error("Server error:", response.status, errorData);
+           throw new Error(`HTTP error! Status: ${response.status}. ${errorData.message || ""}`);
+         }
+       } catch (networkError) {
+         console.error("Network error:", networkError);
+         setExaminations([]);
+         setIsLoading(false);
+         toast.error("Database connection error. Please check MySQL credentials.");
+         return;
+       }
+       
+       // Rest of the function...
+     }
+   }
+   ```
+
+3. VERIFY DATABASE INITIALIZATION:
+   After fixing MySQL credentials, run the database initialization script:
+   ```
+   node scripts/init-db.js
+   ```
+   
+   This should create all necessary tables for the application.
+
+4. CHECK TABLE STRUCTURE:
+   Make sure the database tables match the expected structure in the API routes.
+   The examinations table should have these fields:
+   - id, visit_id, blood_pressure, heart_rate, temperature, weight, height, notes, diagnosis, etc. 

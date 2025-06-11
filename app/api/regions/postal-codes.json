@@ -1,0 +1,27 @@
+{
+  "JAKARTA PUSAT": {
+    "TANAH ABANG": {
+      "BENDUNGAN HILIR": "10210",
+      "KARET TENGSIN": "10220",
+      "KEBON MELATI": "10230",
+      "KEBON KACANG": "10240",
+      "KAMPUNG BALI": "10250",
+      "PETAMBURAN": "10260",
+      "GELORA": "10270"
+    },
+    "MENTENG": {
+      "MENTENG": "10310",
+      "PEGANGSAAN": "10320",
+      "CIKINI": "10330",
+      "KEBON SIRIH": "10340",
+      "GONDANGDIA": "10350"
+    },
+    "SENEN": {
+      "SENEN": "10410",
+      "KWITANG": "10420",
+      "KENARI": "10430",
+      "PASEBAN": "10440",
+      "KRAMAT": "10450"
+    }
+  }
+}

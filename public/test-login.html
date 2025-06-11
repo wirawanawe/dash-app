@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Login</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 15px;
+        background-color: #e22345;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      .debug {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        white-space: pre-wrap;
+        font-family: monospace;
+        max-height: 300px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Test Login</h1>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" value="admin@phc.com" />
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" value="admin123" />
+    </div>
+
+    <button id="loginBtn">Login</button>
+    <button id="checkUserBtn">Check Current User</button>
+    <button id="dashboardBtn">Go to Dashboard</button>
+
+    <div class="debug" id="debug"></div>
+
+    <script>
+      const debugEl = document.getElementById("debug");
+      const log = (msg, data) => {
+        if (data) {
+          debugEl.innerHTML += `${msg}: ${JSON.stringify(data, null, 2)}\n\n`;
+        } else {
+          debugEl.innerHTML += `${msg}\n`;
+        }
+        debugEl.scrollTop = debugEl.scrollHeight;
+      };
+
+      // Login function
+      document
+        .getElementById("loginBtn")
+        .addEventListener("click", async () => {
+          const email = document.getElementById("email").value;
+          const password = document.getElementById("password").value;
+
+          debugEl.innerHTML = ""; // Clear debug area
+          log(`Attempting login with ${email}`);
+
+          try {
+            const response = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email, password }),
+              credentials: "include",
+            });
+
+            log(`Response status: ${response.status}`);
+
+            const responseText = await response.text();
+            log("Raw response:", responseText);
+
+            try {
+              const data = JSON.parse(responseText);
+              log("Parsed response:", data);
+
+              if (data.success) {
+                log("Login successful!");
+                // Try to get user data
+                checkUser();
+              } else {
+                log("Login failed:", data.message);
+              }
+            } catch (e) {
+              log("Error parsing response:", e.message);
+            }
+          } catch (e) {
+            log("Error during login:", e.message);
+          }
+        });
+
+      // Check user function
+      async function checkUser() {
+        try {
+          log("Checking current user...");
+
+          const response = await fetch("/api/auth/me", {
+            credentials: "include",
+          });
+
+          log(`User response status: ${response.status}`);
+
+          const responseText = await response.text();
+          log("Raw user response:", responseText);
+
+          try {
+            const data = JSON.parse(responseText);
+            log("User data:", data);
+          } catch (e) {
+            log("Error parsing user data:", e.message);
+          }
+        } catch (e) {
+          log("Error checking user:", e.message);
+        }
+      }
+
+      document
+        .getElementById("checkUserBtn")
+        .addEventListener("click", checkUser);
+
+      // Go to dashboard
+      document.getElementById("dashboardBtn").addEventListener("click", () => {
+        window.location.href = "/dashboard";
+      });
+    </script>
+  </body>
+</html>
