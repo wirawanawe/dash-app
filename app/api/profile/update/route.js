@@ -1,7 +1,7 @@
 import { User } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { verifyJwtToken } from "@/lib/auth";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export async function PUT(request) {
   try {

@@ -1,5 +1,5 @@
 import { query, rawQuery } from "../lib/db.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 // Hardcoded config untuk pengujian - gunakan environment variables yang sudah ada
 process.env.DB_HOST = process.env.DB_HOST || "localhost";

@@ -1,5 +1,5 @@
 import { query } from "../lib/db.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 
 // Database configuration

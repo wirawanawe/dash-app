@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { jwtVerify } from "jose";
 
 // Helper function to verify user is admin

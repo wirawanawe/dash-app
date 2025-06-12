@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { query } from "@/lib/db";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export async function POST(request) {
   try {

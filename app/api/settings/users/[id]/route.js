@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
-import { User, Patient, Company, Doctor, Insurance, ICD, Treatment, Polyclinic, PostalCode, $transaction } from "@/lib/prisma";
-import bcrypt from "bcrypt";
+import {
+  User,
+  Patient,
+  Company,
+  Doctor,
+  Insurance,
+  ICD,
+  Treatment,
+  Polyclinic,
+  PostalCode,
+  $transaction,
+} from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 // GET single user
 export async function GET(request, { params }) {
