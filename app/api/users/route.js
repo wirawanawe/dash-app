@@ -49,7 +49,7 @@ export async function GET(request) {
         u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.clinic_id,
         c.name as clinic_name, c.code as clinic_code
       FROM users u
-      LEFT JOIN clinics c ON u.clinic_id = c.id
+      LEFT JOIN polyclinics c ON u.clinic_id = c.id
       WHERE 
         LOWER(u.name) LIKE LOWER(?) OR
         LOWER(u.email) LIKE LOWER(?)

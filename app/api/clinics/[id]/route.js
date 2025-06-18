@@ -6,7 +6,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = params;
 
-    const result = await query("SELECT * FROM clinics WHERE id = ?", [id]);
+    const result = await query("SELECT * FROM polyclinics WHERE id = ?", [id]);
 
     if (result.length === 0) {
       return Response.json({ error: "Clinic not found" }, { status: 404 });
@@ -43,7 +43,7 @@ export async function PUT(request, { params }) {
     }
 
     // Check if clinic exists
-    const clinicResult = await query("SELECT * FROM clinics WHERE id = ?", [
+    const clinicResult = await query("SELECT * FROM polyclinics WHERE id = ?", [
       id,
     ]);
 
@@ -53,7 +53,7 @@ export async function PUT(request, { params }) {
 
     // Check if code is already used by another clinic
     const existingClinic = await query(
-      "SELECT * FROM clinics WHERE code = ? AND id != ?",
+      "SELECT * FROM polyclinics WHERE code = ? AND id != ?",
       [code, id]
     );
 
@@ -66,7 +66,7 @@ export async function PUT(request, { params }) {
 
     // Update clinic
     await query(
-      "UPDATE clinics SET name = ?, code = ?, description = ? WHERE id = ?",
+      "UPDATE polyclinics SET name = ?, code = ?, description = ? WHERE id = ?",
       [name, code, description || "", id]
     );
 
@@ -91,7 +91,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Check if clinic exists
-    const clinicResult = await query("SELECT * FROM clinics WHERE id = ?", [
+    const clinicResult = await query("SELECT * FROM polyclinics WHERE id = ?", [
       id,
     ]);
 
@@ -100,7 +100,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Delete clinic
-    await query("DELETE FROM clinics WHERE id = ?", [id]);
+    await query("DELETE FROM polyclinics WHERE id = ?", [id]);
 
     return Response.json({ message: "Clinic deleted successfully" });
   } catch (error) {

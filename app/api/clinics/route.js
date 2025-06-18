@@ -43,7 +43,7 @@ export async function GET(request) {
     // Get total count
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM clinics
+      FROM polyclinics
       WHERE 
         (LOWER(name) LIKE LOWER(?) OR
         LOWER(code) LIKE LOWER(?) OR
@@ -62,7 +62,7 @@ export async function GET(request) {
         province_id, province_name, city_id, city_name,
         district_id, district_name, village_id, village_name,
         postal_code, created_at, updated_at
-      FROM clinics
+      FROM polyclinics
       WHERE 
         (LOWER(name) LIKE LOWER(?) OR
         LOWER(code) LIKE LOWER(?) OR

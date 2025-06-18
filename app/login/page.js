@@ -258,30 +258,8 @@ export default function LoginPage() {
             {isLoading ? "Loading..." : "Login"}
           </button>
 
-          <div className="mt-4 text-center flex justify-between">
-            <button
-              type="button"
-              onClick={loginAsAdmin}
-              className="text-sm text-gray-500 hover:text-[#E22345]"
-            >
-              Use admin account
-            </button>
-            <button
-              type="button"
-              onClick={directAdminLogin}
-              className="text-sm text-gray-500 hover:text-[#E22345]"
-            >
-              Direct admin login
-            </button>
-          </div>
+         
         </form>
-
-        {debugInfo && (
-          <div className="mt-6 p-4 bg-gray-100 rounded text-xs overflow-auto max-h-40">
-            <h3 className="font-bold mb-2">Debug Info:</h3>
-            <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-          </div>
-        )}
       </div>
     </div>
   );

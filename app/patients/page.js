@@ -20,6 +20,7 @@ export default function PatientsPage() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [metadata, setMetadata] = useState({});
@@ -66,7 +67,18 @@ export default function PatientsPage() {
   }, [search, page, limit]);
 
   const handleSearch = (e) => {
-    setSearch(e.target.value);
+    e.preventDefault();
+    setSearch(searchInput);
+    setPage(1);
+  };
+
+  const handleSearchInputChange = (e) => {
+    setSearchInput(e.target.value);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearch("");
     setPage(1);
   };
 
@@ -140,16 +152,40 @@ export default function PatientsPage() {
         </div>
 
         <div className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Cari pasien..."
-              value={search}
-              onChange={handleSearch}
-              className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10"
-            />
-            <FaSearch className="absolute left-3 top-3 text-gray-400" />
-          </div>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Cari pasien (nama, NIK, No. MR)..."
+                value={searchInput}
+                onChange={handleSearchInputChange}
+                className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10"
+              />
+              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+            </div>
+            <button
+              type="submit"
+              className="bg-[#E22345] text-white px-6 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors"
+            >
+              <FaSearch />
+              Cari
+            </button>
+            {search && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Reset
+              </button>
+            )}
+          </form>
+          {search && (
+            <div className="mt-2 text-sm text-gray-600">
+              Hasil pencarian untuk: "
+              <span className="font-medium">{search}</span>"
+            </div>
+          )}
         </div>
 
         {loading ? (

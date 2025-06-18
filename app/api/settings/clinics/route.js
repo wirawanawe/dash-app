@@ -43,7 +43,7 @@ export async function GET(request) {
     // Get all clinics (simpler query for dropdowns/select inputs)
     const clinics = await query(`
       SELECT id, name, code 
-      FROM clinics 
+      FROM polyclinics 
       ORDER BY name ASC
     `);
 

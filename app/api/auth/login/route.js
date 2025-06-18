@@ -90,14 +90,14 @@ export async function POST(request) {
 
     try {
       // Cari user di database dengan informasi klinik
-      const [user] = await query(
-        `SELECT u.id, u.name, u.email, u.password, u.role, u.is_active, u.clinic_id, 
-          c.name as clinic_name, c.code as clinic_code 
-        FROM users u 
-        LEFT JOIN clinics c ON u.clinic_id = c.id 
-        WHERE u.email = ?`,
-        [email]
-      );
+      const sql = `
+        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active, u.clinic_id, 
+                c.name as clinic_name, c.code as clinic_code 
+              FROM users u 
+              LEFT JOIN polyclinics c ON u.clinic_id = c.id 
+              WHERE u.email = ?
+      `;
+      const [user] = await query(sql, [email]);
 
       if (!user) {
         return NextResponse.json(
