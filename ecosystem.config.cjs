@@ -2,9 +2,14 @@ module.exports = {
   apps: [
     {
       name: "dash-app",
-      script: "npm",
-      args: "start",
+      script: "server.js",
+      interpreter: "node",
+      cwd: "./",
       env: {
+        NODE_ENV: "production",
+        PORT: 3000,
+      },
+      env_production: {
         NODE_ENV: "production",
         PORT: 3000,
       },
@@ -12,6 +17,19 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
+      error_file: "./logs/pm2-error.log",
+      out_file: "./logs/pm2-out.log",
+      log_file: "./logs/pm2-combined.log",
+      time: true,
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      merge_logs: true,
+      kill_timeout: 5000,
+      wait_ready: true,
+      listen_timeout: 10000,
+      restart_delay: 1000,
+      max_restarts: 10,
+      min_uptime: "10s",
+      ignore_watch: ["node_modules", "logs", ".git", ".next", "public"],
     },
   ],
 };
