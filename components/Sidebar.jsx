@@ -13,10 +13,11 @@ import {
   FaUsers,
   FaUserMd,
   FaClinicMedical,
+  FaTimes,
 } from "react-icons/fa";
 import { useAuth } from "./Providers";
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [openSubmenu, setOpenSubmenu] = useState(null);
 
@@ -34,12 +35,6 @@ const Sidebar = () => {
           icon: <FaCalendarCheck />,
           path: "/visits",
           roles: ["ADMIN", "DOCTOR"],
-        },
-        {
-          title: "Pemeriksaan",
-          icon: <FaStethoscope />,
-          path: "/examinations",
-          roles: ["DOCTOR"],
         },
       ],
     },
@@ -89,10 +84,32 @@ const Sidebar = () => {
     setOpenSubmenu(openSubmenu === title ? null : title);
   };
 
+  const handleLinkClick = () => {
+    // Close sidebar on mobile when link is clicked
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="bg-[#E22345] text-white w-64 min-h-screen fixed left-0">
+    <div
+      className={`
+      bg-[#E22345] text-white w-64 min-h-screen fixed left-0 z-30 transition-transform duration-300 ease-in-out
+      ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+    `}
+    >
       <div className="p-4">
-        <h2 className="text-2xl font-bold mb-8">Admin Panel</h2>
+        {/* Close button for mobile */}
+        <div className="flex justify-between items-center mb-8 lg:block">
+          <h2 className="text-xl lg:text-2xl font-bold">Admin Panel</h2>
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-md hover:bg-red-600"
+          >
+            <FaTimes className="h-5 w-5" />
+          </button>
+        </div>
+
         <ul>
           {menuItems.map((item, index) => (
             <li key={index} className="mb-4">
@@ -106,10 +123,13 @@ const Sidebar = () => {
                       <li key={subIndex} className="mb-2">
                         <Link
                           href={subItem.path}
-                          className="flex items-center p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                          onClick={handleLinkClick}
+                          className="flex items-center p-2 rounded-lg hover:bg-red-600 transition-colors"
                         >
                           <span className="mr-3">{subItem.icon}</span>
-                          <span>{subItem.title}</span>
+                          <span className="text-sm lg:text-base">
+                            {subItem.title}
+                          </span>
                         </Link>
                       </li>
                     ))}
@@ -119,11 +139,11 @@ const Sidebar = () => {
                 <div>
                   <button
                     onClick={() => toggleSubmenu(item.title)}
-                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-red-600 transition-colors"
                   >
                     <div className="flex items-center">
                       <span className="mr-3">{item.icon}</span>
-                      <span>{item.title}</span>
+                      <span className="text-sm lg:text-base">{item.title}</span>
                     </div>
                     <span>
                       {openSubmenu === item.title ? (
@@ -139,7 +159,8 @@ const Sidebar = () => {
                         <li key={subIndex} className="mb-2">
                           <Link
                             href={subItem.path}
-                            className="flex items-center p-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                            onClick={handleLinkClick}
+                            className="flex items-center p-2 rounded-lg hover:bg-red-600 transition-colors text-sm"
                           >
                             {subItem.title}
                           </Link>
@@ -151,10 +172,11 @@ const Sidebar = () => {
               ) : (
                 <Link
                   href={item.path}
-                  className="flex items-center p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  onClick={handleLinkClick}
+                  className="flex items-center p-2 rounded-lg hover:bg-red-600 transition-colors"
                 >
                   <span className="mr-3">{item.icon}</span>
-                  <span>{item.title}</span>
+                  <span className="text-sm lg:text-base">{item.title}</span>
                 </Link>
               )}
             </li>

@@ -30,3 +30,101 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+/* Mobile-first responsive utilities */
+@layer utilities {
+  .mobile-text-sm {
+    @apply text-sm lg:text-base;
+  }
+
+  .mobile-text-base {
+    @apply text-base lg:text-lg;
+  }
+
+  .mobile-p-3 {
+    @apply p-3 lg:p-4;
+  }
+
+  .mobile-p-4 {
+    @apply p-4 lg:p-6;
+  }
+
+  .mobile-mb-4 {
+    @apply mb-4 lg:mb-6;
+  }
+
+  .mobile-gap-3 {
+    @apply gap-3 lg:gap-4;
+  }
+
+  /* Prevent horizontal scrolling on mobile */
+  .mobile-safe {
+    @apply max-w-full overflow-x-hidden;
+  }
+
+  /* Touch-friendly button sizing */
+  .mobile-btn {
+    @apply min-h-[44px] min-w-[44px] touch-manipulation;
+  }
+
+  /* Mobile-optimized form inputs */
+  .mobile-input {
+    @apply text-base; /* Prevents zoom on iOS */
+  }
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Smooth scrolling for mobile */
+@media (max-width: 1024px) {
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Improve tap targets on mobile */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+
+  /* Prevent text size adjustment on iOS */
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Loading animation for mobile */
+.mobile-loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

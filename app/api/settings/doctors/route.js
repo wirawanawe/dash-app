@@ -7,6 +7,7 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const search = searchParams.get("search") || "";
 
+    // First try to get from local database
     let sql = "SELECT * FROM doctors";
     let params = [];
 
@@ -18,6 +19,74 @@ export async function GET(request) {
     sql += " ORDER BY name ASC";
 
     const doctors = await query(sql, params);
+
+    // If no doctors in local database, fetch from external API
+    if (doctors.length === 0) {
+      try {
+        console.log("No doctors in local DB, fetching from external API...");
+
+        // Fetch visits data to extract unique doctors
+        const apiUrl = `http://api-klinik.doctorphc.id/transaksi/kunjungan?limit=100`;
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const externalData = await response.json();
+          let rawVisits = [];
+
+          if (externalData.data && Array.isArray(externalData.data)) {
+            rawVisits = externalData.data;
+          } else if (Array.isArray(externalData)) {
+            rawVisits = externalData;
+          }
+
+          // Extract unique doctors from visits data
+          const uniqueDoctors = [];
+          const doctorMap = new Map();
+
+          rawVisits.forEach((visit) => {
+            if (visit.Dokter && visit.Dokter[0]) {
+              const doctor = visit.Dokter[0];
+              const doctorId = doctor.id || doctor.Id || "unknown";
+              const doctorName = doctor.Nama_Dokter || doctor.name || "";
+
+              if (doctorName && !doctorMap.has(doctorId)) {
+                doctorMap.set(doctorId, {
+                  id: doctorId,
+                  name: doctorName,
+                  specialist: doctor.Spesialist || "",
+                });
+                uniqueDoctors.push(doctorMap.get(doctorId));
+              }
+            }
+          });
+
+          // Filter by search if provided
+          let filteredDoctors = uniqueDoctors;
+          if (search) {
+            filteredDoctors = uniqueDoctors.filter(
+              (doctor) =>
+                doctor.name.toLowerCase().includes(search.toLowerCase()) ||
+                (doctor.specialist &&
+                  doctor.specialist
+                    .toLowerCase()
+                    .includes(search.toLowerCase()))
+            );
+          }
+
+          // Sort by name
+          filteredDoctors.sort((a, b) => a.name.localeCompare(b.name));
+
+          return NextResponse.json(filteredDoctors);
+        }
+      } catch (apiError) {
+        console.error("Error fetching from external API:", apiError);
+      }
+    }
 
     return NextResponse.json(doctors);
   } catch (error) {

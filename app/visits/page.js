@@ -1,143 +1,175 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FaSearch, FaFilter } from "react-icons/fa";
-import VisitForm from "./components/VisitForm";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  FaPlus,
+  FaSearch,
+  FaChevronLeft,
+  FaChevronRight,
+  FaAngleDoubleLeft,
+  FaAngleDoubleRight,
+  FaFilter,
+} from "react-icons/fa";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import VisitForm from "./components/VisitForm";
+import VisitDetailModal from "./components/VisitDetailModal";
 
 export default function VisitsPage() {
+  const router = useRouter();
   const [visits, setVisits] = useState([]);
-  const [filteredVisits, setFilteredVisits] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchDate, setSearchDate] = useState("");
+  const [searchDateInput, setSearchDateInput] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [metadata, setMetadata] = useState({});
+  const [limit, setLimit] = useState(10);
   const [showForm, setShowForm] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedVisitDetail, setSelectedVisitDetail] = useState(null);
   const [filters, setFilters] = useState({
     status: "",
     doctorId: "",
     startDate: "",
     endDate: "",
   });
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: "",
+    doctorId: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [showFilters, setShowFilters] = useState(false);
   const [doctors, setDoctors] = useState([]);
-
-  useEffect(() => {
-    fetchVisits();
-    fetchDoctors();
-  }, []);
-
-  useEffect(() => {
-    let filtered = [...visits];
-
-    // Filter berdasarkan pencarian
-    if (searchTerm.length >= 1) {
-      filtered = filtered.filter((visit) =>
-        Object.values({
-          patientName: visit.patient.name.toLowerCase(),
-          mrNumber: visit.patient.mrNumber.toLowerCase(),
-          doctorName: visit.doctor.name.toLowerCase(),
-          room: visit.room.toLowerCase(),
-          status: visit.status.toLowerCase(),
-          complaint: (visit.complaint || "").toLowerCase(),
-        }).some((value) => value.includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    // Filter berdasarkan status
-    if (filters.status) {
-      filtered = filtered.filter((visit) => visit.status === filters.status);
-    }
-
-    // Filter berdasarkan dokter
-    if (filters.doctorId) {
-      filtered = filtered.filter(
-        (visit) => visit.doctorId.toString() === filters.doctorId
-      );
-    }
-
-    // Filter berdasarkan tanggal
-    if (filters.startDate) {
-      filtered = filtered.filter(
-        (visit) => new Date(visit.createdAt) >= new Date(filters.startDate)
-      );
-    }
-    if (filters.endDate) {
-      filtered = filtered.filter(
-        (visit) => new Date(visit.createdAt) <= new Date(filters.endDate)
-      );
-    }
-
-    setFilteredVisits(filtered);
-  }, [searchTerm, filters, visits]);
 
   const fetchVisits = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
 
-      // Attempt to fetch visits data with error handling
-      let response;
-      try {
-        response = await fetch("/api/visits");
-        if (!response.ok)
-          throw new Error(`HTTP error! Status: ${response.status}`);
-      } catch (networkError) {
-        console.error("Network error:", networkError);
-        // Use empty array as fallback when API fails
-        setVisits([]);
-        setFilteredVisits([]);
-        setIsLoading(false);
-        toast.error("Tidak dapat terhubung ke server. Coba lagi nanti.");
-        return;
+      // Build query parameters
+      const params = new URLSearchParams({
+        search,
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      // Add date search if exists
+      if (searchDate) {
+        params.append("searchDate", searchDate);
       }
 
-      // Parse the response data
-      try {
-        const data = await response.json();
-        setVisits(Array.isArray(data) ? data : []);
-        setIsLoading(false);
-      } catch (parseError) {
-        console.error("JSON parsing error:", parseError);
-        setVisits([]);
-        setFilteredVisits([]);
-        setIsLoading(false);
-        toast.error("Gagal memproses data dari server");
+      // Add date filters if they exist
+      if (appliedFilters.startDate) {
+        params.append("tglawal", appliedFilters.startDate);
       }
+      if (appliedFilters.endDate) {
+        params.append("tglakhir", appliedFilters.endDate);
+      }
+
+      // Add status filter if exists
+      if (appliedFilters.status) {
+        params.append("status", appliedFilters.status);
+      }
+
+      // Add doctor filter if exists
+      if (appliedFilters.doctorId) {
+        params.append("doctorId", appliedFilters.doctorId);
+      }
+
+      const response = await fetch(`/api/visits?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error("Gagal mengambil data kunjungan");
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format");
+      }
+
+      const result = await response.json();
+
+      if (!result.data) {
+        throw new Error("Invalid data format");
+      }
+
+      setVisits(result.data);
+      setMetadata(result.pagination || {});
+      setTotalPages(result.pagination?.totalPages || 0);
     } catch (error) {
-      console.error("Error in fetchVisits:", error);
+      console.error("Error:", error);
+      toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setVisits([]);
-      setFilteredVisits([]);
-      setIsLoading(false);
-      toast.error("Gagal mengambil data kunjungan");
+      setMetadata({});
+      setTotalPages(0);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchDoctors = async () => {
     try {
-      // Attempt to fetch doctors data with error handling
-      let response;
-      try {
-        response = await fetch("/api/settings/doctors");
-        if (!response.ok)
-          throw new Error(`HTTP error! Status: ${response.status}`);
-      } catch (networkError) {
-        console.error("Network error fetching doctors:", networkError);
-        // Use empty array as fallback when API fails
-        setDoctors([]);
-        return;
-      }
+      const response = await fetch("/api/settings/doctors");
+      if (!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`);
 
-      // Parse the response data
-      try {
-        const data = await response.json();
-        setDoctors(Array.isArray(data) ? data : []);
-      } catch (parseError) {
-        console.error("JSON parsing error for doctors:", parseError);
-        setDoctors([]);
-      }
+      const data = await response.json();
+      setDoctors(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error in fetchDoctors:", error);
+      console.error("Error fetching doctors:", error);
       setDoctors([]);
     }
+  };
+
+  useEffect(() => {
+    fetchVisits();
+  }, [
+    search,
+    searchDate,
+    page,
+    limit,
+    appliedFilters.startDate,
+    appliedFilters.endDate,
+    appliedFilters.status,
+    appliedFilters.doctorId,
+  ]);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setSearch(searchInput);
+    setSearchDate(searchDateInput);
+    setPage(1);
+  };
+
+  const handleSearchInputChange = (e) => {
+    setSearchInput(e.target.value);
+  };
+
+  const handleSearchDateChange = (e) => {
+    setSearchDateInput(e.target.value);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    setSearchDateInput("");
+    setSearchDate("");
+    setPage(1);
+  };
+
+  const handleLimitChange = (e) => {
+    setLimit(parseInt(e.target.value));
+    setPage(1);
   };
 
   const handleSubmit = async (formData) => {
@@ -190,6 +222,7 @@ export default function VisitsPage() {
       ...prev,
       [name]: value,
     }));
+    // Don't reset page or apply filters automatically
   };
 
   const resetFilters = () => {
@@ -199,203 +232,546 @@ export default function VisitsPage() {
       startDate: "",
       endDate: "",
     });
-    setSearchTerm("");
+    setAppliedFilters({
+      status: "",
+      doctorId: "",
+      startDate: "",
+      endDate: "",
+    });
+    setPage(1);
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters({ ...filters });
+    setPage(1);
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (totalPages <= 1) return [1];
+
+    const delta = 2; // Number of pages to show on each side of current page
+    const range = [];
+    const rangeWithDots = [];
+
+    // Calculate the range of pages to show around current page
+    for (
+      let i = Math.max(2, page - delta);
+      i <= Math.min(totalPages - 1, page + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    // Always show first page
+    if (totalPages > 0) {
+      rangeWithDots.push(1);
+    }
+
+    // Add dots and range if needed
+    if (page - delta > 2) {
+      rangeWithDots.push("...");
+    }
+
+    // Add the middle range (excluding first and last page)
+    range.forEach((pageNum) => {
+      if (pageNum !== 1 && pageNum !== totalPages) {
+        rangeWithDots.push(pageNum);
+      }
+    });
+
+    // Add dots and last page if needed
+    if (page + delta < totalPages - 1) {
+      rangeWithDots.push("...");
+    }
+
+    // Always show last page (if different from first)
+    if (totalPages > 1) {
+      rangeWithDots.push(totalPages);
+    }
+
+    // Remove duplicates while preserving order
+    return rangeWithDots.filter(
+      (item, index, arr) => arr.indexOf(item) === index
+    );
   };
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pb-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-black">Data Kunjungan</h1>
-          <button
-            onClick={() => {
-              setSelectedVisit(null);
-              setShowForm(true);
-            }}
-            className="bg-[#E22345] text-white px-4 py-2 rounded-lg hover:bg-red-600"
-          >
-            Tambah Kunjungan
-          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Daftar Kunjungan
+            </h1>
+          </div>
         </div>
 
-        {showForm && (
-          <VisitForm
-            visit={selectedVisit}
-            onSubmit={handleSubmit}
-            onCancel={() => setShowForm(false)}
+        <div className="mb-6">
+          <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Cari kunjungan (pasien, dokter, keluhan)..."
+                value={searchInput}
+                onChange={handleSearchInputChange}
+                className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10"
+              />
+              <FaSearch className="absolute left-3 top-3 text-gray-400" />
+            </div>
+
+            <button
+              type="submit"
+              className="bg-[#E22345] text-white px-6 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors"
+            >
+              <FaSearch />
+              Cari
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                console.log(
+                  "Filter button clicked, current showFilters:",
+                  showFilters
+                );
+                setShowFilters(!showFilters);
+              }}
+              className={`${
+                showFilters ? "bg-blue-600" : "bg-blue-500"
+              } text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 transition-colors`}
+            >
+              <FaFilter />
+              {showFilters ? "Tutup Filter" : "Buka Filter"}
+            </button>
+            {(search || searchDate) && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Reset
+              </button>
+            )}
+          </form>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Filter Kunjungan
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tanggal Awal Filter
+                  </label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={filters.startDate}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                    placeholder="Pilih tanggal awal"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tanggal Akhir Filter
+                  </label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={filters.endDate}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                    placeholder="Pilih tanggal akhir"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                  >
+                    <option value="">Semua Status</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Selesai">Selesai</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dokter
+                  </label>
+                  <select
+                    name="doctorId"
+                    value={filters.doctorId}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                  >
+                    <option value="">Semua Dokter</option>
+                    {doctors.map((doctor) => (
+                      <option key={doctor.id} value={doctor.id}>
+                        {doctor.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Reset Filter
+                </button>
+                <button
+                  type="button"
+                  onClick={applyFilters}
+                  className="px-4 py-2 bg-[#E22345] text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Terapkan Filter
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(search || searchDate) && (
+            <div className="mt-2 text-sm text-gray-600">
+              Hasil pencarian untuk:
+              {search && <span className="font-medium ml-1">"{search}"</span>}
+              {search && searchDate && <span className="mx-1">dan</span>}
+              {searchDate && (
+                <span className="font-medium">
+                  tanggal {new Date(searchDate).toLocaleDateString("id-ID")}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Active Filters Display */}
+          {(appliedFilters.startDate ||
+            appliedFilters.endDate ||
+            appliedFilters.status ||
+            appliedFilters.doctorId) && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              <span className="text-sm text-gray-600">Filter aktif:</span>
+              {appliedFilters.startDate && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Dari: {appliedFilters.startDate}
+                  <button
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, startDate: "" }));
+                      setAppliedFilters((prev) => ({ ...prev, startDate: "" }));
+                    }}
+                    className="ml-1 text-blue-600 hover:text-blue-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {appliedFilters.endDate && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Sampai: {appliedFilters.endDate}
+                  <button
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, endDate: "" }));
+                      setAppliedFilters((prev) => ({ ...prev, endDate: "" }));
+                    }}
+                    className="ml-1 text-blue-600 hover:text-blue-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {appliedFilters.status && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Status: {appliedFilters.status}
+                  <button
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, status: "" }));
+                      setAppliedFilters((prev) => ({ ...prev, status: "" }));
+                    }}
+                    className="ml-1 text-green-600 hover:text-green-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {appliedFilters.doctorId && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  Dokter:{" "}
+                  {doctors.find(
+                    (d) => d.id.toString() === appliedFilters.doctorId
+                  )?.name || appliedFilters.doctorId}
+                  <button
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, doctorId: "" }));
+                      setAppliedFilters((prev) => ({ ...prev, doctorId: "" }));
+                    }}
+                    className="ml-1 text-purple-600 hover:text-purple-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#E22345]"></div>
+          </div>
+        ) : (
+          <>
+            {/* Visits Table */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        No. Kunjungan
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Pasien
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Dokter
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Unit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Keluhan
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex items-center">Tanggal</div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {visits.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="8"
+                          className="px-6 py-4 text-center text-gray-500"
+                        >
+                          Tidak ada data kunjungan
+                        </td>
+                      </tr>
+                    ) : (
+                      visits.map((visit) => (
+                        <tr key={visit.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {visit.id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {visit.patient?.name || "-"}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              MR: {visit.patient?.mrNumber || "-"}
+                            </div>
+                            {visit.patient?.nip && (
+                              <div className="text-sm text-gray-500">
+                                NIP: {visit.patient.nip}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {visit.doctor?.name || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {visit.room || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                            {visit.complaint || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                visit.status === "Selesai"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              {visit.status || "Aktif"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {visit.visitDate
+                              ? new Date(visit.visitDate).toLocaleDateString(
+                                  "id-ID"
+                                )
+                              : visit.createdAt
+                              ? new Date(visit.createdAt).toLocaleDateString(
+                                  "id-ID"
+                                )
+                              : "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={() => {
+                                setSelectedVisitDetail(visit);
+                                setShowDetailModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-700 mr-3"
+                            >
+                              Detail
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedVisit(visit);
+                                setShowForm(true);
+                              }}
+                              className="text-[#E22345] hover:text-red-700 mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(visit.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Hapus
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Data per page selector and pagination info */}
+            <div className="mt-6 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Data per halaman:</span>
+                <select
+                  value={limit}
+                  onChange={handleLimitChange}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm text-black"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+
+              {metadata.total && (
+                <div className="text-sm text-gray-700">
+                  Menampilkan {(page - 1) * limit + 1} hingga{" "}
+                  {Math.min(page * limit, metadata.total)} dari {metadata.total}{" "}
+                  kunjungan
+                </div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2">
+                <button
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaAngleDoubleLeft />
+                </button>
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaChevronLeft />
+                </button>
+
+                {getPageNumbers().map((pageNum, index) => (
+                  <button
+                    key={index}
+                    onClick={() => pageNum !== "..." && setPage(pageNum)}
+                    disabled={pageNum === "..."}
+                    className={`px-3 py-2 rounded-md text-sm font-medium border ${
+                      pageNum === page
+                        ? "bg-[#E22345] text-white border-[#E22345]"
+                        : pageNum === "..."
+                        ? "border-gray-300 text-gray-400 cursor-default"
+                        : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === totalPages}
+                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaChevronRight />
+                </button>
+                <button
+                  onClick={() => setPage(totalPages)}
+                  disabled={page === totalPages}
+                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaAngleDoubleRight />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Visit Detail Modal */}
+        {showDetailModal && (
+          <VisitDetailModal
+            visit={selectedVisitDetail}
+            onClose={() => {
+              setShowDetailModal(false);
+              setSelectedVisitDetail(null);
+            }}
           />
         )}
 
-        {/* Search and Filter Bar */}
-        <div className="mb-4 space-y-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Cari berdasarkan nama pasien, no RM, dokter, ruangan..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 pr-10 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-            />
-            <FaSearch className="absolute right-3 top-3 text-gray-400" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <select
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              className="px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-            >
-              <option value="">Semua Status</option>
-              <option value="Menunggu">Menunggu</option>
-              <option value="Dalam Pemeriksaan">Dalam Pemeriksaan</option>
-              <option value="Selesai">Selesai</option>
-              <option value="Batal">Batal</option>
-            </select>
-
-            <select
-              name="doctorId"
-              value={filters.doctorId}
-              onChange={handleFilterChange}
-              className="px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-            >
-              <option value="">Semua Dokter</option>
-              {doctors.map((doctor) => (
-                <option key={doctor.id} value={doctor.id}>
-                  {doctor.name}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="date"
-              name="startDate"
-              value={filters.startDate}
-              onChange={handleFilterChange}
-              className="px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-              placeholder="Tanggal Mulai"
-            />
-
-            <input
-              type="date"
-              name="endDate"
-              value={filters.endDate}
-              onChange={handleFilterChange}
-              className="px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-              placeholder="Tanggal Selesai"
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
-            >
-              Reset Filter
-            </button>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div>Loading...</div>
-        ) : (
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="min-w-full table-fixed">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    No. RM
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Nama Pasien
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Dokter
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Ruangan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Keluhan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider w-24">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider w-28">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredVisits.map((visit) => (
-                  <tr key={visit.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      {new Date(visit.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      {visit.patient.mrNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      {visit.patient.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      {visit.doctor.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      {visit.room}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-black">
-                      {visit.complaint}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      <span
-                        className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${
-                          visit.status === "Selesai"
-                            ? "text-green-800 bg-green-100"
-                            : visit.status === "Menunggu"
-                            ? "text-yellow-800 bg-yellow-100"
-                            : visit.status === "Dalam Pemeriksaan"
-                            ? "text-blue-800 bg-blue-100"
-                            : "text-red-800 bg-red-100"
-                        }`}
-                      >
-                        {visit.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                      <button
-                        onClick={() => {
-                          setSelectedVisit(visit);
-                          setShowForm(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(visit.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Hapus
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredVisits.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan="8"
-                      className="px-6 py-4 text-center text-gray-500"
-                    >
-                      Tidak ada data yang sesuai dengan pencarian
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* Visit Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">
+                  {selectedVisit ? "Edit Kunjungan" : "Tambah Kunjungan"}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowForm(false);
+                    setSelectedVisit(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <VisitForm
+                visit={selectedVisit}
+                onSubmit={handleSubmit}
+                onCancel={() => {
+                  setShowForm(false);
+                  setSelectedVisit(null);
+                }}
+              />
+            </div>
           </div>
         )}
       </div>

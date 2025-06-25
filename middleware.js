@@ -7,14 +7,21 @@ export async function middleware(request) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("token");
 
-  // console.log("Middleware running for path:", path);
-  // console.log("JWT_SECRET exists:", !!process.env.JWT_SECRET);
+  // Skip middleware for static files and API routes to improve performance
+  if (
+    path.startsWith("/_next/") ||
+    path.startsWith("/api/") ||
+    path.includes(".") ||
+    path === "/favicon.ico"
+  ) {
+    return NextResponse.next();
+  }
 
   // Tambahkan pengecekan last activity dari cookie
   const lastActivity = request.cookies.get("lastActivity");
-  const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 menit
+  const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam (60 menit)
 
-  if (lastActivity) {
+  if (lastActivity && token) {
     const now = Date.now();
     const lastActivityTime = parseInt(lastActivity.value);
 
@@ -37,7 +44,6 @@ export async function middleware(request) {
         // If token is valid, redirect to dashboard
         return NextResponse.redirect(new URL("/dashboard", request.url));
       } catch (error) {
-        // console.error("Token verification failed in public path:", error);
         // If token verification fails, clear the token and continue
         const response = NextResponse.next();
         response.cookies.delete("token");
@@ -55,9 +61,7 @@ export async function middleware(request) {
 
   try {
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
-    // console.log("Verifying token...");
     const { payload } = await jwtVerify(token.value, secretKey);
-    // console.log("Token verified, payload:", payload);
 
     // Update last activity time
     const response = NextResponse.next();
@@ -89,7 +93,6 @@ export async function middleware(request) {
 
     return response;
   } catch (error) {
-    // console.error("Token verification failed:", error);
     // If token verification fails, redirect to login page
     return NextResponse.redirect(new URL("/login", request.url));
   }
@@ -104,6 +107,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.).*)",
   ],
 };

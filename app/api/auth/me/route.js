@@ -7,17 +7,41 @@ export async function GET(request) {
     const token = request.cookies.get("token");
 
     if (!token && !apiToken) {
-      // console.log("No tokens found in cookies");
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json(null, { status: 200 });
     }
 
-    // Coba dapatkan data dari API eksternal jika ada token
+    // Prioritas: gunakan token internal terlebih dahulu karena lebih cepat
+    if (token) {
+      try {
+        // Decode token (simplified - in production you'd verify the JWT)
+        const [header, payload, signature] = token.value.split(".");
+        if (payload) {
+          const decodedData = JSON.parse(atob(payload));
+
+          const user = {
+            id: decodedData.id || decodedData.sub || decodedData.userId,
+            name: decodedData.name,
+            email: decodedData.email,
+            role: decodedData.role || "USER",
+          };
+
+          // Validasi data user
+          if (user.id && user.name) {
+            return NextResponse.json(user);
+          }
+        }
+      } catch (error) {
+        console.error("Error decoding token:", error);
+      }
+    }
+
+    // Fallback: Coba dapatkan data dari API eksternal jika token internal gagal
     if (apiToken) {
       try {
-        // Request ke API eksternal dengan token
+        // Set timeout untuk external API call
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
         const apiResponse = await fetch(
           "https://api1-dev.doctorphc.id/laboratorium/me",
           {
@@ -26,15 +50,14 @@ export async function GET(request) {
               Accept: "application/json",
             },
             cache: "no-store",
+            signal: controller.signal,
           }
         );
 
-        if (!apiResponse.ok) {
-          // console.error("API Error:", await apiResponse.text());
-          // Continue to fallback if external API fails
-        } else {
+        clearTimeout(timeoutId);
+
+        if (apiResponse.ok) {
           const userData = await apiResponse.json();
-          // console.log("External API Response:", userData);
 
           // Transform data user
           const user = {
@@ -47,48 +70,25 @@ export async function GET(request) {
               "USER",
           };
 
-          // console.log("Transformed user data:", user);
-
           // Validasi data user
           if (user.id && user.name !== "Unknown") {
             return NextResponse.json(user);
           }
         }
       } catch (error) {
-        // console.error("Error fetching from external API:", error);
-        // Continue to fallback if external API fails
-      }
-    }
-
-    // Fallback: Gunakan token internal jika ada
-    if (token) {
-      try {
-        // Decode token (simplified - in production you'd verify the JWT)
-        const [header, payload, signature] = token.value.split(".");
-        if (payload) {
-          const decodedData = JSON.parse(atob(payload));
-          // console.log("Decoded token payload:", decodedData);
-
-          return NextResponse.json({
-            id: decodedData.id || decodedData.sub,
-            name: decodedData.name,
-            email: decodedData.email,
-            role: decodedData.role || "USER",
-          });
+        // Jika timeout atau error lainnya, lanjutkan ke fallback
+        if (error.name === "AbortError") {
+          console.log("External API call timed out");
+        } else {
+          console.error("Error fetching from external API:", error);
         }
-      } catch (error) {
-        // console.error("Error decoding token:", error);
       }
     }
 
     // If we reach here, all methods failed
-    // console.log("All authentication methods failed");
-    return NextResponse.json(null);
+    return NextResponse.json(null, { status: 200 });
   } catch (error) {
     console.error("Error in /api/auth/me:", error);
-    return NextResponse.json(
-      { error: "Authentication failed" },
-      { status: 401 }
-    );
+    return NextResponse.json(null, { status: 200 });
   }
 }

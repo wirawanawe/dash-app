@@ -257,8 +257,6 @@ export default function LoginPage() {
           >
             {isLoading ? "Loading..." : "Login"}
           </button>
-
-         
         </form>
       </div>
     </div>

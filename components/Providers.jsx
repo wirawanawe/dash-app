@@ -11,6 +11,15 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+// Helper function to get cookie
+function getCookie(name) {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(";").shift();
+  return null;
+}
+
 export function Providers({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,10 +28,19 @@ export function Providers({ children }) {
 
   // Tambahkan state untuk tracking aktivitas
   const [lastActivity, setLastActivity] = useState(Date.now());
-  const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 menit dalam milidetik
+  const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam (60 menit)
 
   useEffect(() => {
-    checkAuth();
+    // Only check auth if there's a token in cookies
+    const token = getCookie("token");
+    const apiToken = getCookie("api_token");
+
+    if (token || apiToken) {
+      checkAuth();
+    } else {
+      // No tokens found, set loading to false immediately
+      setLoading(false);
+    }
 
     // Reset timer setiap ada aktivitas
     const resetTimer = () => {
@@ -38,7 +56,7 @@ export function Providers({ children }) {
     // Cek session timeout setiap 30 detik
     const interval = setInterval(() => {
       const now = Date.now();
-      if (now - lastActivity >= SESSION_TIMEOUT) {
+      if (now - lastActivity >= SESSION_TIMEOUT && user) {
         handleSessionTimeout();
       }
     }, 30000);
@@ -51,13 +69,20 @@ export function Providers({ children }) {
       window.removeEventListener("scroll", resetTimer);
       clearInterval(interval);
     };
-  }, [pathname, lastActivity]);
+  }, [pathname]);
 
   const checkAuth = async () => {
     try {
-      const response = await fetch("/api/auth/me");
-      const data = await response.json();
-      setUser(data);
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+      } else {
+        setUser(null);
+      }
     } catch (error) {
       console.error("Auth check failed:", error);
       setUser(null);

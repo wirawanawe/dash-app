@@ -139,19 +139,23 @@ export default function PatientsPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 pb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Daftar Pasien</h1>
+      <div className="container mx-auto px-2 lg:px-4 pb-8 mobile-safe">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 lg:mb-6 gap-4 lg:gap-0">
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+            Daftar Pasien
+          </h1>
+
+          {/* Desktop Add Button */}
           <Link
             href="/patients/new"
-            className="bg-[#E22345] text-white px-4 py-2 rounded-lg hover:bg-red-600 flex items-center"
+            className="hidden lg:flex bg-[#E22345] text-white px-6 py-2 rounded-lg hover:bg-red-600 items-center gap-2 transition-colors"
           >
-            <FaPlus className="mr-2" />
+            <FaPlus />
             Tambah Pasien
           </Link>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4 lg:mb-6">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <input
@@ -159,29 +163,29 @@ export default function PatientsPage() {
                 placeholder="Cari pasien (nama, NIK, No. MR)..."
                 value={searchInput}
                 onChange={handleSearchInputChange}
-                className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10"
+                className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10 mobile-input text-sm lg:text-base"
               />
               <FaSearch className="absolute left-3 top-3 text-gray-400" />
             </div>
             <button
               type="submit"
-              className="bg-[#E22345] text-white px-6 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors"
+              className="bg-[#E22345] text-white px-4 lg:px-6 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors mobile-btn"
             >
-              <FaSearch />
-              Cari
+              <FaSearch className="lg:hidden" />
+              <span className="hidden lg:inline">Cari</span>
             </button>
             {search && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                className="bg-gray-500 text-white px-3 lg:px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm lg:text-base"
               >
                 Reset
               </button>
             )}
           </form>
           {search && (
-            <div className="mt-2 text-sm text-gray-600">
+            <div className="mt-2 text-xs lg:text-sm text-gray-600">
               Hasil pencarian untuk: "
               <span className="font-medium">{search}</span>"
             </div>
@@ -197,101 +201,108 @@ export default function PatientsPage() {
             <PatientTable patients={patients} onRefresh={fetchPatients} />
 
             {/* Data per page selector and pagination info */}
-            <div className="mt-6 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-700">
+            <div className="mt-6 mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                <div className="text-xs lg:text-sm text-gray-700">
                   Menampilkan {(page - 1) * limit + 1} -{" "}
                   {Math.min(page * limit, metadata.total || 0)} dari{" "}
                   {metadata.total || 0} data
                 </div>
                 <div className="flex items-center gap-2">
-                  <label htmlFor="limit" className="text-sm text-gray-700">
+                  <label
+                    htmlFor="limit"
+                    className="text-xs lg:text-sm text-gray-700"
+                  >
                     Data per halaman:
                   </label>
                   <select
                     id="limit"
                     value={limit}
                     onChange={handleLimitChange}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#E22345] focus:border-transparent"
+                    className="border rounded px-2 py-1 text-xs lg:text-sm text-black mobile-input"
                   >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
                   </select>
                 </div>
               </div>
 
-              {/* Enhanced Pagination */}
+              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1 lg:gap-2">
                   {/* First page button */}
                   <button
                     onClick={() => setPage(1)}
                     disabled={page === 1}
-                    className="p-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                    title="Halaman pertama"
+                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
                   >
-                    <FaAngleDoubleLeft className="w-4 h-4" />
+                    <FaAngleDoubleLeft className="h-3 w-3 lg:h-4 lg:w-4" />
                   </button>
 
                   {/* Previous page button */}
                   <button
                     onClick={() => setPage(page - 1)}
                     disabled={page === 1}
-                    className="p-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                    title="Halaman sebelumnya"
+                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
                   >
-                    <FaChevronLeft className="w-4 h-4" />
+                    <FaChevronLeft className="h-3 w-3 lg:h-4 lg:w-4" />
                   </button>
 
                   {/* Page numbers */}
-                  <div className="flex items-center gap-1">
-                    {getPageNumbers().map((pageNum, index) => (
-                      <button
-                        key={index}
-                        onClick={() =>
-                          typeof pageNum === "number" && setPage(pageNum)
-                        }
-                        disabled={pageNum === "..."}
-                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                          pageNum === page
-                            ? "bg-[#E22345] text-white border border-[#E22345]"
-                            : pageNum === "..."
-                            ? "text-gray-400 cursor-default"
-                            : "text-gray-700 border border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    ))}
-                  </div>
+                  {getPageNumbers().map((pageNum, index) => (
+                    <button
+                      key={index}
+                      onClick={() =>
+                        typeof pageNum === "number" && setPage(pageNum)
+                      }
+                      disabled={typeof pageNum !== "number"}
+                      className={`px-2 lg:px-3 py-1 lg:py-2 rounded-lg text-xs lg:text-sm border mobile-btn ${
+                        pageNum === page
+                          ? "bg-[#E22345] text-white border-[#E22345]"
+                          : "hover:bg-gray-50"
+                      } ${
+                        typeof pageNum !== "number"
+                          ? "cursor-default"
+                          : "cursor-pointer"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
 
                   {/* Next page button */}
                   <button
                     onClick={() => setPage(page + 1)}
                     disabled={page === totalPages}
-                    className="p-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                    title="Halaman selanjutnya"
+                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
                   >
-                    <FaChevronRight className="w-4 h-4" />
+                    <FaChevronRight className="h-3 w-3 lg:h-4 lg:w-4" />
                   </button>
 
                   {/* Last page button */}
                   <button
                     onClick={() => setPage(totalPages)}
                     disabled={page === totalPages}
-                    className="p-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
-                    title="Halaman terakhir"
+                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
                   >
-                    <FaAngleDoubleRight className="w-4 h-4" />
+                    <FaAngleDoubleRight className="h-3 w-3 lg:h-4 lg:w-4" />
                   </button>
                 </div>
               )}
             </div>
           </>
         )}
+
+        {/* Mobile Floating Action Button */}
+        <Link
+          href="/patients/new"
+          className="lg:hidden fixed bottom-6 right-6 bg-[#E22345] text-white p-4 rounded-full shadow-lg hover:bg-red-600 transition-colors z-10 mobile-btn"
+          title="Tambah Pasien"
+        >
+          <FaPlus className="h-6 w-6" />
+        </Link>
       </div>
     </DashboardLayout>
   );

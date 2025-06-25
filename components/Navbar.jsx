@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "./Providers";
 import { useRouter } from "next/navigation";
-import { FaUser, FaCaretDown } from "react-icons/fa";
+import { FaUser, FaCaretDown, FaBars, FaBell } from "react-icons/fa";
 
-const Navbar = () => {
+const Navbar = ({ onToggleSidebar }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -61,38 +61,39 @@ const Navbar = () => {
     <nav className="bg-[#E22345] shadow-md fixed w-full z-10">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          {/* Logo dan Brand */}
-          <div className="flex items-center">
-            <span className="text-xl font-semibold text-white">Dashboard</span>
+          {/* Logo dan Brand dengan Hamburger Menu */}
+          <div className="flex items-center space-x-4">
+            {/* Hamburger Menu untuk Mobile */}
+            <button
+              onClick={onToggleSidebar}
+              className="lg:hidden p-2 rounded-md hover:bg-red-600 transition-colors"
+            >
+              <FaBars className="h-5 w-5 text-white" />
+            </button>
+
+            <span className="text-lg lg:text-xl font-semibold text-white">
+              Dashboard
+            </span>
           </div>
 
           {/* Menu Kanan */}
-          <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full hover:bg-red-600">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                />
-              </svg>
+          <div className="flex items-center space-x-2 lg:space-x-4">
+            <button className="p-2 rounded-full hover:bg-red-600 transition-colors">
+              <FaBell className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
             </button>
+
             <div className="relative">
               <button
                 onClick={toggleDropdown}
                 className="flex items-center space-x-2 text-white bg-red-600 hover:bg-red-700 py-2 px-3 rounded-full focus:outline-none transition-colors"
               >
                 <div className="flex items-center">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white text-red-600 font-semibold mr-2">
+                  <div className="flex items-center justify-center h-7 w-7 lg:h-8 lg:w-8 rounded-full bg-white text-red-600 font-semibold mr-2">
                     {getUserInitial()}
                   </div>
-                  <span className="hidden md:inline">{userName || "User"}</span>
+                  <span className="hidden sm:inline text-sm lg:text-base">
+                    {userName || "User"}
+                  </span>
                   <FaCaretDown className="ml-2" />
                 </div>
               </button>
@@ -105,7 +106,7 @@ const Navbar = () => {
                       router.push("/profile");
                       setIsDropdownOpen(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center">
                       <svg
@@ -129,7 +130,7 @@ const Navbar = () => {
                       logout();
                       setIsDropdownOpen(false);
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center">
                       <svg
