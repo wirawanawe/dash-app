@@ -90,14 +90,36 @@ export async function POST(request) {
 
     try {
       // Cari user di database dengan informasi klinik
-      const sql = `
-        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active, u.clinic_id, 
-                c.name as clinic_name, c.code as clinic_code 
-              FROM users u 
-              LEFT JOIN polyclinics c ON u.clinic_id = c.id 
-              WHERE u.email = ?
+      // Pertama coba tanpa JOIN untuk mengecek apakah tabel users ada
+      let sql = `
+        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active, u.clinic_id
+        FROM users u 
+        WHERE u.email = ?
       `;
-      const [user] = await query(sql, [email]);
+      let [user] = await query(sql, [email]);
+
+      // Jika user ditemukan, coba ambil data klinik jika tabel polyclinics ada
+      if (user) {
+        try {
+          const clinicSql = `
+            SELECT c.name as clinic_name, c.code as clinic_code 
+            FROM polyclinics c 
+            WHERE c.id = ?
+          `;
+          const [clinic] = await query(clinicSql, [user.clinic_id]);
+          if (clinic) {
+            user.clinic_name = clinic.clinic_name;
+            user.clinic_code = clinic.clinic_code;
+          }
+        } catch (clinicError) {
+          // Tabel polyclinics tidak ada, lanjutkan tanpa data klinik
+          console.log(
+            "Polyclinics table not found, continuing without clinic data"
+          );
+          user.clinic_name = null;
+          user.clinic_code = null;
+        }
+      }
 
       if (!user) {
         return NextResponse.json(
@@ -154,13 +176,14 @@ export async function POST(request) {
         email: user.email,
         role: user.role.toUpperCase(),
         clinic_id: user.clinic_id,
-        clinic: user.clinic_id
-          ? {
-              id: user.clinic_id,
-              name: user.clinic_name,
-              code: user.clinic_code,
-            }
-          : null,
+        clinic:
+          user.clinic_id && user.clinic_name
+            ? {
+                id: user.clinic_id,
+                name: user.clinic_name,
+                code: user.clinic_code,
+              }
+            : null,
       };
 
       const response = NextResponse.json(
@@ -189,22 +212,60 @@ export async function POST(request) {
 
       return response;
     } catch (dbError) {
-      // console.error("Database error during login:", dbError);
+      console.error("Database error during login:", dbError);
 
       // Fallback to hardcoded admin if database error
       if (email === "admin@phc.com" && password === "admin123") {
-        // console.log("Fallback to admin login after database error");
+        console.log("Fallback to admin login after database error");
 
-        // Create the same response as above for admin
-        // ... implementation same as above admin login ...
+        const adminUser = {
+          id: "admin-001",
+          name: "Administrator",
+          email: "admin@phc.com",
+          role: "ADMIN",
+          clinic_id: null,
+          clinic: null,
+        };
 
-        return NextResponse.json(
+        // Create a JWT token
+        const token = await new SignJWT({
+          userId: adminUser.id,
+          id: adminUser.id,
+          name: adminUser.name,
+          email: adminUser.email,
+          role: adminUser.role,
+          clinic_id: null,
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setIssuedAt()
+          .setExpirationTime("1d")
+          .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+        const response = NextResponse.json(
           {
-            success: false,
-            message: "Database error. Only hardcoded admin login available.",
+            success: true,
+            message: "Login berhasil (fallback mode)",
+            user: adminUser,
           },
-          { status: 500 }
+          { status: 200 }
         );
+
+        const cookieOptions = {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 86400, // 1 day
+          path: "/",
+        };
+
+        response.cookies.set("token", token, cookieOptions);
+        response.cookies.set(
+          "lastActivity",
+          Date.now().toString(),
+          cookieOptions
+        );
+
+        return response;
       }
 
       return NextResponse.json(

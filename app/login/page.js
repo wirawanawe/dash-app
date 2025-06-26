@@ -158,12 +158,37 @@ export default function LoginPage() {
       const userData = await userResponse.json();
       console.log("User data received:", userData);
 
-      if (!userData || !userData.id) {
+      // Improved validation with more specific error messages
+      if (!userData) {
         setDebugInfo({
-          error: "User data is invalid",
+          error: "User data is null",
           data: userData,
         });
-        throw new Error("Invalid user data received");
+        throw new Error("No user data received from server");
+      }
+
+      if (!userData.id) {
+        setDebugInfo({
+          error: "User ID is missing",
+          data: userData,
+        });
+        throw new Error("User ID is missing from server response");
+      }
+
+      if (!userData.name) {
+        setDebugInfo({
+          error: "User name is missing",
+          data: userData,
+        });
+        throw new Error("User name is missing from server response");
+      }
+
+      if (!userData.email) {
+        setDebugInfo({
+          error: "User email is missing",
+          data: userData,
+        });
+        throw new Error("User email is missing from server response");
       }
 
       setUser(userData);

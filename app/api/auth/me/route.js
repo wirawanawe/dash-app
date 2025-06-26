@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyJwtToken } from "@/lib/auth";
 
 export async function GET(request) {
   try {
@@ -13,25 +14,27 @@ export async function GET(request) {
     // Prioritas: gunakan token internal terlebih dahulu karena lebih cepat
     if (token) {
       try {
-        // Decode token (simplified - in production you'd verify the JWT)
-        const [header, payload, signature] = token.value.split(".");
-        if (payload) {
-          const decodedData = JSON.parse(atob(payload));
+        // Gunakan verifyJwtToken untuk memastikan token valid
+        const payload = await verifyJwtToken(token.value);
 
+        if (payload) {
           const user = {
-            id: decodedData.id || decodedData.sub || decodedData.userId,
-            name: decodedData.name,
-            email: decodedData.email,
-            role: decodedData.role || "USER",
+            id: payload.id || payload.sub || payload.userId,
+            name: payload.name,
+            email: payload.email,
+            role: payload.role || "USER",
+            clinic_id: payload.clinic_id || null,
           };
 
-          // Validasi data user
-          if (user.id && user.name) {
+          // Validasi data user - pastikan memiliki id dan name
+          if (user.id && user.name && user.email) {
             return NextResponse.json(user);
+          } else {
+            console.error("Invalid user data from token:", user);
           }
         }
       } catch (error) {
-        console.error("Error decoding token:", error);
+        console.error("Error verifying token:", error);
       }
     }
 
@@ -68,12 +71,17 @@ export async function GET(request) {
               userData.data?.level?.LevelName ||
               userData.level?.LevelName ||
               "USER",
+            clinic_id: null,
           };
 
-          // Validasi data user
-          if (user.id && user.name !== "Unknown") {
+          // Validasi data user - pastikan memiliki id dan name yang valid
+          if (user.id && user.name && user.name !== "Unknown" && user.email) {
             return NextResponse.json(user);
+          } else {
+            console.error("Invalid user data from external API:", user);
           }
+        } else {
+          console.error("External API response not ok:", apiResponse.status);
         }
       } catch (error) {
         // Jika timeout atau error lainnya, lanjutkan ke fallback
@@ -86,6 +94,7 @@ export async function GET(request) {
     }
 
     // If we reach here, all methods failed
+    console.log("All authentication methods failed, returning null");
     return NextResponse.json(null, { status: 200 });
   } catch (error) {
     console.error("Error in /api/auth/me:", error);
