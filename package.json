@@ -10,14 +10,16 @@
     "lint": "next lint",
     "db:setup": "node scripts/init-db.js",
     "debug-db": "node debug-database.js",
-    "pm2:dev": "pm2 start ecosystem.config.cjs --env development",
-    "pm2:prod": "pm2 start ecosystem.config.cjs --env production",
+    "fix-db-user": "node fix-db-user.sh",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
     "pm2:stop": "pm2 stop dash-app",
     "pm2:restart": "pm2 restart dash-app",
+    "pm2:reload": "pm2 reload dash-app",
     "pm2:delete": "pm2 delete dash-app",
     "pm2:logs": "pm2 logs dash-app",
-    "pm2:status": "pm2 status",
-    "deploy": "npm run build && pm2 reload ecosystem.config.cjs --env production"
+    "pm2:status": "pm2 list",
+    "pm2:save": "pm2 save",
+    "deploy": "npm run build && npm run pm2:reload"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "postcss": "^8",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "pm2": "^5.3.0"
   }
 }

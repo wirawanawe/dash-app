@@ -1,42 +1,39 @@
 #!/bin/bash
 
-# Exit on error
-set -e
+echo "Installing PM2 and setting up dash-app..."
 
-echo "Installing PM2 globally..."
-npm install -g pm2
+# Install PM2 globally if not already installed
+if ! command -v pm2 &> /dev/null; then
+    echo "Installing PM2 globally..."
+    npm install -g pm2
+else
+    echo "PM2 is already installed"
+fi
 
-echo "Creating PM2 ecosystem file..."
-cat > ecosystem.config.cjs << 'EOL'
-module.exports = {
-  apps: [{
-    name: 'dash-app',
-    script: 'npm',
-    args: 'start',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G'
-  }]
-}
-EOL
+# Install dependencies
+echo "Installing project dependencies..."
+npm install
 
+# Build the Next.js application
+echo "Building the application..."
+npm run build
+
+# Create logs directory if it doesn't exist
+mkdir -p logs
+
+# Start the application with PM2
 echo "Starting application with PM2..."
-pm2 start ecosystem.config.cjs
+pm2 start ecosystem.config.js --env production
 
-echo "Saving PM2 process list..."
+# Save PM2 configuration
+echo "Saving PM2 configuration..."
 pm2 save
 
-echo "Setting up PM2 to start on system boot..."
+# Setup PM2 startup script
+echo "Setting up PM2 startup script..."
 pm2 startup
 
-echo "PM2 installation and configuration completed!"
-echo "You can use the following commands:"
-echo "  - pm2 status         # Check application status"
-echo "  - pm2 logs           # View application logs"
-echo "  - pm2 restart all    # Restart the application"
-echo "  - pm2 stop all       # Stop the application" 
+echo "Installation complete!"
+echo "Use 'pm2 list' to check application status"
+echo "Use 'pm2 logs dash-app' to view logs"
+echo "Use 'pm2 restart dash-app' to restart the application" 

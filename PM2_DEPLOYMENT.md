@@ -1,247 +1,210 @@
-# PM2 Deployment Guide
+# PM2 Deployment Guide for Dash App
 
-## Overview
-
-This guide covers deploying the dash-app application using PM2 process manager for production environments.
+This guide covers deploying the Next.js dash-app using PM2 (Process Manager 2).
 
 ## Prerequisites
 
-1. **Node.js** (version 18+ recommended)
-2. **PM2** installed globally
-3. **MySQL** database running
-4. **Git** for version control
+- Node.js (v18 or higher)
+- npm or yarn
+- PM2 installed globally
 
-## Installation
+## Quick Setup
 
-### 1. Install PM2 Globally
+### 1. Install PM2 and Setup Application
 
 ```bash
+# Make the installation script executable
+chmod +x install-pm2.sh
+
+# Run the installation script
+./install-pm2.sh
+```
+
+### 2. Manual Setup (Alternative)
+
+```bash
+# Install PM2 globally
 npm install -g pm2
-```
 
-### 2. Install Project Dependencies
+# Install project dependencies
+npm install
 
-```bash
-npm ci
-```
-
-### 3. Setup Environment Variables
-
-Create a `.env.production` file with your production configuration:
-
-```bash
-NODE_ENV=production
-PORT=3000
-DB_HOST=your_db_host
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-DB_NAME=phc_dashboard
-JWT_SECRET=your_jwt_secret
-```
-
-## Deployment Commands
-
-### Quick Deploy
-
-```bash
-# Build and deploy in one command
-./deploy.sh
-```
-
-### Manual Deploy Steps
-
-```bash
-# 1. Build the application
+# Build the application
 npm run build
 
-# 2. Start with PM2
-pm2 start ecosystem.config.cjs --env production
+# Start with PM2
+pm2 start ecosystem.config.js --env production
 
-# 3. Save PM2 configuration
+# Save PM2 configuration
 pm2 save
+
+# Setup PM2 to start on system boot
+pm2 startup
 ```
 
-## PM2 Management Commands
+## Management Commands
 
 ### Using npm scripts:
 
 ```bash
-npm run pm2:prod      # Start in production mode
-npm run pm2:stop      # Stop the application
-npm run pm2:restart   # Restart the application
-npm run pm2:logs      # View logs
-npm run pm2:status    # Check status
-npm run deploy        # Build and reload
+# Start the application
+npm run pm2:start
+
+# Stop the application
+npm run pm2:stop
+
+# Restart the application
+npm run pm2:restart
+
+# Reload the application (zero downtime)
+npm run pm2:reload
+
+# Check application status
+npm run pm2:status
+
+# View logs
+npm run pm2:logs
+
+# Deploy (build and reload)
+npm run deploy
 ```
 
-### Using the management script:
+### Using the PM2 commands script:
 
 ```bash
-./pm2-commands.sh start     # Start application
-./pm2-commands.sh stop      # Stop application
-./pm2-commands.sh restart   # Restart application
-./pm2-commands.sh reload    # Zero-downtime reload
-./pm2-commands.sh logs      # View logs
-./pm2-commands.sh status    # Check status
-./pm2-commands.sh monitor   # Open monitoring dashboard
+# Make the script executable
+chmod +x pm2-commands.sh
+
+# Use the commands
+./pm2-commands.sh start
+./pm2-commands.sh stop
+./pm2-commands.sh restart
+./pm2-commands.sh reload
+./pm2-commands.sh logs
+./pm2-commands.sh status
+./pm2-commands.sh update
 ```
 
-### Direct PM2 commands:
+## PM2 Configuration
+
+The `ecosystem.config.js` file contains the PM2 configuration:
+
+- **Application Name**: dash-app
+- **Script**: npm start (Next.js production server)
+- **Instances**: 1 (can be increased for load balancing)
+- **Memory Limit**: 1GB
+- **Auto Restart**: Enabled
+- **Logs**: Saved to `./logs/` directory
+
+## Environment Variables
+
+Make sure to set up your environment variables:
 
 ```bash
-pm2 status                  # Show all processes
-pm2 logs dash-app          # Show logs
-pm2 restart dash-app       # Restart app
-pm2 reload dash-app        # Zero-downtime restart
-pm2 stop dash-app          # Stop app
-pm2 delete dash-app        # Remove app from PM2
-pm2 monit                  # Open monitoring dashboard
+# Create .env.production file
+NODE_ENV=production
+PORT=3000
+JWT_SECRET=your-jwt-secret
+DB_HOST=your-db-host
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
+DB_NAME=your-db-name
 ```
 
-## Configuration Files
+## Monitoring
 
-### ecosystem.config.cjs
-
-Main PM2 configuration file with:
-
-- Application settings
-- Environment variables
-- Logging configuration
-- Resource limits
-- Restart policies
-
-### server.js
-
-Custom server with:
-
-- Graceful shutdown handling
-- Error handling
-- PM2 integration signals
-- Process management
-
-## Monitoring and Logs
-
-### Log Files Location
-
-- Combined logs: `./logs/pm2-combined.log`
-- Error logs: `./logs/pm2-error.log`
-- Output logs: `./logs/pm2-out.log`
-
-### Monitoring Commands
+### View Application Status
 
 ```bash
-pm2 status              # Quick status overview
-pm2 monit              # Real-time monitoring
-pm2 logs dash-app      # Follow logs
-pm2 describe dash-app  # Detailed process info
+pm2 list
 ```
 
-## Production Best Practices
+### View Logs
 
-### 1. Environment Setup
+```bash
+pm2 logs dash-app
+pm2 logs dash-app --lines 50
+```
 
-- Use `.env.production` for production variables
-- Set `NODE_ENV=production`
-- Use strong JWT secrets
-- Configure proper database credentials
+### Monitor Resources
 
-### 2. Process Management
+```bash
+pm2 monit
+```
 
-- Use `pm2 reload` for zero-downtime deployments
-- Monitor memory usage and set restart limits
-- Enable auto-restart on crashes
-- Save PM2 configuration with `pm2 save`
+### Flush Logs
 
-### 3. Security
+```bash
+pm2 flush
+```
 
-- Run PM2 as non-root user when possible
-- Use proper firewall rules
-- Keep dependencies updated
-- Use HTTPS in production
+## Auto-Deployment
 
-### 4. Performance
+The ecosystem.config.js includes deployment configuration. Update the deploy section with your server details:
 
-- Adjust memory limits based on server capacity
-- Monitor CPU and memory usage
-- Use clustering for high-traffic applications
-- Implement proper caching strategies
+```javascript
+deploy: {
+  production: {
+    user: 'your-username',
+    host: 'your-server-ip',
+    ref: 'origin/master',
+    repo: 'your-git-repository',
+    path: '/path/to/deployment',
+    'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production'
+  }
+}
+```
+
+Then deploy with:
+
+```bash
+pm2 deploy production setup
+pm2 deploy production
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Application Won't Start
 
-1. **Application not starting:**
+1. Check logs: `pm2 logs dash-app`
+2. Verify build completed: `npm run build`
+3. Check environment variables
+4. Ensure database is accessible
 
-   ```bash
-   pm2 logs dash-app --lines 50
-   ```
+### High Memory Usage
 
-2. **Memory issues:**
+1. Monitor with: `pm2 monit`
+2. Adjust `max_memory_restart` in ecosystem.config.js
+3. Consider enabling clustering (increase instances)
 
-   ```bash
-   pm2 describe dash-app
-   ```
+### Process Keeps Restarting
 
-3. **Database connection errors:**
+1. Check error logs: `pm2 logs dash-app --err`
+2. Verify all dependencies are installed
+3. Check database connection
+4. Review application code for uncaught exceptions
 
-   - Check database credentials
-   - Verify database server is running
-   - Check network connectivity
+## Best Practices
 
-4. **Port already in use:**
-   ```bash
-   pm2 delete dash-app
-   pm2 start ecosystem.config.cjs --env production
-   ```
+1. **Always build before deployment**: `npm run build`
+2. **Use reload instead of restart** for zero downtime: `pm2 reload dash-app`
+3. **Monitor logs regularly**: `pm2 logs dash-app`
+4. **Save PM2 configuration**: `pm2 save`
+5. **Setup startup script** for auto-start on server reboot: `pm2 startup`
+6. **Regular backups** of your PM2 configuration and application data
 
-### Health Checks
+## Commands Reference
 
-```bash
-# Check if application is responding
-curl http://localhost:3000
-
-# Check PM2 process status
-pm2 status
-
-# Check logs for errors
-pm2 logs dash-app --err --lines 20
-```
-
-## Backup and Recovery
-
-### Save Current Configuration
-
-```bash
-pm2 save
-```
-
-### Restore Configuration
-
-```bash
-pm2 resurrect
-```
-
-### Startup Script (Auto-start on boot)
-
-```bash
-pm2 startup
-# Follow the instructions shown
-pm2 save
-```
-
-## Scripts Reference
-
-| Script              | Description             |
-| ------------------- | ----------------------- |
-| `./deploy.sh`       | Full deployment script  |
-| `./pm2-commands.sh` | PM2 management commands |
-| `./install-pm2.sh`  | PM2 installation script |
-
-## Support
-
-For issues or questions:
-
-1. Check the logs: `pm2 logs dash-app`
-2. Review the configuration: `pm2 describe dash-app`
-3. Check the troubleshooting section above
-4. Contact the development team
+| Command                         | Description                        |
+| ------------------------------- | ---------------------------------- |
+| `pm2 start ecosystem.config.js` | Start application                  |
+| `pm2 stop dash-app`             | Stop application                   |
+| `pm2 restart dash-app`          | Restart application                |
+| `pm2 reload dash-app`           | Reload application (zero downtime) |
+| `pm2 delete dash-app`           | Remove application from PM2        |
+| `pm2 list`                      | Show all running applications      |
+| `pm2 logs dash-app`             | Show application logs              |
+| `pm2 monit`                     | Open monitoring dashboard          |
+| `pm2 save`                      | Save current PM2 configuration     |
+| `pm2 resurrect`                 | Restore saved PM2 configuration    |
+| `pm2 startup`                   | Setup PM2 to start on system boot  |
