@@ -11,7 +11,7 @@
     "db:setup": "node scripts/init-db.js",
     "debug-db": "node debug-database.js",
     "fix-db-user": "node fix-db-user.sh",
-    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:start": "pm2 start ecosystem.config.cjs --env production",
     "pm2:stop": "pm2 stop dash-app",
     "pm2:restart": "pm2 restart dash-app",
     "pm2:reload": "pm2 reload dash-app",
@@ -23,23 +23,23 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "dotenv": "^16.5.0",
-    "jose": "^6.0.4",
+    "dotenv": "^16.4.5",
+    "jose": "^5.9.6",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "mysql2": "^3.14.1",
-    "next": "15.1.7",
+    "next": "14.2.30",
     "node-fetch": "^3.3.2",
     "path": "^0.12.7",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-hot-toast": "^2.5.2",
-    "react-icons": "^5.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1",
+    "react-icons": "^5.3.0",
     "url": "^0.11.4"
   },
   "devDependencies": {
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "pm2": "^5.3.0"
+    "pm2": "^6.0.8"
   }
 }

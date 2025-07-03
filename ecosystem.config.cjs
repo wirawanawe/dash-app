@@ -38,7 +38,7 @@ module.exports = {
       path: "/var/www/dash-app",
       "pre-deploy-local": "",
       "post-deploy":
-        "npm install && npm run build && pm2 reload ecosystem.config.js --env production",
+        "npm install && npm run build && pm2 reload ecosystem.config.cjs --env production",
       "pre-setup": "",
     },
   },

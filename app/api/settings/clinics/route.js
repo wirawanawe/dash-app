@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { jwtVerify } from "jose";
 
+export const dynamic = "force-dynamic";
+
 // Helper function to verify authenticated user
 async function verifyAuth(request) {
   // Try to get token from cookies first
