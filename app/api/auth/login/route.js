@@ -73,9 +73,10 @@ export async function POST(request) {
       const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 86400, // 1 day
         path: "/",
+        domain: process.env.NODE_ENV === "production" ? undefined : undefined,
       };
 
       response.cookies.set("token", token, cookieOptions);
@@ -253,9 +254,10 @@ export async function POST(request) {
         const cookieOptions = {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
+          sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
           maxAge: 86400, // 1 day
           path: "/",
+          domain: process.env.NODE_ENV === "production" ? undefined : undefined,
         };
 
         response.cookies.set("token", token, cookieOptions);
