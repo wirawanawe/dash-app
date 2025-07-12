@@ -97,17 +97,6 @@ export async function GET(request) {
 
     // If we reach here, all methods failed
     console.log("All authentication methods failed, returning null");
-
-    // In production, log more details for debugging
-    if (
-      process.env.NODE_ENV === "production" &&
-      process.env.DEBUG_MODE === "true"
-    ) {
-      console.log("DEBUG: Token cookie exists?", !!token);
-      console.log("DEBUG: API token cookie exists?", !!apiToken);
-      console.log("DEBUG: JWT_SECRET exists?", !!process.env.JWT_SECRET);
-    }
-
     return NextResponse.json(null, { status: 200 });
   } catch (error) {
     console.error("Error in /api/auth/me:", error);

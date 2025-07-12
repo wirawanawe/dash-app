@@ -10,10 +10,7 @@
     "lint": "next lint",
     "db:setup": "node scripts/init-db.js",
     "debug-db": "node debug-database.js",
-    "fix-db-user": "node fix-db-user.sh",
-    "production-debug": "node production-debug.js",
-    "setup-production": "bash setup-production.sh",
-    "fix-login": "bash fix-production-login.sh"
+    "fix-db-user": "node fix-db-user.sh"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
