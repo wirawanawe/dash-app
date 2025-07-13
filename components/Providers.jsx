@@ -11,15 +11,6 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-// Helper function to get cookie
-function getCookie(name) {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-}
-
 export function Providers({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,16 +22,8 @@ export function Providers({ children }) {
   const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam (60 menit)
 
   useEffect(() => {
-    // Only check auth if there's a token in cookies
-    const token = getCookie("token");
-    const apiToken = getCookie("api_token");
-
-    if (token || apiToken) {
-      checkAuth();
-    } else {
-      // No tokens found, set loading to false immediately
-      setLoading(false);
-    }
+    // Always check auth on mount - no need to check cookies since they're httpOnly
+    checkAuth();
 
     // Reset timer setiap ada aktivitas
     const resetTimer = () => {
@@ -73,14 +56,17 @@ export function Providers({ children }) {
 
   const checkAuth = async () => {
     try {
+      console.log("Checking authentication");
       const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Auth check result:", !!data);
         setUser(data);
       } else {
+        console.log("Auth check failed - response not ok");
         setUser(null);
       }
     } catch (error) {

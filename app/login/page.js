@@ -7,14 +7,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/components/Providers";
 
-// Helper function to get cookie
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-  return null;
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
@@ -25,17 +17,6 @@ export default function LoginPage() {
   });
   const [debugInfo, setDebugInfo] = useState(null);
 
-  // Check if token exists on page load
-  useEffect(() => {
-    const token = getCookie("token");
-    if (token) {
-      console.log(
-        "Token found in cookies on page load, redirecting to dashboard"
-      );
-      router.push("/dashboard");
-    }
-  }, [router]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -43,13 +24,6 @@ export default function LoginPage() {
 
     try {
       console.log("Login attempt with:", { email: formData.email });
-
-      if (
-        formData.email === "admin@phc.com" &&
-        formData.password === "admin123"
-      ) {
-        console.log("Using hardcoded admin credentials");
-      }
 
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -89,69 +63,21 @@ export default function LoginPage() {
         throw new Error(data.message || "Login response indicates failure");
       }
 
-      console.log("Login successful, checking cookies");
+      console.log("Login successful, fetching user data");
 
-      // Check if token cookie was properly set
-      const token = getCookie("token");
-      console.log(
-        "Token cookie after login:",
-        token ? "Found" : "Not found",
-        token ? token.substring(0, 20) + "..." : ""
-      );
-
-      if (!token) {
-        console.log("Token cookie not found, setting it manually");
-        // Get token from cookies in response headers
-        const setCookieHeader = response.headers?.get("set-cookie");
-        if (setCookieHeader) {
-          console.log("Set-Cookie header found in response");
-          const tokenMatch = setCookieHeader.match(/token=([^;]+)/);
-          if (tokenMatch && tokenMatch[1]) {
-            console.log("Token extracted from header, setting manually");
-            document.cookie = `token=${tokenMatch[1]}; path=/; max-age=86400`;
-          }
-        }
-      }
-
-      console.log("Fetching user data");
+      // Fetch user data from /api/auth/me
       const userResponse = await fetch("/api/auth/me", {
         credentials: "include", // Important for cookies
       });
 
       if (!userResponse.ok) {
         const userErrorText = await userResponse.text();
+        console.error("Failed to get user data:", userErrorText);
         setDebugInfo({
           status: userResponse.status,
           error: "Failed to get user data",
           raw: userErrorText,
         });
-
-        // Try fetching with direct Authorization header as fallback
-        const token = getCookie("token");
-        if (token) {
-          console.log("Trying with explicit Authorization header");
-          const authResponse = await fetch("/api/auth/me", {
-            credentials: "include",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (!authResponse.ok) {
-            throw new Error("Failed to get user data with fallback method");
-          }
-
-          const authUserData = await authResponse.json();
-          if (!authUserData || !authUserData.id) {
-            throw new Error("Invalid user data received from fallback");
-          }
-
-          setUser(authUserData);
-          toast.success("Login berhasil");
-          router.push("/dashboard");
-          return;
-        }
-
         throw new Error("Failed to get user data");
       }
 
@@ -209,37 +135,6 @@ export default function LoginPage() {
     });
   };
 
-  // Direct admin login function
-  const directAdminLogin = async () => {
-    setIsLoading(true);
-    setDebugInfo(null);
-
-    try {
-      // Create a token manually
-      const token =
-        "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJhZG1pbi0wMDEiLCJpZCI6ImFkbWluLTAwMSIsIm5hbWUiOiJBZG1pbmlzdHJhdG9yIiwiZW1haWwiOiJhZG1pbkBwaGMuY29tIiwicm9sZSI6IkFETUlOIiwiY2xpbmljSWQiOm51bGwsImlhdCI6MTc0NjUxNzI0MiwiZXhwIjoxNzQ2NjAzNjQyfQ.XKIYI-CNPxYsrmQpk_8TB32YnCLbzfgS_8xcwgPHcSs";
-      document.cookie = `token=${token}; path=/; max-age=86400`;
-
-      // Setup user data
-      const adminUser = {
-        id: "admin-001",
-        name: "Administrator",
-        email: "admin@phc.com",
-        role: "ADMIN",
-        clinicId: null,
-      };
-
-      setUser(adminUser);
-      toast.success("Login berhasil (direct method)");
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Direct login error:", error);
-      toast.error(error.message || "Login gagal");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen relative flex items-center justify-center bg-[#FAFAFA]">
       <div className="relative z-10 bg-[#FAFAFA] p-8 rounded-lg shadow-xl w-full max-w-md">
@@ -283,6 +178,27 @@ export default function LoginPage() {
             {isLoading ? "Loading..." : "Login"}
           </button>
         </form>
+
+        {/* Debug admin login button */}
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={loginAsAdmin}
+            className="text-sm text-gray-600 hover:text-gray-800"
+          >
+            Fill Admin Credentials
+          </button>
+        </div>
+
+        {/* Debug information */}
+        {debugInfo && (
+          <div className="mt-4 p-4 bg-gray-100 rounded-lg text-xs">
+            <h3 className="font-bold text-red-600 mb-2">Debug Information:</h3>
+            <pre className="text-black whitespace-pre-wrap">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
