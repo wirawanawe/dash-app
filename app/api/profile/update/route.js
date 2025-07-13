@@ -1,20 +1,23 @@
-import { User } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { verifyJwtToken } from "@/lib/auth";
+import { query } from "@/lib/db";
+import { jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 
 export async function PUT(request) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    // Get token from cookies instead of authorization header
+    const token = request.cookies.get("token");
 
     if (!token) {
       return NextResponse.json({ error: "Token diperlukan" }, { status: 401 });
     }
 
-    const decoded = await verifyJwtToken(token);
-    const user = await User.findUnique({
-      where: { id: decoded.userId },
-    });
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(token.value, secretKey);
+
+    const [user] = await query("SELECT * FROM users WHERE id = ?", [
+      payload.userId,
+    ]);
 
     if (!user) {
       return NextResponse.json(
@@ -52,17 +55,27 @@ export async function PUT(request) {
       ? await bcrypt.hash(newPassword, 10)
       : undefined;
 
-    const updatedUser = await User.update({
-      where: { id: decoded.userId },
-      data: {
-        name: name || user.name,
-        email: email || user.email,
-        ...(hashedPassword && { password: hashedPassword }),
-      },
-    });
+    // Update user in database
+    let updateQuery = "UPDATE users SET name = ?, email = ?";
+    let updateValues = [name || user.name, email || user.email];
 
-    // Hapus password dari response
-    const { password, ...userWithoutPassword } = updatedUser;
+    if (hashedPassword) {
+      updateQuery += ", password = ?";
+      updateValues.push(hashedPassword);
+    }
+
+    updateQuery += " WHERE id = ?";
+    updateValues.push(payload.userId);
+
+    await query(updateQuery, updateValues);
+
+    // Get updated user data
+    const [updatedUser] = await query(
+      "SELECT id, name, email, role, is_active, created_at FROM users WHERE id = ?",
+      [payload.userId]
+    );
+
+    const userWithoutPassword = updatedUser;
 
     return NextResponse.json({
       message: "Profil berhasil diperbarui",

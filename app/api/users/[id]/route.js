@@ -28,14 +28,12 @@ export async function GET(request, { params }) {
 
     const userId = params.id;
 
-    // Get user with clinic info
+    // Get user
     const [user] = await query(
       `
       SELECT 
-        u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.clinic_id,
-        c.name as clinic_name, c.code as clinic_code
+        u.id, u.name, u.email, u.role, u.is_active, u.created_at
       FROM users u
-      LEFT JOIN clinics c ON u.clinic_id = c.id
       WHERE u.id = ?
     `,
       [userId]
@@ -48,7 +46,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Format user to include clinic info
+    // Format user
     const formattedUser = {
       id: user.id,
       name: user.name,
@@ -56,13 +54,7 @@ export async function GET(request, { params }) {
       role: user.role,
       is_active: user.is_active,
       created_at: user.created_at,
-      clinic: user.clinic_id
-        ? {
-            id: user.clinic_id,
-            name: user.clinic_name,
-            code: user.clinic_code,
-          }
-        : null,
+      clinic: null, // No clinic info in current schema
     };
 
     return NextResponse.json(formattedUser);
@@ -85,8 +77,7 @@ export async function PUT(request, { params }) {
     }
 
     const userId = params.id;
-    const { name, email, role, is_active, clinic_id, password } =
-      await request.json();
+    const { name, email, role, is_active, password } = await request.json();
 
     // Check if user exists
     const [existingUser] = await query("SELECT id FROM users WHERE id = ?", [
@@ -102,15 +93,9 @@ export async function PUT(request, { params }) {
     // Start building the update query
     let updateQuery = `
       UPDATE users 
-      SET name = ?, email = ?, role = ?, is_active = ?, clinic_id = ?
+      SET name = ?, email = ?, role = ?, is_active = ?
     `;
-    let updateValues = [
-      name,
-      email,
-      role,
-      is_active ? 1 : 0,
-      clinic_id || null,
-    ];
+    let updateValues = [name, email, role, is_active ? 1 : 0];
 
     // If password is provided, hash it and add to the update
     if (password) {
@@ -125,20 +110,18 @@ export async function PUT(request, { params }) {
 
     await query(updateQuery, updateValues);
 
-    // Get updated user with clinic info
+    // Get updated user
     const [updatedUser] = await query(
       `
       SELECT 
-        u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.clinic_id,
-        c.name as clinic_name, c.code as clinic_code
+        u.id, u.name, u.email, u.role, u.is_active, u.created_at
       FROM users u
-      LEFT JOIN clinics c ON u.clinic_id = c.id
       WHERE u.id = ?
     `,
       [userId]
     );
 
-    // Format user to include clinic info
+    // Format user
     const formattedUser = {
       id: updatedUser.id,
       name: updatedUser.name,
@@ -146,13 +129,7 @@ export async function PUT(request, { params }) {
       role: updatedUser.role,
       is_active: updatedUser.is_active,
       created_at: updatedUser.created_at,
-      clinic: updatedUser.clinic_id
-        ? {
-            id: updatedUser.clinic_id,
-            name: updatedUser.clinic_name,
-            code: updatedUser.clinic_code,
-          }
-        : null,
+      clinic: null, // No clinic info in current schema
     };
 
     return NextResponse.json({

@@ -1,25 +1,28 @@
 # Use Node.js Alpine image for smaller size
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# Install dependencies
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-# Install dependencies based on the preferred package manager
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
-# Rebuild the source code only when needed
+# Build the application
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
+# Set environment variables for build time
+ENV DB_HOST=mysql
+ENV DB_USER=root
+ENV DB_PASSWORD=pr1k1t1w
+ENV DB_NAME=phc_dashboard
+
 RUN npm run build
 
-# Production image, copy all the files and run next
+# Production image
 FROM base AS runner
 WORKDIR /app
 
@@ -29,10 +32,20 @@ ENV PORT 3000
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
+# Copy the built application
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Copy public directory from build context
+COPY --from=builder /app/public ./public
+
+# Copy additional source files needed for runtime
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/components ./components
+COPY --from=builder /app/middleware.js ./middleware.js
+
+# Copy all node_modules to ensure database dependencies are available
+COPY --from=builder /app/node_modules ./node_modules
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app

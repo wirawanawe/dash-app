@@ -43,13 +43,11 @@ export async function GET(request) {
     const countResult = await query(countQuery, [`%${search}%`, `%${search}%`]);
     const totalResults = parseInt(countResult[0].total);
 
-    // Get paginated users with clinic info
+    // Get paginated users
     const usersQuery = `
       SELECT 
-        u.id, u.name, u.email, u.role, u.is_active, u.created_at, u.clinic_id,
-        c.name as clinic_name, c.code as clinic_code
+        u.id, u.name, u.email, u.role, u.is_active, u.created_at
       FROM users u
-      LEFT JOIN polyclinics c ON u.clinic_id = c.id
       WHERE 
         LOWER(u.name) LIKE LOWER(?) OR
         LOWER(u.email) LIKE LOWER(?)
@@ -58,7 +56,7 @@ export async function GET(request) {
     `;
     const users = await query(usersQuery, [`%${search}%`, `%${search}%`]);
 
-    // Format users to include clinic info
+    // Format users
     const formattedUsers = users.map((user) => ({
       id: user.id,
       name: user.name,
@@ -66,13 +64,7 @@ export async function GET(request) {
       role: user.role,
       is_active: user.is_active,
       created_at: user.created_at,
-      clinic: user.clinic_id
-        ? {
-            id: user.clinic_id,
-            name: user.clinic_name,
-            code: user.clinic_code,
-          }
-        : null,
+      clinic: null, // No clinic info in current schema
     }));
 
     return NextResponse.json({
@@ -102,8 +94,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { name, email, password, role, is_active, clinic_id } =
-      await request.json();
+    const { name, email, password, role, is_active } = await request.json();
 
     // Validate required fields
     if (!name || !email || !password || !role) {
@@ -129,9 +120,9 @@ export async function POST(request) {
 
     // Insert new user
     const result = await query(
-      `INSERT INTO users (name, email, password, role, is_active, clinic_id) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, email, hashedPassword, role, is_active || true, clinic_id || null]
+      `INSERT INTO users (name, email, password, role, is_active) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [name, email, hashedPassword, role, is_active || true]
     );
 
     return NextResponse.json(

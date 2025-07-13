@@ -119,9 +119,9 @@ export async function POST(request) {
     try {
       console.log("Attempting database authentication");
 
-      // Cari user di database dengan informasi klinik
+      // Cari user di database
       let sql = `
-        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active, u.clinic_id
+        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active
         FROM users u 
         WHERE u.email = ?
       `;
@@ -140,28 +140,10 @@ export async function POST(request) {
 
       console.log("User found in database:", user.email);
 
-      // Jika user ditemukan, coba ambil data klinik jika tabel polyclinics ada
-      if (user && user.clinic_id) {
-        try {
-          const clinicSql = `
-            SELECT c.name as clinic_name, c.code as clinic_code 
-            FROM polyclinics c 
-            WHERE c.id = ?
-          `;
-          const [clinic] = await query(clinicSql, [user.clinic_id]);
-          if (clinic) {
-            user.clinic_name = clinic.clinic_name;
-            user.clinic_code = clinic.clinic_code;
-          }
-        } catch (clinicError) {
-          // Tabel polyclinics tidak ada, lanjutkan tanpa data klinik
-          console.log(
-            "Polyclinics table not found, continuing without clinic data"
-          );
-          user.clinic_name = null;
-          user.clinic_code = null;
-        }
-      }
+      // Set clinic info to null since clinic_id column doesn't exist
+      user.clinic_id = null;
+      user.clinic_name = null;
+      user.clinic_code = null;
 
       // Cek apakah user aktif
       if (!user.is_active) {
@@ -198,7 +180,7 @@ export async function POST(request) {
         name: user.name,
         email: user.email,
         role: user.role.toUpperCase(),
-        clinic_id: user.clinic_id, // Include clinic_id in the token
+        clinic_id: null, // No clinic_id in current schema
       })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -213,15 +195,8 @@ export async function POST(request) {
         name: user.name,
         email: user.email,
         role: user.role.toUpperCase(),
-        clinic_id: user.clinic_id,
-        clinic:
-          user.clinic_id && user.clinic_name
-            ? {
-                id: user.clinic_id,
-                name: user.clinic_name,
-                code: user.clinic_code,
-              }
-            : null,
+        clinic_id: null,
+        clinic: null,
       };
 
       const response = NextResponse.json(

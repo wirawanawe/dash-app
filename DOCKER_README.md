@@ -35,7 +35,7 @@ File `docker.env` sudah dikonfigurasi dengan setting default:
 
 - Database: MySQL 8.0
 - Database Name: phc_dashboard
-- Root Password: rootpassword
+- Root Password: w1w4w3d4
 - Port: 3000
 
 **Untuk production, ubah password di file `docker.env`:**
@@ -73,13 +73,13 @@ docker-compose up -d --build
 - **Port**: 3306
 - **Database**: phc_dashboard
 - **User**: root
-- **Password**: rootpassword (default)
+- **Password**: w1w4w3d4 (default)
 
 ### 3. phpMyAdmin
 
 - **Port**: 8080
 - **Description**: Web interface untuk manajemen database
-- **Login**: root / rootpassword
+- **Login**: root / w1w4w3d4
 
 ## Perintah Docker Compose
 
@@ -191,14 +191,14 @@ docker-compose up --build
 
 ```bash
 # Backup database
-docker-compose exec mysql mysqldump -u root -prootpassword phc_dashboard > backup.sql
+docker-compose exec mysql mysqldump -u root -pw1w4w3d4 phc_dashboard > backup.sql
 ```
 
 ### Restore
 
 ```bash
 # Restore database
-docker-compose exec -i mysql mysql -u root -prootpassword phc_dashboard < backup.sql
+docker-compose exec -i mysql mysql -u root -pw1w4w3d4 phc_dashboard < backup.sql
 ```
 
 ## Production Deployment
