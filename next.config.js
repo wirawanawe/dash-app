@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: "standalone", // Enable standalone output for Docker
   env: {
     JWT_SECRET:
       process.env.JWT_SECRET || "supersecretkey123456789supersecretkey",
