@@ -1,4 +1,4 @@
-import { Company } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 // GET single company

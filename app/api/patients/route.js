@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db"; // Gunakan db.js bukan prisma.js
-import { Patient, Insurance } from "@/lib/prisma"; // Import helper functions
-// atau import { getPatients } from "@/lib/prisma"; // Jika menggunakan helper yang diperbarui
+import { query } from "@/lib/db";
 
 // Helper function to add delay between requests
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -16,7 +14,6 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
       });
       return response;
     } catch (error) {
-      console.log(`Attempt ${i + 1} failed:`, error.message);
       if (i === maxRetries - 1) {
         throw error; // Throw on last attempt
       }
@@ -41,8 +38,6 @@ export async function GET(request) {
     if (search) {
       apiUrl += `&keyword=${encodeURIComponent(search)}`;
     }
-
-    console.log(`Fetching patients from API: ${apiUrl}`);
 
     const response = await fetchWithRetry(apiUrl, {
       method: "GET",
@@ -134,66 +129,94 @@ export async function POST(request) {
 
     // Generate MR Number
     const year = new Date().getFullYear();
-    const lastPatient = await Patient.findFirst({
-      where: { mrNumber: { startsWith: `MR-${year}` } },
-      orderBy: { mrNumber: "desc" },
-    });
+    const lastPatientResults = await query(
+      "SELECT mr_number FROM patients WHERE mr_number LIKE ? ORDER BY mr_number DESC LIMIT 1",
+      [`MR-${year}%`]
+    );
 
-    const sequence = lastPatient
-      ? parseInt(lastPatient.mrNumber.split("-")[2]) + 1
-      : 1;
+    const sequence =
+      lastPatientResults.length > 0
+        ? parseInt(lastPatientResults[0].mr_number.split("-")[2]) + 1
+        : 1;
     const mrNumber = `MR-${year}-${sequence.toString().padStart(4, "0")}`;
 
     // Create patient
-    const patient = await Patient.create({
-      data: {
-        mrNumber,
-        name: data.name.trim(),
-        nik: data.nik.trim(),
-        birthDate: new Date(data.birthDate),
-        gender: data.gender || null,
-        bloodType: data.bloodType || null,
-        occupation: data.occupation || null,
-        maritalStatus: data.maritalStatus || null,
-        nip: data.nip || null,
-        citizenship: data.citizenship || "WNI",
-        address: data.address?.trim() || null,
-        phone: data.phone?.trim() || null,
-        email: data.email?.trim() || null,
-        provinceId: data.provinceId || null,
-        provinceName: data.provinceName || null,
-        cityId: data.cityId || null,
-        cityName: data.cityName || null,
-        districtId: data.districtId || null,
-        districtName: data.districtName || null,
-        villageId: data.villageId || null,
-        villageName: data.villageName || null,
-        postalCode: data.postalCode || null,
-        companyId: data.companyId || null,
-      },
-    });
+    const patientInsertSql = `
+      INSERT INTO patients (
+        mr_number, name, nik, birth_date, gender, blood_type, 
+        occupation, marital_status, nip, citizenship, address, 
+        phone, email, province_id, province_name, city_id, city_name, 
+        district_id, district_name, village_id, village_name, 
+        postal_code, company_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+
+    const patientParams = [
+      mrNumber,
+      data.name.trim(),
+      data.nik.trim(),
+      data.birthDate,
+      data.gender || null,
+      data.bloodType || null,
+      data.occupation || null,
+      data.maritalStatus || null,
+      data.nip || null,
+      data.citizenship || "WNI",
+      data.address?.trim() || null,
+      data.phone?.trim() || null,
+      data.email?.trim() || null,
+      data.provinceId || null,
+      data.provinceName || null,
+      data.cityId || null,
+      data.cityName || null,
+      data.districtId || null,
+      data.districtName || null,
+      data.villageId || null,
+      data.villageName || null,
+      data.postalCode || null,
+      data.companyId || null,
+    ];
+
+    const patientResult = await query(patientInsertSql, patientParams);
+    const patientId = patientResult.insertId;
 
     // Create insurance if provided
     if (data.insurance) {
-      await Insurance.create({
-        data: {
-          patientId: patient.id,
-          provider: data.insurance.provider,
-          number: data.insurance.number || null,
-          type: data.insurance.type || null,
-          status: data.insurance.status || "Aktif",
-        },
-      });
+      const insuranceInsertSql = `
+        INSERT INTO insurance (
+          patient_id, provider, number, type, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+      `;
+
+      const insuranceParams = [
+        patientId,
+        data.insurance.provider,
+        data.insurance.number || null,
+        data.insurance.type || null,
+        data.insurance.status || "Aktif",
+      ];
+
+      await query(insuranceInsertSql, insuranceParams);
     }
+
+    // Get the created patient
+    const [createdPatient] = await query(
+      "SELECT * FROM patients WHERE id = ?",
+      [patientId]
+    );
 
     // Format dates before sending response
     const formattedPatient = {
-      ...patient,
-      birthDate: patient.birthDate
-        ? patient.birthDate.toISOString().split("T")[0]
+      ...createdPatient,
+      birth_date: createdPatient.birth_date
+        ? new Date(createdPatient.birth_date).toISOString().split("T")[0]
         : null,
-      createdAt: patient.createdAt ? patient.createdAt.toISOString() : null,
-      updatedAt: patient.updatedAt ? patient.updatedAt.toISOString() : null,
+      created_at: createdPatient.created_at
+        ? createdPatient.created_at.toISOString()
+        : null,
+      updated_at: createdPatient.updated_at
+        ? createdPatient.updated_at.toISOString()
+        : null,
     };
 
     return new NextResponse(JSON.stringify(formattedPatient), {
@@ -203,7 +226,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error creating patient:", error);
 
-    if (error.code === "P2002" || error.code === "ER_DUP_ENTRY") {
+    if (error.code === "ER_DUP_ENTRY") {
       return new NextResponse(
         JSON.stringify({ error: "NIK sudah terdaftar" }),
         {

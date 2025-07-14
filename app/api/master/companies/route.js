@@ -1,12 +1,10 @@
-import { Company } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 // GET all companies
 export async function GET() {
   try {
-    const companies = await Company.findMany({
-      orderBy: { name: "asc" },
-    });
+    const companies = await query("SELECT * FROM companies ORDER BY name ASC");
 
     return NextResponse.json(companies);
   } catch (error) {
@@ -24,14 +22,15 @@ export async function POST(request) {
     const body = await request.json();
     const { name, address, phone, email } = body;
 
-    const company = await Company.create({
-      data: {
-        name,
-        address,
-        phone,
-        email,
-      },
-    });
+    const insertResult = await query(
+      "INSERT INTO companies (name, address, phone, email, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+      [name, address, phone, email]
+    );
+
+    // Get the created company
+    const [company] = await query("SELECT * FROM companies WHERE id = ?", [
+      insertResult.insertId,
+    ]);
 
     return NextResponse.json(company, { status: 201 });
   } catch (error) {

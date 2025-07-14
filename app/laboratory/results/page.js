@@ -44,7 +44,7 @@ export default function LaboratoryResultsPage() {
     <DashboardLayout>
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Hasil Laboratorium</h1>
+          <h1 className="text-2xl text-black font-bold">Hasil Laboratorium</h1>
           <button
             className="bg-[#E22345] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-600"
             onClick={() => router.push("/laboratory/results/new")}
@@ -108,28 +108,28 @@ export default function LaboratoryResultsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredResults.map((result) => (
                     <tr key={result.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {result.labNumber}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {new Date(result.date).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {result.patientName}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {result.testType}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {result.result}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {result.unit}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         {result.normalValue}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-black">
                         <span
                           className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             result.status === "Selesai"
@@ -140,7 +140,7 @@ export default function LaboratoryResultsPage() {
                           {result.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
                         <button className="text-blue-600 hover:text-blue-900 mr-4">
                           Lihat
                         </button>

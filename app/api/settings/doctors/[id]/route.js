@@ -1,30 +1,23 @@
 import { NextResponse } from "next/server";
-import { User, Patient, Company, Doctor, Insurance, ICD, Treatment, Polyclinic, PostalCode, $transaction } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 // GET single doctor
 export async function GET(request, { params }) {
   try {
-    const doctor = await Doctor.findUnique({
-      where: {
-        id: parseInt(params.id),
-      },
-      include: {
-        polyclinic: true,
-      },
-    });
+    const [doctor] = await query(
+      "SELECT d.*, p.name as polyclinic_name FROM doctors d LEFT JOIN polyclinics p ON d.polyclinic_id = p.id WHERE d.id = ?",
+      [parseInt(params.id)]
+    );
 
     if (!doctor) {
-      return NextResponse.json(
-        { error: "Dokter tidak ditemukan" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Doctor not found" }, { status: 404 });
     }
 
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Error fetching doctor:", error);
+    console.error("Error:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data dokter" },
+      { error: "Failed to fetch doctor" },
       { status: 500 }
     );
   }
@@ -34,33 +27,36 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const data = await request.json();
-    // console.log("Received data:", data); // Log untuk debugging
 
-    const doctor = await Doctor.update({
-      where: {
-        id: parseInt(params.id),
-      },
-      data: {
-        nip: data.nip?.trim(),
-        nik: data.nik?.trim() || null,
-        name: data.name?.trim(),
-        speciality: data.speciality?.trim(),
-        phone: data.phone?.trim() || null,
-        email: data.email?.trim() || null,
-        polyclinicId: data.polyclinicId ? parseInt(data.polyclinicId) : null,
-        status: data.status,
-      },
-      include: {
-        polyclinic: true,
-      },
-    });
+    await query(
+      `UPDATE doctors SET 
+       nip = ?, nik = ?, name = ?, speciality = ?, phone = ?, 
+       email = ?, polyclinic_id = ?, status = ?, updated_at = NOW()
+       WHERE id = ?`,
+      [
+        data.nip?.trim(),
+        data.nik?.trim() || null,
+        data.name?.trim(),
+        data.speciality?.trim(),
+        data.phone?.trim() || null,
+        data.email?.trim() || null,
+        data.polyclinicId ? parseInt(data.polyclinicId) : null,
+        data.status,
+        parseInt(params.id),
+      ]
+    );
 
-    // console.log("Updated doctor:", doctor); // Log untuk debugging
+    // Get updated doctor with polyclinic
+    const [doctor] = await query(
+      "SELECT d.*, p.name as polyclinic_name FROM doctors d LEFT JOIN polyclinics p ON d.polyclinic_id = p.id WHERE d.id = ?",
+      [parseInt(params.id)]
+    );
+
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Detailed error:", error); // Log error lengkap
+    console.error("Error updating doctor:", error);
     return NextResponse.json(
-      { error: "Gagal mengupdate dokter" },
+      { error: "Failed to update doctor" },
       { status: 500 }
     );
   }
@@ -69,16 +65,12 @@ export async function PUT(request, { params }) {
 // DELETE doctor
 export async function DELETE(request, { params }) {
   try {
-    await Doctor.delete({
-      where: {
-        id: parseInt(params.id),
-      },
-    });
-    return NextResponse.json({ message: "Dokter berhasil dihapus" });
+    await query("DELETE FROM doctors WHERE id = ?", [parseInt(params.id)]);
+    return NextResponse.json({ message: "Doctor deleted successfully" });
   } catch (error) {
     console.error("Error deleting doctor:", error);
     return NextResponse.json(
-      { error: "Gagal menghapus dokter" },
+      { error: "Failed to delete doctor" },
       { status: 500 }
     );
   }

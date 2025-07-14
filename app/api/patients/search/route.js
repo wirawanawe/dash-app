@@ -1,4 +1,4 @@
-import { Patient } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -6,18 +6,26 @@ export const dynamic = "force-dynamic";
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
+    const searchQuery = searchParams.get("q") || "";
 
-    const patients = await Patient.findMany({
-      where: {
-        OR: [
-          { name: { contains: query } },
-          { nik: { contains: query } },
-          { mrNumber: { contains: query } },
-        ],
-      },
-      take: 10, // Limit to 10 results
-    });
+    if (!searchQuery.trim()) {
+      return NextResponse.json([]);
+    }
+
+    const sql = `
+      SELECT * FROM patients 
+      WHERE name LIKE ? 
+         OR nik LIKE ? 
+         OR mr_number LIKE ? 
+      LIMIT 10
+    `;
+
+    const searchPattern = `%${searchQuery}%`;
+    const patients = await query(sql, [
+      searchPattern,
+      searchPattern,
+      searchPattern,
+    ]);
 
     return NextResponse.json(patients);
   } catch (error) {

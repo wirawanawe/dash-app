@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   FaTimes,
   FaUser,
@@ -13,9 +14,13 @@ import {
   FaBriefcase,
   FaHeartbeat,
   FaClipboardList,
+  FaHistory,
 } from "react-icons/fa";
+import PatientVisitHistory from "./PatientVisitHistory";
 
 export default function PatientDetailModal({ patient, onClose }) {
+  const [activeTab, setActiveTab] = useState("patient-info");
+
   if (!patient) return null;
 
   const formatDate = (dateString) => {
@@ -67,9 +72,23 @@ export default function PatientDetailModal({ patient, onClose }) {
     }
   };
 
+  const TabButton = ({ id, icon: Icon, label, isActive, onClick }) => (
+    <button
+      onClick={onClick}
+      className={`flex items-center px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+        isActive
+          ? "bg-white text-blue-600 border-b-2 border-blue-600"
+          : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+      }`}
+    >
+      <Icon className="mr-2" />
+      {label}
+    </button>
+  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Detail Pasien</h2>
           <button
@@ -80,325 +99,388 @@ export default function PatientDetailModal({ patient, onClose }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                <FaUser className="mr-2 text-blue-500" />
-                Informasi Pribadi
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">No. RM:</span>
-                  <p className="text-gray-900 font-mono text-lg">
-                    {patient.mrNumber || patient.mrn || "-"}
-                  </p>
+        {/* Tab Navigation */}
+        <div className="flex border-b bg-gray-50">
+          <TabButton
+            id="patient-info"
+            icon={FaUser}
+            label="Informasi Pasien"
+            isActive={activeTab === "patient-info"}
+            onClick={() => setActiveTab("patient-info")}
+          />
+          <TabButton
+            id="visit-history"
+            icon={FaHistory}
+            label="Riwayat Kunjungan"
+            isActive={activeTab === "visit-history"}
+            onClick={() => setActiveTab("visit-history")}
+          />
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === "patient-info" && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FaUser className="mr-2 text-blue-500" />
+                    Informasi Pribadi
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">No. RM:</span>
+                      <p className="text-gray-900 font-mono text-lg">
+                        {patient.mrNumber || patient.mrn || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Nama Lengkap:
+                      </span>
+                      <p className="text-gray-900 text-lg font-medium">
+                        {patient.name || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">NIK:</span>
+                      <p className="text-gray-900 font-mono">
+                        {patient.nik || "-"}
+                      </p>
+                    </div>
+                    <div className="flex justify-between">
+                      <div>
+                        <span className="font-medium text-gray-700">
+                          Jenis Kelamin:
+                        </span>
+                        <p className="text-gray-900">{patient.gender || "-"}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">
+                          Golongan Darah:
+                        </span>
+                        <p className="text-gray-900">
+                          {patient.bloodType || "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Nama Lengkap:
-                  </span>
-                  <p className="text-gray-900 text-lg font-medium">
-                    {patient.name || "-"}
-                  </p>
+
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FaCalendarAlt className="mr-2 text-green-500" />
+                    Informasi Kelahiran
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Tanggal Lahir:
+                      </span>
+                      <p className="text-gray-900">
+                        {formatDate(patient.birthDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Umur:</span>
+                      <p className="text-gray-900 text-lg font-medium">
+                        {calculateAge(patient.birthDate)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Tempat Lahir:
+                      </span>
+                      <p className="text-gray-900">
+                        {patient.birthPlace || "-"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-700">NIK:</span>
-                  <p className="text-gray-900 font-mono">
-                    {patient.nik || "-"}
-                  </p>
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FaPhone className="mr-2 text-purple-500" />
+                    Kontak
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Telepon:
+                      </span>
+                      <p className="text-gray-900 font-mono">
+                        {patient.phoneNumber || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Email:</span>
+                      <p className="text-gray-900">{patient.email || "-"}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Kontak Darurat:
+                      </span>
+                      <p className="text-gray-900">
+                        {patient.emergencyContact || "-"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
+
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FaMapMarkerAlt className="mr-2 text-orange-500" />
+                    Alamat
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Alamat:</span>
+                      <div className="bg-white p-2 rounded border min-h-[80px] mt-1">
+                        <p className="text-gray-900">
+                          {patient.address || "-"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="font-medium text-gray-700">
+                          RT/RW:
+                        </span>
+                        <p className="text-gray-900">{patient.rtRw || "-"}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">
+                          Kode Pos:
+                        </span>
+                        <p className="text-gray-900">
+                          {patient.postalCode || "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Employment Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-indigo-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FaBriefcase className="mr-2 text-indigo-500" />
+                    Pekerjaan
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">NIP:</span>
+                      <p className="text-gray-900 font-mono">
+                        {patient.nip || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Nama Karyawan:
+                      </span>
+                      <p className="text-gray-900">
+                        {patient.employeeName || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Pekerjaan:
+                      </span>
+                      <p className="text-gray-900">
+                        {patient.occupation || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-teal-50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <FaBuilding className="mr-2 text-teal-500" />
+                    Perusahaan
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Perusahaan:
+                      </span>
+                      <p className="text-gray-900">{patient.company || "-"}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">
+                        Departemen:
+                      </span>
+                      <p className="text-gray-900">
+                        {patient.department || "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Posisi:</span>
+                      <p className="text-gray-900">{patient.position || "-"}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Insurance Information */}
+              <div className="bg-cyan-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <FaShieldAlt className="mr-2 text-cyan-500" />
+                  Asuransi
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="font-medium text-gray-700">
-                      Jenis Kelamin:
-                    </span>
-                    <p className="text-gray-900">{patient.gender || "-"}</p>
+                    <span className="font-medium text-gray-700">Provider:</span>
+                    <p className="text-gray-900">
+                      {patient.insuranceProvider || "-"}
+                    </p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">
-                      Golongan Darah:
+                      Nomor Asuransi:
                     </span>
-                    <p className="text-gray-900">{patient.bloodType || "-"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                <FaCalendarAlt className="mr-2 text-green-500" />
-                Informasi Kelahiran
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Tanggal Lahir:
-                  </span>
-                  <p className="text-gray-900">
-                    {formatDate(patient.birthDate)}
-                  </p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Umur:</span>
-                  <p className="text-gray-900 text-lg font-medium">
-                    {calculateAge(patient.birthDate)}
-                  </p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Tempat Lahir:
-                  </span>
-                  <p className="text-gray-900">{patient.birthPlace || "-"}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Agama:</span>
-                  <p className="text-gray-900">{patient.religion || "-"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                <FaPhone className="mr-2 text-purple-500" />
-                Informasi Kontak
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Nomor Telepon:
-                  </span>
-                  <p className="text-gray-900">{patient.phone || "-"}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Email:</span>
-                  <p className="text-gray-900">{patient.email || "-"}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Kontak Darurat:
-                  </span>
-                  <p className="text-gray-900">
-                    {patient.emergencyContact || "-"}
-                  </p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Status Pernikahan:
-                  </span>
-                  <p className="text-gray-900">
-                    {patient.maritalStatus || "-"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                <FaMapMarkerAlt className="mr-2 text-orange-500" />
-                Alamat
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Alamat Lengkap:
-                  </span>
-                  <p className="text-gray-900">{patient.address || "-"}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-medium text-gray-700">Kota:</span>
-                    <p className="text-gray-900">{patient.city || "-"}</p>
+                    <p className="text-gray-900 font-mono">
+                      {patient.insuranceNumber || "-"}
+                    </p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Provinsi:</span>
-                    <p className="text-gray-900">{patient.province || "-"}</p>
+                    <span className="font-medium text-gray-700">Jenis:</span>
+                    <p className="text-gray-900">
+                      {patient.insuranceType || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Status:</span>
+                    <span
+                      className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                        patient.insuranceStatus === "Aktif" ||
+                        patient.insuranceStatus === "Active"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {patient.insuranceStatus ||
+                        (patient.nip ? "Aktif" : "Tidak Ada")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Berlaku Hingga:
+                    </span>
+                    <p className="text-gray-900">
+                      {formatDate(patient.insuranceExpiry) || "-"}
+                    </p>
                   </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-700">Kode Pos:</span>
-                  <p className="text-gray-900">{patient.postalCode || "-"}</p>
+              </div>
+
+              {/* Medical Information */}
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <FaHeartbeat className="mr-2 text-red-500" />
+                  Informasi Medis
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Alergi:</span>
+                    <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
+                      <p className="text-gray-900">
+                        {patient.allergies || "Tidak ada alergi yang diketahui"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Riwayat Penyakit:
+                    </span>
+                    <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
+                      <p className="text-gray-900">
+                        {patient.medicalHistory || "Tidak ada riwayat penyakit"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Obat yang Sedang Dikonsumsi:
+                    </span>
+                    <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
+                      <p className="text-gray-900">
+                        {patient.currentMedications ||
+                          "Tidak ada obat yang dikonsumsi"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Catatan Khusus:
+                    </span>
+                    <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
+                      <p className="text-gray-900">
+                        {patient.notes || "Tidak ada catatan khusus"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Employment Information */}
-          {(patient.nip ||
-            patient.employeeName ||
-            patient.jobTitle ||
-            patient.department) && (
-            <div className="bg-indigo-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                <FaBriefcase className="mr-2 text-indigo-500" />
-                Informasi Kepegawaian
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">NIP:</span>
-                  <p className="text-gray-900 font-mono">
-                    {patient.nip || "-"}
-                  </p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Nama Karyawan:
-                  </span>
-                  <p className="text-gray-900">{patient.employeeName || "-"}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Jabatan:</span>
-                  <p className="text-gray-900">{patient.jobTitle || "-"}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Departemen:</span>
-                  <p className="text-gray-900">{patient.department || "-"}</p>
+              {/* Registration Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <FaClipboardList className="mr-2 text-gray-500" />
+                  Informasi Registrasi
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Tanggal Registrasi:
+                    </span>
+                    <p className="text-gray-900">
+                      {formatDateTime(patient.createdAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">
+                      Terakhir Diupdate:
+                    </span>
+                    <p className="text-gray-900">
+                      {formatDateTime(patient.updatedAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Status:</span>
+                    <span
+                      className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                        patient.status === "Active" || !patient.status
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {patient.status || "Aktif"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Insurance Information */}
-          <div className="bg-emerald-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-              <FaShieldAlt className="mr-2 text-emerald-500" />
-              Informasi Asuransi
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">
-                  Jenis Asuransi:
-                </span>
-                <p className="text-gray-900">
-                  {patient.nip
-                    ? "Karyawan PLN"
-                    : patient.insuranceProvider || "Umum"}
+          {activeTab === "visit-history" && (
+            <div>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <FaHistory className="mr-2 text-blue-500" />
+                  Riwayat Kunjungan Berobat
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Daftar kunjungan berobat pasien {patient.name || "-"}
                 </p>
               </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Nomor Asuransi:
-                </span>
-                <p className="text-gray-900 font-mono">
-                  {patient.insuranceNumber || "-"}
-                </p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Status Asuransi:
-                </span>
-                <span
-                  className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                    patient.insuranceStatus === "Active" || patient.nip
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {patient.insuranceStatus ||
-                    (patient.nip ? "Aktif" : "Tidak Ada")}
-                </span>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Berlaku Hingga:
-                </span>
-                <p className="text-gray-900">
-                  {formatDate(patient.insuranceExpiry) || "-"}
-                </p>
-              </div>
+              <PatientVisitHistory patientId={patient.id} />
             </div>
-          </div>
-
-          {/* Medical Information */}
-          <div className="bg-red-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-              <FaHeartbeat className="mr-2 text-red-500" />
-              Informasi Medis
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">Alergi:</span>
-                <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
-                  <p className="text-gray-900">
-                    {patient.allergies || "Tidak ada alergi yang diketahui"}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Riwayat Penyakit:
-                </span>
-                <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
-                  <p className="text-gray-900">
-                    {patient.medicalHistory || "Tidak ada riwayat penyakit"}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Obat yang Sedang Dikonsumsi:
-                </span>
-                <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
-                  <p className="text-gray-900">
-                    {patient.currentMedications ||
-                      "Tidak ada obat yang dikonsumsi"}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Catatan Khusus:
-                </span>
-                <div className="bg-white p-2 rounded border min-h-[60px] mt-1">
-                  <p className="text-gray-900">
-                    {patient.notes || "Tidak ada catatan khusus"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Registration Information */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-              <FaClipboardList className="mr-2 text-gray-500" />
-              Informasi Registrasi
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-gray-700">
-                  Tanggal Registrasi:
-                </span>
-                <p className="text-gray-900">
-                  {formatDateTime(patient.createdAt)}
-                </p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">
-                  Terakhir Diupdate:
-                </span>
-                <p className="text-gray-900">
-                  {formatDateTime(patient.updatedAt)}
-                </p>
-              </div>
-              <div>
-                <span className="font-medium text-gray-700">Status:</span>
-                <span
-                  className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                    patient.status === "Active" || !patient.status
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {patient.status || "Aktif"}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -423,7 +505,7 @@ export default function PatientDetailModal({ patient, onClose }) {
             }
             className="px-4 py-2 bg-[#E22345] text-white rounded-lg hover:bg-red-600"
           >
-            Lihat Riwayat Kunjungan
+            Tambah Kunjungan
           </button>
         </div>
       </div>

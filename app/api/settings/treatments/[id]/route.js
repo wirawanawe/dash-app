@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { User, Patient, Company, Doctor, Insurance, ICD, Treatment, Polyclinic, PostalCode, $transaction } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 // GET single treatment
 export async function GET(req) {

@@ -26,7 +26,7 @@ const DashboardLayout = ({ children }) => {
 
       <div className="flex-1 flex flex-col lg:ml-64">
         <Navbar onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 p-4 lg:p-6 mt-16 pb-24 min-h-[calc(100vh-4rem)]">
+        <main className="flex-1 p-4 lg:p-6 pb-24 min-h-[calc(100vh-4rem)]">
           {children}
         </main>
         <Footer />

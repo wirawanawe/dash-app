@@ -200,18 +200,29 @@ export default function PatientsPage() {
           <>
             <PatientTable patients={patients} onRefresh={fetchPatients} />
 
-            {/* Data per page selector and pagination info */}
-            <div className="mt-6 mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-              <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
-                <div className="text-xs lg:text-sm text-gray-700">
-                  Menampilkan {(page - 1) * limit + 1} -{" "}
-                  {Math.min(page * limit, metadata.total || 0)} dari{" "}
-                  {metadata.total || 0} data
+            {/* Data info and pagination controls */}
+            <div className="mt-6 mb-4 bg-gray-50 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                {/* Data info */}
+                <div className="text-sm text-gray-600">
+                  Menampilkan{" "}
+                  <span className="font-semibold">
+                    {(page - 1) * limit + 1}
+                  </span>{" "}
+                  -{" "}
+                  <span className="font-semibold">
+                    {Math.min(page * limit, metadata.total || 0)}
+                  </span>{" "}
+                  dari{" "}
+                  <span className="font-semibold">{metadata.total || 0}</span>{" "}
+                  data
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Items per page */}
+                <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border">
                   <label
                     htmlFor="limit"
-                    className="text-xs lg:text-sm text-gray-700"
+                    className="text-sm text-gray-700 whitespace-nowrap"
                   >
                     Data per halaman:
                   </label>
@@ -219,7 +230,7 @@ export default function PatientsPage() {
                     id="limit"
                     value={limit}
                     onChange={handleLimitChange}
-                    className="border rounded px-2 py-1 text-xs lg:text-sm text-black mobile-input"
+                    className="border-0 bg-transparent text-sm text-gray-900 focus:outline-none focus:ring-0 mobile-input"
                   >
                     <option value="5">5</option>
                     <option value="10">10</option>
@@ -228,70 +239,83 @@ export default function PatientsPage() {
                   </select>
                 </div>
               </div>
+            </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex flex-wrap items-center gap-1 lg:gap-2">
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mb-8">
+                <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                   {/* First page button */}
                   <button
                     onClick={() => setPage(1)}
                     disabled={page === 1}
-                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
+                    title="Halaman pertama"
                   >
-                    <FaAngleDoubleLeft className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <FaAngleDoubleLeft className="h-4 w-4" />
                   </button>
 
                   {/* Previous page button */}
                   <button
                     onClick={() => setPage(page - 1)}
                     disabled={page === 1}
-                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
+                    title="Halaman sebelumnya"
                   >
-                    <FaChevronLeft className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <FaChevronLeft className="h-4 w-4" />
                   </button>
 
                   {/* Page numbers */}
-                  {getPageNumbers().map((pageNum, index) => (
-                    <button
-                      key={index}
-                      onClick={() =>
-                        typeof pageNum === "number" && setPage(pageNum)
-                      }
-                      disabled={typeof pageNum !== "number"}
-                      className={`px-2 lg:px-3 py-1 lg:py-2 rounded-lg text-xs lg:text-sm border mobile-btn ${
-                        pageNum === page
-                          ? "bg-[#E22345] text-white border-[#E22345]"
-                          : "hover:bg-gray-50"
-                      } ${
-                        typeof pageNum !== "number"
-                          ? "cursor-default"
-                          : "cursor-pointer"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  ))}
+                  {getPageNumbers().map((pageNum, index) => {
+                    if (typeof pageNum !== "number") {
+                      return (
+                        <span
+                          key={index}
+                          className="px-3 py-2 text-gray-400 border-r border-gray-200 select-none"
+                        >
+                          {pageNum}
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setPage(pageNum)}
+                        className={`px-3 py-2 text-sm font-medium border-r border-gray-200 transition-colors ${
+                          pageNum === page
+                            ? "bg-[#E22345] text-white hover:bg-red-600"
+                            : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                        title={`Halaman ${pageNum}`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
 
                   {/* Next page button */}
                   <button
                     onClick={() => setPage(page + 1)}
                     disabled={page === totalPages}
-                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
+                    title="Halaman selanjutnya"
                   >
-                    <FaChevronRight className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <FaChevronRight className="h-4 w-4" />
                   </button>
 
                   {/* Last page button */}
                   <button
                     onClick={() => setPage(totalPages)}
                     disabled={page === totalPages}
-                    className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 mobile-btn"
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Halaman terakhir"
                   >
-                    <FaAngleDoubleRight className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <FaAngleDoubleRight className="h-4 w-4" />
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </>
         )}
 

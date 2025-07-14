@@ -3,7 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "./Providers";
 import { useRouter } from "next/navigation";
-import { FaUser, FaCaretDown, FaBars, FaBell } from "react-icons/fa";
+import {
+  FaUser,
+  FaCaretDown,
+  FaBars,
+  FaBell,
+  FaSignOutAlt,
+} from "react-icons/fa";
 
 const Navbar = ({ onToggleSidebar }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -13,8 +19,6 @@ const Navbar = ({ onToggleSidebar }) => {
 
   // Update username whenever user data changes
   useEffect(() => {
-    console.log("Current user data:", user);
-
     if (user && typeof user === "object") {
       // Try several possible fields for the name
       const name = user.name || user.FullName || user.fullName || user.username;
@@ -23,7 +27,6 @@ const Navbar = ({ onToggleSidebar }) => {
         setUserName(name);
       } else {
         setUserName("User");
-        console.warn("User name not found in user object:", user);
       }
     } else {
       setUserName("User");
@@ -37,7 +40,7 @@ const Navbar = ({ onToggleSidebar }) => {
         const response = await fetch("/api/auth/me");
         if (response.ok) {
           const data = await response.json();
-          console.log("Fetched user data:", data);
+          // User data will be updated through the Providers context
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -57,98 +60,90 @@ const Navbar = ({ onToggleSidebar }) => {
     return userName.charAt(0).toUpperCase();
   };
 
+  // Get user's role display
+  const getUserRole = () => {
+    if (!user) return "Guest";
+    return user.role || "User";
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const handleProfileClick = () => {
+    router.push("/profile");
+    setIsDropdownOpen(false);
+  };
+
   return (
-    <nav className="bg-[#E22345] shadow-md fixed w-full z-10">
-      <div className="max-w-7xl mx-auto px-4">
+    <nav className="bg-[#E22345] shadow-lg border-b border-gray-200 sticky top-0 z-40">
+      <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo dan Brand dengan Hamburger Menu */}
-          <div className="flex items-center space-x-4">
-            {/* Hamburger Menu untuk Mobile */}
+          {/* Left section - Mobile menu button */}
+          <div className="flex items-center">
             <button
               onClick={onToggleSidebar}
-              className="lg:hidden p-2 rounded-md hover:bg-red-600 transition-colors"
+              className="lg:hidden p-2 rounded-md text-white hover:text-gray-900 hover:bg-gray-100"
             >
-              <FaBars className="h-5 w-5 text-white" />
+              <FaBars className="h-5 w-5" />
             </button>
-
-            <span className="text-lg lg:text-xl font-semibold text-white">
-              Dashboard
-            </span>
+            <div className="hidden lg:block">
+              <h1 className="text-xl font-semibold text-white">
+                PHC Dashboard
+              </h1>
+            </div>
           </div>
 
-          {/* Menu Kanan */}
-          <div className="flex items-center space-x-2 lg:space-x-4">
-            <button className="p-2 rounded-full hover:bg-red-600 transition-colors">
-              <FaBell className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+          {/* Right section - User menu */}
+          <div className="flex items-center space-x-4">
+            {/* Notification icon */}
+            <button className="p-2 rounded-full text-white hover:text-gray-900 hover:bg-gray-100">
+              <FaBell className="h-5 w-5" />
             </button>
 
+            {/* User dropdown */}
             <div className="relative">
               <button
                 onClick={toggleDropdown}
-                className="flex items-center space-x-2 text-white bg-red-600 hover:bg-red-700 py-2 px-3 rounded-full focus:outline-none transition-colors"
+                className="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
               >
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center h-7 w-7 lg:h-8 lg:w-8 rounded-full bg-white text-red-600 font-semibold mr-2">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#E22345] font-medium">
                     {getUserInitial()}
                   </div>
-                  <span className="hidden sm:inline text-sm lg:text-base">
-                    {userName || "User"}
-                  </span>
-                  <FaCaretDown className="ml-2" />
+                  <div className="hidden sm:block text-left">
+                    <div className="text-sm font-medium text-white">
+                      {userName}
+                    </div>
+                    <div className="text-xs text-white">{getUserRole()}</div>
+                  </div>
+                  <FaCaretDown className="h-3 w-3 text-white" />
                 </div>
               </button>
 
-              {/* Dropdown Menu */}
+              {/* Dropdown menu */}
               {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                  <button
-                    onClick={() => {
-                      router.push("/profile");
-                      setIsDropdownOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <svg
-                        className="mr-3 h-5 w-5 text-black"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                      <p className="text-black">Profile Settings</p>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      logout();
-                      setIsDropdownOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-black hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <svg
-                        className="mr-3 h-5 w-5 text-black"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
-                      </svg>
-                      <p className="text-black">Logout</p>
-                    </div>
-                  </button>
+                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-[#E22345] ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="py-1">
+                    <button
+                      onClick={handleProfileClick}
+                      className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-white hover:text-gray-900"
+                    >
+                      <FaUser className="mr-3 h-4 w-4" />
+                      Profile
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-white hover:text-gray-900"
+                    >
+                      <FaSignOutAlt className="mr-3 h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

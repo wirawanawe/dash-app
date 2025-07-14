@@ -14,7 +14,6 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
       });
       return response;
     } catch (error) {
-      console.log(`Attempt ${i + 1} failed:`, error.message);
       if (i === maxRetries - 1) {
         throw error; // Throw on last attempt
       }
@@ -57,8 +56,6 @@ export async function GET(request) {
     if (endDate) {
       apiUrl += `&tglakhir=${encodeURIComponent(endDate)}`;
     }
-
-    console.log(`Fetching visits from API: ${apiUrl}`);
 
     const response = await fetchWithRetry(apiUrl, {
       method: "GET",
@@ -356,8 +353,6 @@ export async function GET(request) {
 
     // Fallback to local database if external API fails
     try {
-      console.log("Falling back to local database...");
-
       // Build WHERE clause for date filtering and search
       let whereClause = "";
       let queryParams = [];

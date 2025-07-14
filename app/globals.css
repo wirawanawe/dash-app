@@ -71,6 +71,35 @@ input[type="number"] {
   .mobile-input {
     @apply text-base; /* Prevents zoom on iOS */
   }
+
+  /* Pagination specific utilities */
+  .pagination-container {
+    @apply flex justify-center items-center;
+  }
+
+  .pagination-group {
+    @apply inline-flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden;
+  }
+
+  .pagination-button {
+    @apply px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors;
+  }
+
+  .pagination-number {
+    @apply px-3 py-2 text-sm font-medium border-r border-gray-200 transition-colors;
+  }
+
+  .pagination-number.active {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .pagination-number.inactive {
+    @apply text-gray-700 hover:bg-gray-50 hover:text-gray-900;
+  }
+
+  .pagination-dots {
+    @apply px-3 py-2 text-gray-400 border-r border-gray-200 select-none;
+  }
 }
 
 /* Custom scrollbar for webkit browsers */

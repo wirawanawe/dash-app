@@ -68,9 +68,6 @@ export default function DoctorForm({ doctor, onSubmit, onCancel }) {
     setIsLoading(true);
 
     try {
-      // Log data sebelum dikirim
-      // console.log("Sending data:", formData);
-
       const url = doctor
         ? `/api/settings/doctors/${doctor.id}`
         : "/api/settings/doctors";
@@ -92,9 +89,7 @@ export default function DoctorForm({ doctor, onSubmit, onCancel }) {
         }),
       });
 
-      // Log response untuk debugging
       const result = await response.json();
-      // console.log("Response:", result);
 
       if (!response.ok) {
         throw new Error(result.error || "Gagal menyimpan data");

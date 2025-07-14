@@ -23,8 +23,6 @@ export default function LoginPage() {
     setDebugInfo(null);
 
     try {
-      console.log("Login attempt with:", { email: formData.email });
-
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,7 +31,6 @@ export default function LoginPage() {
       });
 
       const responseText = await response.text();
-      console.log("Raw response:", responseText);
 
       let data;
       try {
@@ -63,8 +60,6 @@ export default function LoginPage() {
         throw new Error(data.message || "Login response indicates failure");
       }
 
-      console.log("Login successful, fetching user data");
-
       // Fetch user data from /api/auth/me
       const userResponse = await fetch("/api/auth/me", {
         credentials: "include", // Important for cookies
@@ -82,7 +77,6 @@ export default function LoginPage() {
       }
 
       const userData = await userResponse.json();
-      console.log("User data received:", userData);
 
       // Improved validation with more specific error messages
       if (!userData) {
@@ -135,70 +129,128 @@ export default function LoginPage() {
     });
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   return (
-    <div className="min-h-screen relative flex items-center justify-center bg-[#FAFAFA]">
-      <div className="relative z-10 bg-[#FAFAFA] p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center mb-6 text-black">
-          Doctor PHC <br /> Medical Record
-        </h1>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-black mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-3 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-black mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className="w-full px-3 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-[#E22345] text-white py-2 rounded-lg hover:bg-red-600 disabled:bg-gray-400"
-          >
-            {isLoading ? "Loading..." : "Login"}
-          </button>
-        </form>
-
-        {/* Debug admin login button */}
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={loginAsAdmin}
-            className="text-sm text-gray-600 hover:text-gray-800"
-          >
-            Fill Admin Credentials
-          </button>
+    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center">
+          <Image
+            src="/phc-logo.png"
+            alt="PHC Logo"
+            width={120}
+            height={120}
+            className="mx-auto h-16 w-auto"
+          />
         </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Masuk ke akun Anda
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Silakan masukkan kredensial Anda untuk melanjutkan
+        </p>
+      </div>
 
-        {/* Debug information */}
-        {debugInfo && (
-          <div className="mt-4 p-4 bg-gray-100 rounded-lg text-xs">
-            <h3 className="font-bold text-red-600 mb-2">Debug Information:</h3>
-            <pre className="text-black whitespace-pre-wrap">
-              {JSON.stringify(debugInfo, null, 2)}
-            </pre>
-          </div>
-        )}
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email address
+              </label>
+              <div className="mt-1">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  className="appearance-none block w-full px-3 text-black py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-[#E22345] focus:border-[#E22345] sm:text-sm"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  className="appearance-none block w-full px-3 text-black py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-[#E22345] focus:border-[#E22345] sm:text-sm"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-[#E22345] focus:ring-[#E22345] border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="remember-me"
+                  className="ml-2 block text-sm text-gray-900"
+                >
+                  Remember me
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-[#E22345] hover:text-red-500"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#E22345] hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E22345] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? "Logging in..." : "Login"}
+              </button>
+            </div>
+          </form>
+
+          {/* Debug Info Display */}
+          {debugInfo && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <h3 className="text-sm font-medium text-yellow-800 mb-2">
+                Debug Information:
+              </h3>
+              <pre className="text-xs text-yellow-700 whitespace-pre-wrap">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

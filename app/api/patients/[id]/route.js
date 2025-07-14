@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { Patient, Insurance, $transaction } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 // GET single patient
 export async function GET(request, { params }) {
   try {
-    const patient = await Patient.findUnique({
-      where: { id: parseInt(params.id) },
-    });
+    const [patient] = await query("SELECT * FROM patients WHERE id = ?", [
+      parseInt(params.id),
+    ]);
 
     if (!patient) {
       return NextResponse.json(
@@ -15,9 +15,16 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Get insurance data separately for now
-    // TODO: Implement JOIN query if needed
-    return NextResponse.json(patient);
+    // Get insurance data if exists
+    const [insurance] = await query(
+      "SELECT * FROM insurance WHERE patient_id = ?",
+      [parseInt(params.id)]
+    );
+
+    return NextResponse.json({
+      ...patient,
+      insurance: insurance || null,
+    });
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -41,63 +48,87 @@ export async function PUT(request, { params }) {
     }
 
     // Update patient
-    const patient = await Patient.update({
-      where: { id: parseInt(params.id) },
-      data: {
-        name: data.name.trim(),
-        nik: data.nik.trim(),
-        birthDate: new Date(data.birthDate),
-        gender: data.gender,
-        address: data.address?.trim(),
-        phone: data.phone?.trim(),
-        email: data.email?.trim(),
-        provinceId: data.provinceId,
-        provinceName: data.provinceName,
-        cityId: data.cityId,
-        cityName: data.cityName,
-        districtId: data.districtId,
-        districtName: data.districtName,
-        villageId: data.villageId,
-        villageName: data.villageName,
-        postalCode: data.postalCode,
-        companyId: data.companyId ? parseInt(data.companyId) : null,
-      },
-    });
+    const updateSql = `
+      UPDATE patients SET 
+        name = ?, nik = ?, birth_date = ?, gender = ?, address = ?, 
+        phone = ?, email = ?, province_id = ?, province_name = ?, 
+        city_id = ?, city_name = ?, district_id = ?, district_name = ?, 
+        village_id = ?, village_name = ?, postal_code = ?, company_id = ?, 
+        updated_at = NOW()
+      WHERE id = ?
+    `;
+
+    const updateParams = [
+      data.name.trim(),
+      data.nik.trim(),
+      data.birthDate,
+      data.gender,
+      data.address?.trim(),
+      data.phone?.trim(),
+      data.email?.trim(),
+      data.provinceId,
+      data.provinceName,
+      data.cityId,
+      data.cityName,
+      data.districtId,
+      data.districtName,
+      data.villageId,
+      data.villageName,
+      data.postalCode,
+      data.companyId ? parseInt(data.companyId) : null,
+      parseInt(params.id),
+    ];
+
+    await query(updateSql, updateParams);
 
     // Handle insurance separately
     if (data.insurance) {
-      // Try to update existing insurance first
-      const existingInsurance = await Insurance.findUnique({
-        where: { patientId: parseInt(params.id) },
-      });
+      // Check if insurance exists
+      const [existingInsurance] = await query(
+        "SELECT id FROM insurance WHERE patient_id = ?",
+        [parseInt(params.id)]
+      );
 
       if (existingInsurance) {
-        await Insurance.update({
-          where: { id: existingInsurance.id },
-          data: {
-            provider: data.insurance.provider,
-            number: data.insurance.number,
-            type: data.insurance.type,
-            status: data.insurance.status || "Aktif",
-          },
-        });
+        // Update existing insurance
+        await query(
+          `UPDATE insurance SET 
+           provider = ?, number = ?, type = ?, status = ?, updated_at = NOW()
+           WHERE patient_id = ?`,
+          [
+            data.insurance.provider,
+            data.insurance.number,
+            data.insurance.type,
+            data.insurance.status || "Aktif",
+            parseInt(params.id),
+          ]
+        );
       } else {
-        await Insurance.create({
-          data: {
-            patientId: parseInt(params.id),
-            provider: data.insurance.provider,
-            number: data.insurance.number,
-            type: data.insurance.type,
-            status: data.insurance.status || "Aktif",
-          },
-        });
+        // Create new insurance
+        await query(
+          `INSERT INTO insurance (patient_id, provider, number, type, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            parseInt(params.id),
+            data.insurance.provider,
+            data.insurance.number,
+            data.insurance.type,
+            data.insurance.status || "Aktif",
+          ]
+        );
       }
     }
 
-    return NextResponse.json(patient);
+    // Get updated patient
+    const [updatedPatient] = await query(
+      "SELECT * FROM patients WHERE id = ?",
+      [parseInt(params.id)]
+    );
+
+    return NextResponse.json(updatedPatient);
   } catch (error) {
     console.error("Error:", error);
-    if (error.code === "P2002" || error.code === "ER_DUP_ENTRY") {
+    if (error.code === "ER_DUP_ENTRY") {
       return NextResponse.json(
         { error: "NIK sudah terdaftar" },
         { status: 400 }
@@ -113,18 +144,13 @@ export async function PUT(request, { params }) {
 // DELETE patient
 export async function DELETE(request, { params }) {
   try {
-    await $transaction([
-      // Delete related insurance records first
-      () =>
-        Insurance.deleteMany({
-          where: { patientId: parseInt(params.id) },
-        }),
-      // Then delete the patient
-      () =>
-        Patient.delete({
-          where: { id: parseInt(params.id) },
-        }),
-    ]);
+    const patientId = parseInt(params.id);
+
+    // Delete insurance records first (foreign key constraint)
+    await query("DELETE FROM insurance WHERE patient_id = ?", [patientId]);
+
+    // Delete the patient
+    await query("DELETE FROM patients WHERE id = ?", [patientId]);
 
     return NextResponse.json({ message: "Pasien berhasil dihapus" });
   } catch (error) {

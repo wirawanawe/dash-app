@@ -17,26 +17,26 @@ export function Providers({ children }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Tambahkan state untuk tracking aktivitas
+  // Adicionar state para tracking de atividade
   const [lastActivity, setLastActivity] = useState(Date.now());
-  const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam (60 menit)
+  const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hora (60 minutos)
 
   useEffect(() => {
     // Always check auth on mount - no need to check cookies since they're httpOnly
     checkAuth();
 
-    // Reset timer setiap ada aktivitas
+    // Reset timer a cada atividade
     const resetTimer = () => {
       setLastActivity(Date.now());
     };
 
-    // Event listeners untuk aktivitas user
+    // Event listeners para atividade do usuário
     window.addEventListener("mousemove", resetTimer);
     window.addEventListener("keypress", resetTimer);
     window.addEventListener("click", resetTimer);
     window.addEventListener("scroll", resetTimer);
 
-    // Cek session timeout setiap 30 detik
+    // Verificar session timeout a cada 30 segundos
     const interval = setInterval(() => {
       const now = Date.now();
       if (now - lastActivity >= SESSION_TIMEOUT && user) {
@@ -56,17 +56,14 @@ export function Providers({ children }) {
 
   const checkAuth = async () => {
     try {
-      console.log("Checking authentication");
       const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Auth check result:", !!data);
         setUser(data);
       } else {
-        console.log("Auth check failed - response not ok");
         setUser(null);
       }
     } catch (error) {
@@ -77,7 +74,7 @@ export function Providers({ children }) {
     }
   };
 
-  // Fungsi untuk handle session timeout
+  // Função para lidar com session timeout
   const handleSessionTimeout = async () => {
     try {
       const response = await fetch("/api/auth/logout", {
@@ -90,13 +87,13 @@ export function Providers({ children }) {
       }
 
       setUser(null);
-      toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
+      toast.error("Sua sessão expirou. Faça login novamente.");
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
       // Even if there's an error, clear the user state and redirect to login
       setUser(null);
-      toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
+      toast.error("Sua sessão expirou. Faça login novamente.");
       router.push("/login");
     }
   };
@@ -122,18 +119,29 @@ export function Providers({ children }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#E22345]"></div>
-      </div>
-    );
-  }
+  const value = {
+    user,
+    setUser,
+    loading,
+    logout,
+  };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            borderRadius: "10px",
+            background: "#333",
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: "500",
+          },
+        }}
+      />
     </AuthContext.Provider>
   );
 }

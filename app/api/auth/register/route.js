@@ -1,4 +1,4 @@
-import { User } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
@@ -15,9 +15,9 @@ export async function POST(request) {
     }
 
     // Cek apakah user sudah ada
-    const existingUser = await User.findUnique({
-      where: { email },
-    });
+    const [existingUser] = await query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
 
     if (existingUser) {
       return NextResponse.json(
@@ -30,22 +30,21 @@ export async function POST(request) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Buat user baru
-    const user = await User.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role: role || "user",
-      },
-    });
+    const insertResult = await query(
+      "INSERT INTO users (name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+      [name, email, hashedPassword, role || "user"]
+    );
 
-    // Hapus password dari response
-    const { password: _, ...userWithoutPassword } = user;
+    // Get the created user (without password)
+    const [newUser] = await query(
+      "SELECT id, name, email, role, created_at, updated_at FROM users WHERE id = ?",
+      [insertResult.insertId]
+    );
 
     return NextResponse.json(
       {
         message: "User registered successfully",
-        user: userWithoutPassword,
+        user: newUser,
       },
       { status: 201 }
     );

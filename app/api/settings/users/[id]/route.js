@@ -1,31 +1,14 @@
 import { NextResponse } from "next/server";
-import {
-  User,
-  Patient,
-  Company,
-  Doctor,
-  Insurance,
-  ICD,
-  Treatment,
-  Polyclinic,
-  PostalCode,
-  $transaction,
-} from "@/lib/prisma";
+import { query } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
 // GET single user
 export async function GET(request, { params }) {
   try {
-    const user = await User.findUnique({
-      where: {
-        id: parseInt(params.id),
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
-    });
+    const [user] = await query(
+      "SELECT id, name, email FROM users WHERE id = ?",
+      [parseInt(params.id)]
+    );
 
     if (!user) {
       return NextResponse.json(
@@ -36,6 +19,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(user);
   } catch (error) {
+    console.error("Error fetching user:", error);
     return NextResponse.json(
       { message: "Gagal mengambil data pengguna" },
       { status: 500 }
@@ -47,30 +31,36 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const data = await request.json();
-    const updateData = {
-      name: data.name,
-      email: data.email,
-    };
+    const userId = parseInt(params.id);
 
-    // Update password hanya jika ada password baru
+    // Build update query parts
+    const updateFields = ["name = ?", "email = ?", "updated_at = NOW()"];
+    const updateParams = [data.name, data.email];
+
+    // Update password only if new password provided
     if (data.password) {
-      updateData.password = await bcrypt.hash(data.password, 10);
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+      updateFields.splice(-1, 0, "password = ?"); // Insert before updated_at
+      updateParams.splice(-1, 0, hashedPassword); // Insert before userId
     }
 
-    const user = await User.update({
-      where: {
-        id: parseInt(params.id),
-      },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-      },
-    });
+    // Add userId for WHERE clause
+    updateParams.push(userId);
 
-    return NextResponse.json(user);
+    await query(
+      `UPDATE users SET ${updateFields.join(", ")} WHERE id = ?`,
+      updateParams
+    );
+
+    // Get updated user (without password)
+    const [updatedUser] = await query(
+      "SELECT id, name, email FROM users WHERE id = ?",
+      [userId]
+    );
+
+    return NextResponse.json(updatedUser);
   } catch (error) {
+    console.error("Error updating user:", error);
     return NextResponse.json(
       { message: "Gagal mengupdate pengguna" },
       { status: 500 }
@@ -81,13 +71,11 @@ export async function PUT(request, { params }) {
 // DELETE user
 export async function DELETE(request, { params }) {
   try {
-    await User.delete({
-      where: {
-        id: parseInt(params.id),
-      },
-    });
+    await query("DELETE FROM users WHERE id = ?", [parseInt(params.id)]);
+
     return NextResponse.json({ message: "Pengguna berhasil dihapus" });
   } catch (error) {
+    console.error("Error deleting user:", error);
     return NextResponse.json(
       { message: "Gagal menghapus pengguna" },
       { status: 500 }

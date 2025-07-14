@@ -298,34 +298,37 @@ export default function VisitsPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 pb-8">
-        <div className="flex justify-between items-center mb-6">
+      <div className="container mx-auto px-2 lg:px-4 pb-8 mobile-safe">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 lg:mb-6 gap-4 lg:gap-0">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
               Daftar Kunjungan
             </h1>
           </div>
         </div>
 
-        <div className="mb-6">
-          <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+        <div className="mb-4 lg:mb-6">
+          <form
+            onSubmit={handleSearch}
+            className="flex flex-col sm:flex-row gap-2 mb-4"
+          >
             <div className="relative flex-1">
               <input
                 type="text"
                 placeholder="Cari kunjungan (pasien, dokter, keluhan)..."
                 value={searchInput}
                 onChange={handleSearchInputChange}
-                className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10"
+                className="w-full px-4 py-2 rounded-lg text-black border focus:outline-none focus:ring-2 focus:ring-[#E22345] pl-10 mobile-input"
               />
               <FaSearch className="absolute left-3 top-3 text-gray-400" />
             </div>
 
             <button
               type="submit"
-              className="bg-[#E22345] text-white px-6 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors"
+              className="bg-[#E22345] text-white px-6 py-2 rounded-lg hover:bg-red-600 flex items-center gap-2 transition-colors mobile-btn"
             >
               <FaSearch />
-              Cari
+              <span className="hidden sm:inline">Cari</span>
             </button>
             <button
               type="button"
@@ -338,16 +341,21 @@ export default function VisitsPage() {
               }}
               className={`${
                 showFilters ? "bg-blue-600" : "bg-blue-500"
-              } text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 transition-colors`}
+              } text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 transition-colors mobile-btn`}
             >
               <FaFilter />
-              {showFilters ? "Tutup Filter" : "Buka Filter"}
+              <span className="hidden sm:inline">
+                {showFilters ? "Tutup Filter" : "Buka Filter"}
+              </span>
+              <span className="sm:hidden">
+                {showFilters ? "Tutup" : "Filter"}
+              </span>
             </button>
             {(search || searchDate) && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors mobile-btn"
               >
                 Reset
               </button>
@@ -370,7 +378,7 @@ export default function VisitsPage() {
                     name="startDate"
                     value={filters.startDate}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345] mobile-input"
                     placeholder="Pilih tanggal awal"
                   />
                 </div>
@@ -383,7 +391,7 @@ export default function VisitsPage() {
                     name="endDate"
                     value={filters.endDate}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345] mobile-input"
                     placeholder="Pilih tanggal akhir"
                   />
                 </div>
@@ -395,7 +403,7 @@ export default function VisitsPage() {
                     name="status"
                     value={filters.status}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345] mobile-input"
                   >
                     <option value="">Semua Status</option>
                     <option value="Aktif">Aktif</option>
@@ -410,7 +418,7 @@ export default function VisitsPage() {
                     name="doctorId"
                     value={filters.doctorId}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-[#E22345] mobile-input"
                   >
                     <option value="">Semua Dokter</option>
                     {doctors.map((doctor) => (
@@ -421,18 +429,18 @@ export default function VisitsPage() {
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="flex flex-wrap justify-end gap-2 mt-4">
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors mobile-btn"
                 >
                   Reset Filter
                 </button>
                 <button
                   type="button"
                   onClick={applyFilters}
-                  className="px-4 py-2 bg-[#E22345] text-white rounded-lg hover:bg-red-600 transition-colors"
+                  className="px-4 py-2 bg-[#E22345] text-white rounded-lg hover:bg-red-600 transition-colors mobile-btn"
                 >
                   Terapkan Filter
                 </button>
@@ -655,80 +663,120 @@ export default function VisitsPage() {
               </div>
             </div>
 
-            {/* Data per page selector and pagination info */}
-            <div className="mt-6 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700">Data per halaman:</span>
-                <select
-                  value={limit}
-                  onChange={handleLimitChange}
-                  className="border border-gray-300 rounded px-2 py-1 text-sm text-black"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-
-              {metadata.total && (
-                <div className="text-sm text-gray-700">
-                  Menampilkan {(page - 1) * limit + 1} hingga{" "}
-                  {Math.min(page * limit, metadata.total)} dari {metadata.total}{" "}
-                  kunjungan
+            {/* Data info and pagination controls */}
+            <div className="mt-6 mb-4 bg-gray-50 rounded-lg p-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                {/* Data info */}
+                <div className="text-sm text-gray-600">
+                  Menampilkan{" "}
+                  <span className="font-semibold">
+                    {(page - 1) * limit + 1}
+                  </span>{" "}
+                  -{" "}
+                  <span className="font-semibold">
+                    {Math.min(page * limit, metadata.total || 0)}
+                  </span>{" "}
+                  dari{" "}
+                  <span className="font-semibold">{metadata.total || 0}</span>{" "}
+                  data
                 </div>
-              )}
+
+                {/* Items per page */}
+                <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border">
+                  <label
+                    htmlFor="limit-visits"
+                    className="text-sm text-gray-700 whitespace-nowrap"
+                  >
+                    Data per halaman:
+                  </label>
+                  <select
+                    id="limit-visits"
+                    value={limit}
+                    onChange={handleLimitChange}
+                    className="border-0 bg-transparent text-sm text-gray-900 focus:outline-none focus:ring-0 mobile-input"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center space-x-2">
-                <button
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaAngleDoubleLeft />
-                </button>
-                <button
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaChevronLeft />
-                </button>
-
-                {getPageNumbers().map((pageNum, index) => (
+              <div className="flex justify-center">
+                <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  {/* First page button */}
                   <button
-                    key={index}
-                    onClick={() => pageNum !== "..." && setPage(pageNum)}
-                    disabled={pageNum === "..."}
-                    className={`px-3 py-2 rounded-md text-sm font-medium border ${
-                      pageNum === page
-                        ? "bg-[#E22345] text-white border-[#E22345]"
-                        : pageNum === "..."
-                        ? "border-gray-300 text-gray-400 cursor-default"
-                        : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                    }`}
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
+                    title="Halaman pertama"
                   >
-                    {pageNum}
+                    <FaAngleDoubleLeft className="h-4 w-4" />
                   </button>
-                ))}
 
-                <button
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === totalPages}
-                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaChevronRight />
-                </button>
-                <button
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  className="p-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FaAngleDoubleRight />
-                </button>
+                  {/* Previous page button */}
+                  <button
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
+                    title="Halaman sebelumnya"
+                  >
+                    <FaChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  {/* Page numbers */}
+                  {getPageNumbers().map((pageNum, index) => {
+                    if (pageNum === "...") {
+                      return (
+                        <span
+                          key={index}
+                          className="px-3 py-2 text-gray-400 border-r border-gray-200 select-none"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setPage(pageNum)}
+                        className={`px-3 py-2 text-sm font-medium border-r border-gray-200 transition-colors ${
+                          pageNum === page
+                            ? "bg-[#E22345] text-white hover:bg-red-600"
+                            : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                        title={`Halaman ${pageNum}`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  {/* Next page button */}
+                  <button
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === totalPages}
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
+                    title="Halaman selanjutnya"
+                  >
+                    <FaChevronRight className="h-4 w-4" />
+                  </button>
+
+                  {/* Last page button */}
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages}
+                    className="px-3 py-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title="Halaman terakhir"
+                  >
+                    <FaAngleDoubleRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             )}
           </>

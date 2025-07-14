@@ -5,8 +5,6 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request) {
   try {
-    console.log("Login API called");
-
     if (!process.env.JWT_SECRET) {
       console.error("JWT_SECRET is not defined in environment variables");
       return NextResponse.json(
@@ -19,7 +17,6 @@ export async function POST(request) {
     }
 
     const { email, password } = await request.json();
-    console.log("Login attempt for email:", email);
 
     // Validasi input
     if (!email || !password) {
@@ -45,15 +42,6 @@ export async function POST(request) {
       // Only set secure flag if actually using HTTPS
       const isHttps = protocol === "https";
 
-      console.log("Cookie environment detection:", {
-        isProduction,
-        protocol,
-        isHttps,
-        url: request.url,
-        host: request.headers.get("host"),
-        forwardedProto: request.headers.get("x-forwarded-proto"),
-      });
-
       return {
         httpOnly: true,
         secure: isHttps, // Only secure when actually using HTTPS
@@ -65,8 +53,6 @@ export async function POST(request) {
 
     // Admin fallback untuk testing saat database belum siap
     if (email === "admin@phc.com" && password === "admin123") {
-      console.log("Admin login detected");
-
       const adminUser = {
         id: "admin-001",
         name: "Administrator",
@@ -90,8 +76,6 @@ export async function POST(request) {
         .setExpirationTime("1d")
         .sign(new TextEncoder().encode(process.env.JWT_SECRET));
 
-      console.log("Admin token generated successfully");
-
       const response = NextResponse.json(
         {
           success: true,
@@ -102,7 +86,6 @@ export async function POST(request) {
       );
 
       const cookieOptions = getCookieOptions();
-      console.log("Setting cookies with options:", cookieOptions);
 
       response.cookies.set("token", token, cookieOptions);
       response.cookies.set(
@@ -111,14 +94,11 @@ export async function POST(request) {
         cookieOptions
       );
 
-      console.log("Admin login successful, cookies set");
       return response;
     }
 
     // Try database authentication
     try {
-      console.log("Attempting database authentication");
-
       // Cari user di database
       let sql = `
         SELECT u.id, u.name, u.email, u.password, u.role, u.is_active
@@ -128,7 +108,6 @@ export async function POST(request) {
       let [user] = await query(sql, [email]);
 
       if (!user) {
-        console.log("User not found in database");
         return NextResponse.json(
           {
             success: false,
@@ -138,8 +117,6 @@ export async function POST(request) {
         );
       }
 
-      console.log("User found in database:", user.email);
-
       // Set clinic info to null since clinic_id column doesn't exist
       user.clinic_id = null;
       user.clinic_name = null;
@@ -147,7 +124,6 @@ export async function POST(request) {
 
       // Cek apakah user aktif
       if (!user.is_active) {
-        console.log("User account is not active");
         return NextResponse.json(
           {
             success: false,
@@ -161,7 +137,6 @@ export async function POST(request) {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
-        console.log("Password validation failed");
         return NextResponse.json(
           {
             success: false,
@@ -170,8 +145,6 @@ export async function POST(request) {
           { status: 401 }
         );
       }
-
-      console.log("Password validation successful");
 
       // Create a JWT token
       const token = await new SignJWT({
@@ -186,8 +159,6 @@ export async function POST(request) {
         .setIssuedAt()
         .setExpirationTime("1d")
         .sign(new TextEncoder().encode(process.env.JWT_SECRET));
-
-      console.log("JWT token created successfully");
 
       // Format response user
       const userData = {
@@ -209,7 +180,6 @@ export async function POST(request) {
       );
 
       const cookieOptions = getCookieOptions();
-      console.log("Setting cookies with options:", cookieOptions);
 
       response.cookies.set("token", token, cookieOptions);
       response.cookies.set(
@@ -218,15 +188,12 @@ export async function POST(request) {
         cookieOptions
       );
 
-      console.log("Database login successful, cookies set");
       return response;
     } catch (dbError) {
       console.error("Database error during login:", dbError);
 
       // Fallback to hardcoded admin if database error and admin credentials
       if (email === "admin@phc.com" && password === "admin123") {
-        console.log("Fallback to admin login after database error");
-
         const adminUser = {
           id: "admin-001",
           name: "Administrator",
@@ -260,7 +227,6 @@ export async function POST(request) {
         );
 
         const cookieOptions = getCookieOptions();
-        console.log("Setting fallback cookies with options:", cookieOptions);
 
         response.cookies.set("token", token, cookieOptions);
         response.cookies.set(
@@ -269,7 +235,6 @@ export async function POST(request) {
           cookieOptions
         );
 
-        console.log("Fallback admin login successful, cookies set");
         return response;
       }
 

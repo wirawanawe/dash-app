@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { User, Patient, Company, Doctor, Insurance, ICD, Treatment, Polyclinic, PostalCode, $transaction } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -13,18 +13,10 @@ export async function GET(request) {
   }
 
   try {
-    // console.log("Searching postal code for villageId:", villageId); // Debug log
-
-    const postalCode = await PostalCode.findFirst({
-      where: {
-        villageId: villageId.toString(), // Pastikan format string
-      },
-      select: {
-        code: true,
-      },
-    });
-
-    // console.log("Found postal code:", postalCode); // Debug log
+    const [postalCode] = await query(
+      "SELECT code FROM postal_codes WHERE village_id = ?",
+      [villageId.toString()]
+    );
 
     return NextResponse.json({ code: postalCode?.code || "" });
   } catch (error) {
@@ -39,24 +31,36 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const data = await request.json();
-    const postalCode = await PostalCode.create({
-      data: {
-        code: data.code,
-        villageId: data.villageId,
-        villageName: data.villageName,
-        districtId: data.districtId,
-        districtName: data.districtName,
-        cityId: data.cityId,
-        cityName: data.cityName,
-        provinceId: data.provinceId,
-        provinceName: data.provinceName,
-      },
-    });
+
+    const insertResult = await query(
+      `INSERT INTO postal_codes (
+        code, village_id, village_name, district_id, district_name, 
+        city_id, city_name, province_id, province_name, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        data.code,
+        data.villageId,
+        data.villageName,
+        data.districtId,
+        data.districtName,
+        data.cityId,
+        data.cityName,
+        data.provinceId,
+        data.provinceName,
+      ]
+    );
+
+    // Get the created postal code
+    const [postalCode] = await query(
+      "SELECT * FROM postal_codes WHERE id = ?",
+      [insertResult.insertId]
+    );
+
     return NextResponse.json(postalCode);
   } catch (error) {
     console.error("Error creating postal code:", error);
     return NextResponse.json(
-      { error: "Gagal menyimpan kode pos" },
+      { error: "Gagal membuat kode pos" },
       { status: 500 }
     );
   }
