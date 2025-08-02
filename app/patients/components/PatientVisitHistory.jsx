@@ -19,6 +19,9 @@ import {
   FaHeartbeat,
   FaLungs,
   FaTint,
+  FaSort,
+  FaSortUp,
+  FaSortDown,
 } from "react-icons/fa";
 
 export default function PatientVisitHistory({ patientId }) {
@@ -28,6 +31,8 @@ export default function PatientVisitHistory({ patientId }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedVisit, setSelectedVisit] = useState(null);
+  const [sortField, setSortField] = useState('visit_date');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
     fetchVisits();
@@ -38,7 +43,7 @@ export default function PatientVisitHistory({ patientId }) {
     setError(null);
 
     try {
-      const url = `/api/patients/${patientId}/visits?page=${currentPage}&limit=5`;
+      const url = `/api/patients/${patientId}/visits?page=${currentPage}&limit=50`;
 
       const response = await fetch(url);
 
@@ -65,15 +70,32 @@ export default function PatientVisitHistory({ patientId }) {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) {
+      return <FaSort className="h-3 w-3 text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <FaSortUp className="h-3 w-3 text-gray-600" />
+      : <FaSortDown className="h-3 w-3 text-gray-600" />;
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString("id-ID", {
-        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
         year: "numeric",
-        month: "long",
-        day: "numeric",
       });
     } catch {
       return dateString;
@@ -97,15 +119,17 @@ export default function PatientVisitHistory({ patientId }) {
     switch (status?.toLowerCase()) {
       case "completed":
       case "selesai":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 border-green-200";
       case "active":
       case "aktif":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 border-blue-200";
       case "cancelled":
       case "dibatalkan":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 border-red-200";
+      case "menunggu":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
@@ -228,101 +252,142 @@ export default function PatientVisitHistory({ patientId }) {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {visits.map((visit, index) => (
-          <div
-            key={visit.id || index}
-            className="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow"
-          >
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-[#E22345] bg-opacity-10 p-2 rounded-full">
-                    <FaStethoscope className="h-5 w-5 text-[#E22345]" />
+      {/* Table Container */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('visit_date')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Tanggal & Waktu</span>
+                    {getSortIcon('visit_date')}
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <FaCalendarAlt className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium text-gray-900">
-                        {formatDate(visit.visit_date)}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {formatTime(visit.visit_date)}
-                      </span>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('doctor_name')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Dokter</span>
+                    {getSortIcon('doctor_name')}
+                  </div>
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('clinic_name')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Klinik</span>
+                    {getSortIcon('clinic_name')}
+                  </div>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Keluhan
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Diagnosis
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tindakan
+                </th>
+                <th 
+                  scope="col" 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Status</span>
+                    {getSortIcon('status')}
+                  </div>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Detail
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {visits.map((visit, index) => (
+                <tr key={visit.id || index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      <div className="font-medium">{formatDate(visit.visit_date)}</div>
+                      <div className="text-gray-500">{formatTime(visit.visit_date)}</div>
                     </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <FaUserMd className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <FaUserMd className="h-4 w-4 text-gray-400 mr-2" />
+                      <div className="text-sm text-gray-900">
                         {visit.doctor_name || "Dokter tidak diketahui"}
-                      </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                      visit.status
-                    )}`}
-                  >
-                    {visit.status || "Selesai"}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setSelectedVisit(
-                        selectedVisit === visit.id ? null : visit.id
-                      )
-                    }
-                    className="p-1 text-gray-500 hover:text-[#E22345] transition-colors"
-                  >
-                    <FaEye className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <FaMapMarkerAlt className="h-4 w-4 text-gray-500" />
-                    <span className="text-gray-600">
-                      {visit.clinic_name || "Klinik tidak diketahui"}
-                    </span>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-medium text-gray-700">Keluhan:</span>
-                    <p className="text-gray-600 mt-1">
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <FaMapMarkerAlt className="h-4 w-4 text-gray-400 mr-2" />
+                      <div className="text-sm text-gray-900">
+                        {visit.clinic_name || "Klinik tidak diketahui"}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.complaint || "Tidak ada keluhan"}>
                       {visit.complaint || "Tidak ada keluhan"}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-2">
-                    <span className="font-medium text-gray-700">
-                      Diagnosis:
-                    </span>
-                    <p className="text-gray-600 mt-1">
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.diagnosis || "Tidak ada diagnosis"}>
                       {visit.diagnosis || "Tidak ada diagnosis"}
-                    </p>
-                  </div>
-                  <div className="mb-2">
-                    <span className="font-medium text-gray-700">Tindakan:</span>
-                    <p className="text-gray-600 mt-1">
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.treatment || "Tidak ada tindakan"}>
                       {visit.treatment || "Tidak ada tindakan"}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(visit.status)}`}>
+                      {visit.status || "Selesai"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => setSelectedVisit(selectedVisit === visit.id ? null : visit.id)}
+                      className="text-[#E22345] hover:text-red-700 transition-colors"
+                    >
+                      <FaEye className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-              {selectedVisit === visit.id && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Expanded Row for Visit Details */}
+        {selectedVisit && (
+          <div className="border-t border-gray-200 bg-gray-50">
+            {visits.map((visit) => 
+              selectedVisit === visit.id && (
+                <div key={visit.id} className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h4 className="font-medium text-gray-700 mb-2">
+                      <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+                        <FaStethoscope className="h-4 w-4 text-gray-500 mr-2" />
                         Tanda Vital
                       </h4>
                       {renderVitalSigns(visit.vital_signs)}
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-700 mb-2">
+                      <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+                        <FaNotesMedical className="h-4 w-4 text-gray-500 mr-2" />
                         Catatan
                       </h4>
                       <p className="text-gray-600 text-sm">
@@ -331,14 +396,14 @@ export default function PatientVisitHistory({ patientId }) {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+              )
+            )}
           </div>
-        ))}
+        )}
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center mt-6">
+        <div className="flex justify-center mt-6 pagination-safe-area">
           <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             <button
               onClick={() => handlePageChange(currentPage - 1)}

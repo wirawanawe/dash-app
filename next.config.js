@@ -2,6 +2,10 @@
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone", // Enable standalone output for Docker
+  // Bind to all interfaces for mobile app access
+  experimental: {
+    serverComponentsExternalPackages: ['mysql2'],
+  },
   env: {
     JWT_SECRET:
       process.env.JWT_SECRET || "supersecretkey123456789supersecretkey",

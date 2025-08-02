@@ -1,21 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./Providers";
 import { useRouter } from "next/navigation";
 import {
   FaUser,
   FaCaretDown,
-  FaBars,
   FaBell,
   FaSignOutAlt,
 } from "react-icons/fa";
 
-const Navbar = ({ onToggleSidebar }) => {
+const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const [userName, setUserName] = useState("");
+  const dropdownRef = useRef(null);
 
   // Update username whenever user data changes
   useEffect(() => {
@@ -50,6 +50,25 @@ const Navbar = ({ onToggleSidebar }) => {
     fetchUserData();
   }, []);
 
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
@@ -80,68 +99,65 @@ const Navbar = ({ onToggleSidebar }) => {
   };
 
   return (
-    <nav className="bg-[#E22345] shadow-lg border-b border-gray-200 sticky top-0 z-40">
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Left section - Mobile menu button */}
-          <div className="flex items-center">
-            <button
-              onClick={onToggleSidebar}
-              className="lg:hidden p-2 rounded-md text-white hover:text-gray-900 hover:bg-gray-100"
-            >
-              <FaBars className="h-5 w-5" />
-            </button>
-            <div className="hidden lg:block">
-              <h1 className="text-xl font-semibold text-white">
-                PHC Dashboard
-              </h1>
-            </div>
+    <nav className="bg-white shadow-sm border-b border-gray-200 relative z-50">
+      <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
+        <div className="flex justify-between items-center h-14 sm:h-16 lg:h-18">
+          {/* Left section - Title with better mobile responsiveness */}
+          <div className="flex items-center min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
+              PHC Dashboard
+            </h1>
           </div>
 
-          {/* Right section - User menu */}
-          <div className="flex items-center space-x-4">
-            {/* Notification icon */}
-            <button className="p-2 rounded-full text-white hover:text-gray-900 hover:bg-gray-100">
-              <FaBell className="h-5 w-5" />
+          {/* Right section - User menu with enhanced mobile support */}
+          <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+            {/* Notification icon - Enhanced for mobile with better touch targets */}
+            <button className="p-2.5 sm:p-3 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all duration-200 relative touch-manipulation min-h-[48px] min-w-[48px] flex items-center justify-center">
+              <FaBell className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></span>
             </button>
 
-            {/* User dropdown */}
-            <div className="relative">
+            {/* User dropdown - Enhanced for mobile with better touch targets */}
+            <div className="relative" ref={dropdownRef}>
               <button
                 onClick={toggleDropdown}
-                className="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
+                className="flex items-center space-x-2 sm:space-x-3 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 hover:bg-gray-50 p-2.5 sm:p-3 touch-manipulation min-h-[48px]"
               >
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#E22345] font-medium">
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                     {getUserInitial()}
                   </div>
-                  <div className="hidden sm:block text-left">
-                    <div className="text-sm font-medium text-white">
+                  <div className="hidden sm:block text-left min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate max-w-20 lg:max-w-28 xl:max-w-32">
                       {userName}
                     </div>
-                    <div className="text-xs text-white">{getUserRole()}</div>
+                    <div className="text-xs text-gray-500 truncate max-w-20 lg:max-w-28 xl:max-w-32">{getUserRole()}</div>
                   </div>
-                  <FaCaretDown className="h-3 w-3 text-white" />
+                  <FaCaretDown className={`h-3 w-3 sm:h-4 sm:w-4 text-gray-500 transition-transform duration-200 flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </div>
               </button>
 
-              {/* Dropdown menu */}
+              {/* Enhanced Dropdown menu with better mobile positioning */}
               {isDropdownOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-[#E22345] ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  <div className="py-1">
+                <div className="absolute right-0 mt-2 w-56 sm:w-64 lg:w-72 rounded-xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 z-[9999] transition-all duration-200 ease-in-out">
+                  <div className="py-2">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
+                      <p className="text-sm text-gray-500 truncate">{getUserRole()}</p>
+                    </div>
                     <button
                       onClick={handleProfileClick}
-                      className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-white hover:text-gray-900"
+                      className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200 touch-manipulation min-h-[48px]"
                     >
-                      <FaUser className="mr-3 h-4 w-4" />
-                      Profile
+                      <FaUser className="mr-3 h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <span className="truncate">Profile</span>
                     </button>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-white hover:text-gray-900"
+                      className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 touch-manipulation min-h-[48px]"
                     >
-                      <FaSignOutAlt className="mr-3 h-4 w-4" />
-                      Logout
+                      <FaSignOutAlt className="mr-3 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">Logout</span>
                     </button>
                   </div>
                 </div>

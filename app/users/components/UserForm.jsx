@@ -1,18 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/Providers";
+import toast from "react-hot-toast";
 
 export default function UserForm({ user, clinics, onSubmit, onCancel }) {
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    role: "staff",
+    role: "STAFF",
     is_active: true,
     clinic_id: "",
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -20,7 +24,7 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         name: user.name || "",
         email: user.email || "",
         password: "", // Don't show password in edit mode
-        role: user.role?.toLowerCase() || "staff",
+        role: user.role || "STAFF",
         is_active: user.is_active ?? true,
         clinic_id: user.clinic?.id ? user.clinic.id.toString() : "",
       });
@@ -63,15 +67,47 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSubmit({
-        ...formData,
-        // If editing and password is empty, don't include it in the request
-        ...(user && !formData.password && { password: undefined }),
-        clinic_id: formData.clinic_id ? parseInt(formData.clinic_id) : null,
+    setIsLoading(true);
+
+    try {
+      const submitData = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        role: formData.role,
+        clinic_id: formData.clinic_id || null,
+      };
+
+      const url = user ? `/api/users/${user.id}` : "/api/users";
+      const method = user ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(submitData),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal menyimpan data");
+      }
+
+      const result = await response.json();
+
+      toast.success(
+        user ? "User berhasil diupdate" : "User berhasil ditambahkan"
+      );
+      onSubmit(result);
+      onCancel();
+    } catch (error) {
+      console.error("Error saving user:", error);
+      toast.error(error.message || "Gagal menyimpan data");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,9 +131,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`w-full p-2 text-black border rounded-md ${
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
+              placeholder="Masukkan nama lengkap"
             />
             {errors.name && (
               <p className="text-red-500 text-xs mt-1">{errors.name}</p>
@@ -117,9 +154,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full p-2 text-black border rounded-md ${
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.email ? "border-red-500" : "border-gray-300"
               }`}
+              placeholder="Masukkan email"
             />
             {errors.email && (
               <p className="text-red-500 text-xs mt-1">{errors.email}</p>
@@ -140,9 +178,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className={`w-full p-2 text-black border rounded-md ${
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.password ? "border-red-500" : "border-gray-300"
                 }`}
+                placeholder="Masukkan password"
               />
               <button
                 type="button"
@@ -170,11 +209,31 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               value={formData.role}
               onChange={handleChange}
               className="w-full p-2 text-black border border-gray-300 rounded-md"
+              disabled={currentUser?.role === "ADMIN" && !user}
             >
-              <option value="admin">Admin</option>
-              <option value="doctor">Dokter</option>
-              <option value="staff">Staff</option>
+              {currentUser?.role === "SUPERADMIN" ? (
+                <>
+                  <option value="SUPERADMIN">Superadmin</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="DOCTOR">Dokter</option>
+                  <option value="STAFF">Staff</option>
+                </>
+              ) : currentUser?.role === "ADMIN" ? (
+                <>
+                  <option value="STAFF">Staff</option>
+                </>
+              ) : (
+                <>
+                  <option value="DOCTOR">Dokter</option>
+                  <option value="STAFF">Staff</option>
+                </>
+              )}
             </select>
+            {currentUser?.role === "ADMIN" && !user && (
+              <p className="text-xs text-gray-500 mt-1">
+                Admin hanya dapat menambahkan pengguna dengan role Staff
+              </p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -199,7 +258,7 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.role === "admin"
+              {formData.role === "ADMIN" || formData.role === "SUPERADMIN"
                 ? "Admin dapat melihat semua klinik tanpa perlu memilih klinik tertentu"
                 : "Staff harus dipilihkan klinik untuk membatasi akses data"}
             </p>

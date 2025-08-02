@@ -118,7 +118,7 @@ export default function PatientForm({ patient, isEdit = false }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Data Pribadi */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Data Pribadi</h3>
@@ -132,8 +132,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.name ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan nama lengkap"
               />
             </div>
             <div>
@@ -145,8 +147,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="nik"
                 value={formData.nik}
                 onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.nik ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan NIK"
               />
             </div>
             <div>
@@ -193,8 +197,11 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                rows={3}
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                rows="3"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.address ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan alamat lengkap"
               />
             </div>
             <div>
@@ -206,7 +213,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.phone ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan nomor telepon"
               />
             </div>
             <div>
@@ -218,7 +228,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan email"
               />
             </div>
           </div>
@@ -237,7 +250,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="insurance.provider"
                 value={formData.insurance.provider}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.insurance?.provider ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan provider asuransi"
               />
             </div>
             <div>
@@ -249,7 +265,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="insurance.number"
                 value={formData.insurance.number}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.insurance?.number ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan nomor asuransi"
               />
             </div>
             <div>
@@ -261,7 +280,10 @@ export default function PatientForm({ patient, isEdit = false }) {
                 name="insurance.type"
                 value={formData.insurance.type}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md border focus:border-[#E22345] focus:ring-[#E22345]"
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.insurance?.type ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Masukkan tipe asuransi"
               />
             </div>
           </div>

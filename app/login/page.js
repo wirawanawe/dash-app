@@ -4,23 +4,39 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import Image from "next/image";
 import { useAuth } from "@/components/Providers";
+import { 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  ArrowRight
+} from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [debugInfo, setDebugInfo] = useState(null);
+
+  useEffect(() => {
+    // Set loaded state after a short delay to ensure smooth animation
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setDebugInfo(null);
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -36,27 +52,14 @@ export default function LoginPage() {
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        setDebugInfo({
-          error: "Invalid JSON response",
-          raw: responseText,
-        });
         throw new Error("Server returned invalid JSON");
       }
 
       if (!response.ok) {
-        setDebugInfo({
-          status: response.status,
-          data: data,
-        });
         throw new Error(data.message || "Login failed");
       }
 
       if (!data.success) {
-        setDebugInfo({
-          status: response.status,
-          data: data,
-          note: "Response was OK but success flag is false",
-        });
         throw new Error(data.message || "Login response indicates failure");
       }
 
@@ -68,11 +71,6 @@ export default function LoginPage() {
       if (!userResponse.ok) {
         const userErrorText = await userResponse.text();
         console.error("Failed to get user data:", userErrorText);
-        setDebugInfo({
-          status: userResponse.status,
-          error: "Failed to get user data",
-          raw: userErrorText,
-        });
         throw new Error("Failed to get user data");
       }
 
@@ -80,42 +78,26 @@ export default function LoginPage() {
 
       // Improved validation with more specific error messages
       if (!userData) {
-        setDebugInfo({
-          error: "User data is null",
-          data: userData,
-        });
         throw new Error("No user data received from server");
       }
 
       if (!userData.id) {
-        setDebugInfo({
-          error: "User ID is missing",
-          data: userData,
-        });
         throw new Error("User ID is missing from server response");
       }
 
       if (!userData.name) {
-        setDebugInfo({
-          error: "User name is missing",
-          data: userData,
-        });
         throw new Error("User name is missing from server response");
       }
 
       if (!userData.email) {
-        setDebugInfo({
-          error: "User email is missing",
-          data: userData,
-        });
         throw new Error("User email is missing from server response");
       }
 
       setUser(userData);
-      toast.success("Login berhasil");
+      toast.success("Login berhasil! Selamat datang di PHC Dashboard");
       router.push("/dashboard");
     } catch (error) {
-      console.error("Login error:", error, debugInfo);
+      console.error("Login error:", error);
       toast.error(error.message || "Login gagal");
     } finally {
       setIsLoading(false);
@@ -129,6 +111,13 @@ export default function LoginPage() {
     });
   };
 
+  const loginAsDoctor = () => {
+    setFormData({
+      email: "doctor@phc.com",
+      password: "doctor123",
+    });
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -137,119 +126,193 @@ export default function LoginPage() {
     }));
   };
 
+  const handleLogoLoad = () => {
+    setLogoLoaded(true);
+  };
+
+  const handleLogoError = () => {
+    // If logo fails to load, just set it as loaded to prevent infinite loop
+    setLogoLoaded(true);
+    console.warn("Logo failed to load");
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <Image
-            src="/phc-logo.png"
-            alt="PHC Logo"
-            width={120}
-            height={120}
-            className="mx-auto h-16 w-auto"
-          />
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Masuk ke akun Anda
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Silakan masukkan kredensial Anda untuk melanjutkan
-        </p>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <img
+          src="/login-bg.jpg"
+          alt="PHC Login Background"
+          className="w-full h-full object-cover"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%'
+          }}
+        />
+        <div className="absolute inset-0 bg-black/40"></div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="appearance-none block w-full px-3 text-black py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-[#E22345] focus:border-[#E22345] sm:text-sm"
-                  placeholder="Enter your email"
-                />
-              </div>
+      {/* Centered Content */}
+      <div className="relative min-h-screen flex items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-sm sm:max-w-md">
+          {/* Login Form */}
+          <div 
+            className={`bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl ${
+              isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+            }`}
+            style={{ animationDelay: '200ms' }}
+          >
+            {/* PHC Logo */}
+            <div 
+              className={`flex justify-center mb-6 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ 
+                minHeight: '120px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <img
+                src="/phc-logo.png"
+                alt="PHC Logo"
+                className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-lg"
+                onLoad={handleLogoLoad}
+                onError={handleLogoError}
+                style={{ 
+                  display: 'block',
+                  maxWidth: '100%',
+                  height: 'auto',
+                  opacity: isLoaded && logoLoaded ? 1 : 0,
+                  transition: 'opacity 0.3s ease-in-out'
+                }}
+              />
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="appearance-none block w-full px-3 text-black py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-[#E22345] focus:border-[#E22345] sm:text-sm"
-                  placeholder="Enter your password"
-                />
-              </div>
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Selamat Datang
+              </h2>
+              <p className="text-gray-600">
+                Masuk ke akun PHC Anda
+              </p>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-[#E22345] focus:ring-[#E22345] border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 block text-sm text-gray-900"
-                >
-                  Remember me
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-3">
+                  Email Address
                 </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Enter your email address"
+                  />
+                </div>
               </div>
 
-              <div className="text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-[#E22345] hover:text-red-500"
+              <div>
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-3">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors"
+                  />
+                  <label htmlFor="remember-me" className="ml-3 block text-sm text-gray-700 font-medium">
+                    Remember me
+                  </label>
+                </div>
+
+                <div className="text-sm">
+                  <Link
+                    href="/forgot-password"
+                    className="font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="group w-full flex items-center justify-center py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
-                  Forgot your password?
-                </Link>
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <div className="loading-spinner h-5 w-5 mr-2"></div>
+                      <span>Signing in...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span>Sign in to Dashboard</span>
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
+            </form>
+          </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#E22345] hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E22345] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? "Logging in..." : "Login"}
-              </button>
+          {/* Footer */}
+          <div 
+            className={`text-center mt-8 ${
+              isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+            }`}
+            style={{ animationDelay: '400ms' }}
+          >
+            <div className="text-sm text-white drop-shadow-sm">
+              © 2025 PHC Medical Record System. Semua hak dilindungi.
             </div>
-          </form>
-
-          {/* Debug Info Display */}
-          {debugInfo && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <h3 className="text-sm font-medium text-yellow-800 mb-2">
-                Debug Information:
-              </h3>
-              <pre className="text-xs text-yellow-700 whitespace-pre-wrap">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ import {
 } from "react-icons/fa";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import VisitHistory from "./components/VisitHistory";
 
 export default function PatientDetailPage() {
   const params = useParams();
@@ -491,6 +492,9 @@ export default function PatientDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Visit History */}
+          <VisitHistory mrNumber={patient.mrNumber || patient.mrn || patient.id} patientId={patient.id} />
         </div>
       </div>
     </DashboardLayout>

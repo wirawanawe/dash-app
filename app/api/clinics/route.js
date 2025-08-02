@@ -5,12 +5,25 @@ import { jwtVerify } from "jose";
 
 // Function to get user from token
 async function getUserFromToken(request) {
-  const token = request.cookies.get("token");
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get("authorization");
+  let token = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  } else {
+    // Fallback to cookies
+    const cookieToken = request.cookies.get("token");
+    if (cookieToken) {
+      token = cookieToken.value;
+    }
+  }
+  
   if (!token) return null;
 
   try {
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
-    const { payload } = await jwtVerify(token.value, secretKey);
+    const { payload } = await jwtVerify(token, secretKey);
     return payload;
   } catch (error) {
     console.error("Error verifying token:", error);
@@ -34,39 +47,54 @@ export async function GET(request) {
     let clinicFilter = "";
     let filterValues = [`%${search}%`, `%${search}%`, `%${search}%`];
 
-    // Only filter by clinic_id if user is not an admin and has a clinic_id
-    if (userPayload && userPayload.role !== "ADMIN" && userPayload.clinic_id) {
-      clinicFilter = " AND id = ?";
-      filterValues.push(userPayload.clinic_id);
+    // Superadmin can see all clinics
+    if (userPayload && userPayload.role === "SUPERADMIN") {
+      // No additional filter needed
+    }
+    // Admin can see all clinics if they don't have a specific clinic assigned
+    else if (userPayload && userPayload.role === "ADMIN") {
+      if (userPayload.clinic_id) {
+        // Admin with specific clinic can only see their assigned clinic
+        clinicFilter = " AND id = ?";
+        filterValues.push(userPayload.clinic_id);
+      }
+      // Admin without clinic can see all clinics
+      // No additional filter needed
+    }
+    // Other roles cannot access clinics
+    else if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Unauthorized access" },
+        { status: 403 }
+      );
     }
 
     // Get total count
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM polyclinics
+      FROM clinics
       WHERE 
         (LOWER(name) LIKE LOWER(?) OR
-        LOWER(code) LIKE LOWER(?) OR
-        LOWER(address) LIKE LOWER(?))
+        LOWER(address) LIKE LOWER(?) OR
+        LOWER(city) LIKE LOWER(?))
         ${clinicFilter}
     `;
 
     const countResult = await query(countQuery, filterValues);
     const totalResults = parseInt(countResult[0].total);
 
-    // Get paginated results - Use direct string interpolation for LIMIT and OFFSET
-    // to avoid parameter type issues
+    // Get paginated results
     const clinicsQuery = `
       SELECT 
-        id, code, name, address, phone, email, 
-        province_id, province_name, city_id, city_name,
-        district_id, district_name, village_id, village_name,
-        postal_code, created_at, updated_at
-      FROM polyclinics
+        id, name, address, city, phone, email,
+        rating, total_reviews, latitude, longitude,
+        operating_hours, description, image_url,
+        is_active, created_at, updated_at
+      FROM clinics
       WHERE 
         (LOWER(name) LIKE LOWER(?) OR
-        LOWER(code) LIKE LOWER(?) OR
-        LOWER(address) LIKE LOWER(?))
+        LOWER(address) LIKE LOWER(?) OR
+        LOWER(city) LIKE LOWER(?))
         ${clinicFilter}
       ORDER BY name ASC
       LIMIT ${limit} OFFSET ${offset}
@@ -92,55 +120,69 @@ export async function GET(request) {
   }
 }
 
-// POST /api/clinics - create new clinic
+// POST /api/clinics - create new clinic (superadmin only)
 export async function POST(request) {
   try {
-    // Verify admin authorization
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const payload = await verifyJwtToken(token);
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
 
-    if (payload?.role !== "ADMIN" && payload?.role !== "admin") {
-      return Response.json({ error: "Unauthorized access" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { name, code, description } = body;
-
-    if (!name || !code) {
-      return Response.json(
-        { error: "Name and code are required" },
-        { status: 400 }
+    // Only superadmin can create clinics
+    if (!userPayload || userPayload.role !== "SUPERADMIN") {
+      return NextResponse.json(
+        { error: "Unauthorized access" },
+        { status: 403 }
       );
     }
 
-    // Check if clinic with same code already exists
-    const existingClinic = await query(
-      "SELECT * FROM polyclinics WHERE code = ?",
-      [code]
-    );
+    const {
+      name,
+      address,
+      city,
+      phone,
+      email,
+      rating = 0,
+      total_reviews = 0,
+      latitude,
+      longitude,
+      operating_hours,
+      description,
+      image_url,
+      is_active = true,
+    } = await request.json();
 
-    if (existingClinic.length > 0) {
-      return Response.json(
-        { error: "Clinic with this code already exists" },
-        { status: 409 }
+    // Validate required fields
+    if (!name || !address || !city) {
+      return NextResponse.json(
+        { error: "Nama, alamat, dan kota harus diisi" },
+        { status: 400 }
       );
     }
 
     // Insert new clinic
     const result = await query(
-      "INSERT INTO polyclinics (name, code, description) VALUES (?, ?, ?)",
-      [name, code, description || ""]
+      `INSERT INTO clinics (
+        name, address, city, phone, email, rating, total_reviews,
+        latitude, longitude, operating_hours, description, image_url, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name, address, city, phone, email, rating, total_reviews,
+        latitude, longitude, operating_hours ? JSON.stringify(operating_hours) : null,
+        description, image_url, is_active
+      ]
     );
 
-    return Response.json(
+    return NextResponse.json(
       {
-        message: "Clinic created successfully",
+        message: "Klinik berhasil dibuat",
         id: result.insertId,
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("Error creating clinic:", error);
-    return Response.json({ error: "Failed to create clinic" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal membuat klinik" },
+      { status: 500 }
+    );
   }
 }

@@ -37,7 +37,7 @@ export async function GET(request) {
     const sortOrder = searchParams.get("sortOrder") || "desc"; // asc, desc
 
     // Build API URL with pagination
-    let apiUrl = `http://api-klinik.doctorphc.id/transaksi/kunjungan?page=${page}&limit=${limit}`;
+    let apiUrl = `http://api-klinik.doctorphcindonesia.web.id/transaksi/kunjungan?page=${page}&limit=${limit}`;
 
     // Add keyword parameter if search is provided
     if (search) {

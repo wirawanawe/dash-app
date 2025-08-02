@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import UserForm from "./components/UserForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -148,6 +149,9 @@ export default function UsersPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-users" />
       </div>
     </DashboardLayout>
   );

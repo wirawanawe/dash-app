@@ -12,6 +12,7 @@ export default function InsuranceForm({ insurance, onSubmit, onCancel }) {
     status: "Aktif",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (insurance) {
@@ -83,8 +84,10 @@ export default function InsuranceForm({ insurance, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345]"
-              required
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.name ? 'border-red-500' : 'border-gray-300'
+                }`}
+              placeholder="Masukkan nama asuransi"
             />
           </div>
 

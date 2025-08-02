@@ -32,7 +32,7 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get("limit") || "10");
 
     // Build API URL with keyword parameter for server-side filtering
-    let apiUrl = `http://api-klinik.doctorphc.id/pasien?page=${page}&limit=${limit}`;
+    let apiUrl = `http://api-klinik.doctorphcindonesia.web.id/pasien?page=${page}&limit=${limit}`;
 
     // Add keyword parameter if search is provided
     if (search) {

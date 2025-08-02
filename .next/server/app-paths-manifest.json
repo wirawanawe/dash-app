@@ -1,7 +1,5 @@
 {
-  "/patients/page": "app/patients/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/visits/page": "app/visits/page.js",
-  "/laboratory/results/page": "app/laboratory/results/page.js",
-  "/doctors/page": "app/doctors/page.js"
+  "/api/mobile/my-missions/route": "app/api/mobile/my-missions/route.js",
+  "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js",
+  "/api/mobile/mission-stats/route": "app/api/mobile/mission-stats/route.js"
 }

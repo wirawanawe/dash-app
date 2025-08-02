@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import DoctorForm from "./components/DoctorForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function DoctorsPage() {
   const [doctors, setDoctors] = useState([]);
@@ -161,6 +162,9 @@ export default function DoctorsPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-doctors" />
       </div>
     </DashboardLayout>
   );

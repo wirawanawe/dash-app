@@ -47,8 +47,8 @@ export default function ProfilePage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6">
           <h1 className="text-2xl text-black font-bold mb-6">
             Profile Settings
           </h1>

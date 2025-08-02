@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ExaminationForm from "./components/ExaminationForm";
+import ApiDocumentation from "@/components/ApiDocumentation";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
 
@@ -119,18 +120,9 @@ export default function ExaminationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-4 sm:p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-black">Data Pemeriksaan</h1>
-          <button
-            onClick={() => {
-              setSelectedExamination(null);
-              setShowForm(true);
-            }}
-            className="bg-[#E22345] text-white px-4 py-2 rounded-lg hover:bg-red-600"
-          >
-            Tambah Pemeriksaan
-          </button>
         </div>
 
         {showForm && (
@@ -221,6 +213,9 @@ export default function ExaminationsPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="examinations" />
       </div>
     </DashboardLayout>
   );

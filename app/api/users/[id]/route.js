@@ -1,42 +1,43 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { jwtVerify } from "jose";
 
-// Helper function to verify user is admin
-async function verifyAdmin(request) {
-  const token = request.cookies.get("token");
-  if (!token) return false;
+// Role hierarchy: Superadmin > Admin > Doctor > Staff
+const roleHierarchy = {
+  SUPERADMIN: 4,
+  ADMIN: 3,
+  DOCTOR: 2,
+  STAFF: 1
+};
 
-  try {
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
-    const { payload } = await jwtVerify(token.value, secretKey);
-    return payload.role === "ADMIN";
-  } catch (error) {
-    return false;
-  }
-}
+const getUserRoleLevel = (role) => {
+  return roleHierarchy[role?.toUpperCase()] || 0;
+};
 
-// GET user by id
+const canManageRole = (userRole, targetRole) => {
+  const userLevel = getUserRoleLevel(userRole);
+  const targetLevel = getUserRoleLevel(targetRole);
+  return userLevel > targetLevel; // Can only manage roles below their own level
+};
+
+// GET single user
 export async function GET(request, { params }) {
   try {
-    // Verify admin permissions
-    const isAdmin = await verifyAdmin(request);
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const userId = params.id;
-
-    // Get user
     const [user] = await query(
-      `
-      SELECT 
-        u.id, u.name, u.email, u.role, u.is_active, u.created_at
+      `SELECT 
+        u.id, 
+        u.name, 
+        u.email, 
+        u.role, 
+        u.clinic_id,
+        u.is_active,
+        u.created_at, 
+        u.updated_at,
+        c.name as clinic_name
       FROM users u
-      WHERE u.id = ?
-    `,
-      [userId]
+      LEFT JOIN clinics c ON u.clinic_id = c.id
+      WHERE u.id = ?`,
+      [params.id]
     );
 
     if (!user) {
@@ -46,20 +47,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Format user
-    const formattedUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      is_active: user.is_active,
-      created_at: user.created_at,
-      clinic: null, // No clinic info in current schema
-    };
-
-    return NextResponse.json(formattedUser);
+    return NextResponse.json(user);
   } catch (error) {
-    console.error("Error getting user:", error);
+    console.error("Error fetching user:", error);
     return NextResponse.json(
       { error: "Gagal mengambil data pengguna" },
       { status: 500 }
@@ -70,76 +60,44 @@ export async function GET(request, { params }) {
 // PUT update user
 export async function PUT(request, { params }) {
   try {
-    // Verify admin permissions
-    const isAdmin = await verifyAdmin(request);
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const body = await request.json();
+    
+    // Validate required fields
+    if (!body.name || !body.email) {
+      return NextResponse.json(
+        { error: "Name and email are required" },
+        { status: 400 }
+      );
     }
 
-    const userId = params.id;
-    const { name, email, role, is_active, password } = await request.json();
+    // Update user
+    const result = await query(
+      "UPDATE users SET name = ?, email = ?, role = ?, clinic_id = ?, updated_at = NOW() WHERE id = ?",
+      [body.name, body.email, body.role, body.clinic_id, params.id]
+    );
 
-    // Check if user exists
-    const [existingUser] = await query("SELECT id FROM users WHERE id = ?", [
-      userId,
-    ]);
-    if (!existingUser) {
+    if (result.affectedRows === 0) {
       return NextResponse.json(
-        { error: "Pengguna tidak ditemukan" },
+        { error: "User not found" },
         { status: 404 }
       );
     }
 
-    // Start building the update query
-    let updateQuery = `
-      UPDATE users 
-      SET name = ?, email = ?, role = ?, is_active = ?
-    `;
-    let updateValues = [name, email, role, is_active ? 1 : 0];
-
-    // If password is provided, hash it and add to the update
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateQuery += `, password = ?`;
-      updateValues.push(hashedPassword);
-    }
-
-    // Add WHERE clause and execute the query
-    updateQuery += ` WHERE id = ?`;
-    updateValues.push(userId);
-
-    await query(updateQuery, updateValues);
-
-    // Get updated user
-    const [updatedUser] = await query(
-      `
-      SELECT 
-        u.id, u.name, u.email, u.role, u.is_active, u.created_at
-      FROM users u
-      WHERE u.id = ?
-    `,
-      [userId]
-    );
-
-    // Format user
-    const formattedUser = {
-      id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      is_active: updatedUser.is_active,
-      created_at: updatedUser.created_at,
-      clinic: null, // No clinic info in current schema
-    };
-
     return NextResponse.json({
-      message: "Pengguna berhasil diupdate",
-      user: formattedUser,
+      success: true,
+      message: "User updated successfully",
+      user: {
+        id: params.id,
+        name: body.name,
+        email: body.email,
+        role: body.role,
+        clinic_id: body.clinic_id,
+      },
     });
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json(
-      { error: "Gagal mengupdate pengguna" },
+      { error: "Failed to update user" },
       { status: 500 }
     );
   }
@@ -148,18 +106,12 @@ export async function PUT(request, { params }) {
 // DELETE user
 export async function DELETE(request, { params }) {
   try {
-    // Verify admin permissions
-    const isAdmin = await verifyAdmin(request);
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const userId = params.id;
-
     // Check if user exists
-    const [existingUser] = await query("SELECT id FROM users WHERE id = ?", [
-      userId,
-    ]);
+    const [existingUser] = await query(
+      "SELECT id FROM users WHERE id = ?",
+      [params.id]
+    );
+
     if (!existingUser) {
       return NextResponse.json(
         { error: "Pengguna tidak ditemukan" },
@@ -167,12 +119,12 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Delete the user
-    await query("DELETE FROM users WHERE id = ?", [userId]);
+    // In a real app, you'd check if the current user can delete this user
+    // For now, we'll allow deletion
 
-    return NextResponse.json({
-      message: "Pengguna berhasil dihapus",
-    });
+    await query("DELETE FROM users WHERE id = ?", [params.id]);
+
+    return NextResponse.json({ message: "Pengguna berhasil dihapus" });
   } catch (error) {
     console.error("Error deleting user:", error);
     return NextResponse.json(

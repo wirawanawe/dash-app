@@ -1,0 +1,200 @@
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { SignJWT } from "jose";
+import { query } from "@/lib/db";
+
+export async function POST(request) {
+  try {
+    const { email, password } = await request.json();
+
+    // Validate input
+    if (!email || !password) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Email dan password harus diisi",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Hardcoded test user for mobile app testing (fallback)
+    if (email === "test@mobile.com" && password === "password123") {
+      // Try to get the user from database first
+      try {
+        const [user] = await query(
+          'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type FROM mobile_users WHERE email = ?',
+          [email]
+        );
+        
+        if (user) {
+          // Create a JWT token with database user ID
+          const token = await new SignJWT({
+            userId: user.id,
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            role: "MOBILE_USER",
+          })
+            .setProtectedHeader({ alg: "HS256" })
+            .setIssuedAt()
+            .setExpirationTime("7d") // Longer expiration for mobile
+            .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+          // Create refresh token
+          const refreshToken = await new SignJWT({
+            userId: user.id,
+            type: "refresh",
+          })
+            .setProtectedHeader({ alg: "HS256" })
+            .setIssuedAt()
+            .setExpirationTime("30d")
+            .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+          return NextResponse.json(
+            {
+              success: true,
+              message: "Login berhasil",
+              data: {
+                user: {
+                  id: user.id,
+                  name: user.name,
+                  email: user.email,
+                  phone: user.phone,
+                  date_of_birth: user.date_of_birth,
+                  gender: user.gender,
+                  height: user.height,
+                  weight: user.weight,
+                  blood_type: user.blood_type,
+                  role: "MOBILE_USER",
+                },
+                accessToken: token,
+                refreshToken: refreshToken,
+              },
+            },
+            { status: 200 }
+          );
+        }
+      } catch (dbError) {
+        console.error("Database error during test user login:", dbError);
+      }
+    }
+
+    // Try database authentication for mobile users
+    try {
+      // Cari user di database mobile_users
+      let sql = `
+        SELECT id, name, email, password, phone, date_of_birth, gender, height, weight, blood_type, is_active
+        FROM mobile_users 
+        WHERE email = ?
+      `;
+      let [user] = await query(sql, [email]);
+
+      if (!user) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Email atau password salah",
+          },
+          { status: 401 }
+        );
+      }
+
+      // Cek apakah user aktif
+      if (!user.is_active) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Akun anda tidak aktif. Silahkan hubungi administrator.",
+          },
+          { status: 401 }
+        );
+      }
+
+      // Verifikasi password (for now, assume plain text for testing)
+      // In production, you should use bcrypt.compare(password, user.password)
+      const isPasswordValid = password === user.password; // Temporary for testing
+
+      if (!isPasswordValid) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Email atau password salah",
+          },
+          { status: 401 }
+        );
+      }
+
+      // Create a JWT token
+      const token = await new SignJWT({
+        userId: user.id,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: "MOBILE_USER",
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("7d") // Longer expiration for mobile
+        .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+      // Create refresh token
+      const refreshToken = await new SignJWT({
+        userId: user.id,
+        type: "refresh",
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("30d")
+        .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+      // Format response user
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        date_of_birth: user.date_of_birth,
+        gender: user.gender,
+        height: user.height,
+        weight: user.weight,
+        blood_type: user.blood_type,
+        role: "MOBILE_USER",
+      };
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Login berhasil",
+          data: {
+            user: userData,
+            accessToken: token,
+            refreshToken: refreshToken,
+          },
+        },
+        { status: 200 }
+      );
+    } catch (dbError) {
+      console.error("Database error during mobile login:", dbError);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Database error: " + (dbError.message || "Unknown error"),
+        },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    console.error("Mobile login error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Terjadi kesalahan pada server",
+      },
+      { status: 500 }
+    );
+  }
+} 

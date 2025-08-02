@@ -122,10 +122,10 @@ export default function UserForm({ user, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345] ${
-                errors.name ? "border-red-500" : ""
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.name ? "border-red-500" : "border-gray-300"
               }`}
-              required
+              placeholder="Masukkan nama lengkap"
             />
             {errors.name && (
               <p className="mt-1 text-sm text-red-500">{errors.name}</p>
@@ -141,10 +141,10 @@ export default function UserForm({ user, onSubmit, onCancel }) {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345] ${
-                errors.email ? "border-red-500" : ""
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.email ? "border-red-500" : "border-gray-300"
               }`}
-              required
+              placeholder="Masukkan email"
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-500">{errors.email}</p>
@@ -160,9 +160,10 @@ export default function UserForm({ user, onSubmit, onCancel }) {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:border-[#E22345] ${
-                errors.password ? "border-red-500" : ""
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.password ? "border-red-500" : "border-gray-300"
               }`}
+              placeholder="Masukkan password"
               {...(!user && { required: true })}
             />
             {errors.password && (
