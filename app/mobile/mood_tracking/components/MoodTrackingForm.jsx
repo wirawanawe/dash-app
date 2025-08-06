@@ -134,7 +134,7 @@ export default function MoodTrackingForm({ moodData, onSubmit, onClose }) {
                 value={formData.user_id}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 disabled={loadingData}
               >
                 <option value="">Select user</option>
@@ -160,7 +160,7 @@ export default function MoodTrackingForm({ moodData, onSubmit, onClose }) {
                 value={formData.mood}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
               >
                 {moodOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -202,7 +202,7 @@ export default function MoodTrackingForm({ moodData, onSubmit, onClose }) {
                   name="recorded_at"
                   value={formData.recorded_at}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -217,7 +217,7 @@ export default function MoodTrackingForm({ moodData, onSubmit, onClose }) {
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 placeholder="How are you feeling today? Any specific thoughts or events that affected your mood?"
               />
             </div>

@@ -1,86 +1,63 @@
-import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+import { query } from '@/lib/db';
 
-// GET - Get wellness challenges
 export async function GET(request) {
   try {
-    const searchParams = new URL(request.url).searchParams;
-    const user_id = searchParams.get("user_id");
-    const status = searchParams.get("status"); // active, completed, upcoming
-
-    if (!user_id) {
+    // Get authorization header
+    const authHeader = request.headers.get("authorization");
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         {
           success: false,
-          message: "User ID is required",
+          message: "Authorization header required",
         },
-        { status: 400 }
+        { status: 401 }
       );
     }
 
-    let sql = `
-      SELECT 
-        wc.id,
-        wc.title,
-        wc.description,
-        wc.category,
-        wc.duration_days,
-        wc.target_value,
-        wc.target_unit,
-        wc.points_reward,
-        wc.start_date,
-        wc.end_date,
-        wc.is_active,
-        wc.created_at,
-        wc.updated_at,
-        CASE 
-          WHEN wuc.user_id IS NOT NULL THEN 'joined'
-          WHEN wc.start_date > CURDATE() THEN 'upcoming'
-          WHEN wc.end_date < CURDATE() THEN 'expired'
-          ELSE 'available'
-        END as user_status,
-        wuc.progress,
-        wuc.completed_at
-      FROM wellness_challenges wc
-      LEFT JOIN wellness_user_challenges wuc ON wc.id = wuc.challenge_id AND wuc.user_id = ?
-      WHERE wc.is_active = 1
-    `;
-    let params = [user_id];
+    const token = authHeader.substring(7);
 
-    if (status) {
-      switch (status) {
-        case "active":
-          sql += " AND wc.start_date <= CURDATE() AND wc.end_date >= CURDATE()";
-          break;
-        case "completed":
-          sql += " AND wuc.completed_at IS NOT NULL";
-          break;
-        case "upcoming":
-          sql += " AND wc.start_date > CURDATE()";
-          break;
-        case "joined":
-          sql += " AND wuc.user_id IS NOT NULL";
-          break;
-      }
-    }
-
-    sql += " ORDER BY wc.start_date DESC";
-
-    const challenges = await query(sql, params);
-
-    return NextResponse.json({
-      success: true,
-      data: challenges,
-    });
-  } catch (error) {
-    console.error("Error fetching wellness challenges:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal mengambil wellness challenges",
-        error: error.message,
-      },
-      { status: 500 }
+    // Verify JWT token
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(process.env.JWT_SECRET)
     );
+
+    const userId = payload.userId;
+
+    // Get wellness challenges
+    const challengesQuery = `
+      SELECT 
+        id,
+        title,
+        description,
+        category,
+        duration_days,
+        target_value,
+        reward_points,
+        is_active,
+        created_at
+      FROM wellness_challenges 
+      WHERE is_active = 1
+      ORDER BY created_at DESC
+    `;
+    
+    const [challengesResult] = await query(challengesQuery);
+
+    const response = {
+      success: true,
+      data: challengesResult
+    };
+
+    return NextResponse.json(response);
+
+  } catch (error) {
+    console.error('Error in wellness challenges endpoint:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
 } 

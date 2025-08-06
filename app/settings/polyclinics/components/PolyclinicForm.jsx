@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     name: "",
+    code: "",
     description: "",
     status: "Aktif",
   });
@@ -16,6 +17,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
     if (polyclinic) {
       setFormData({
         name: polyclinic.name || "",
+        code: polyclinic.code || "",
         description: polyclinic.description || "",
         status: polyclinic.status || "Aktif",
       });
@@ -28,6 +30,13 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const generateCode = () => {
+    if (formData.name) {
+      const code = formData.name.toUpperCase().replace(/\s+/g, '-');
+      setFormData(prev => ({ ...prev, code }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -47,6 +56,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
         },
         body: JSON.stringify({
           name: formData.name.trim(),
+          code: formData.code.trim(),
           description: formData.description.trim() || null,
           status: formData.status,
         }),
@@ -55,7 +65,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Server error:", errorData);
-        throw new Error(errorData.error || "Gagal menyimpan data");
+        throw new Error(errorData.message || "Gagal menyimpan data");
       }
 
       const result = await response.json();
@@ -81,7 +91,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-black mb-2">
-              Nama
+              Nama Poli <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -92,7 +102,35 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
                 errors.name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Masukkan nama poli"
+              required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-black mb-2">
+              Kode <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                name="code"
+                value={formData.code}
+                onChange={handleChange}
+                className={`flex-1 px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.code ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="POLI-UMUM"
+                required
+              />
+              <button
+                type="button"
+                onClick={generateCode}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+                title="Generate kode otomatis"
+              >
+                Auto
+              </button>
+            </div>
           </div>
 
           <div className="md:col-span-2">
@@ -105,6 +143,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
               onChange={handleChange}
               rows="3"
               className="w-full px-4 py-2 text-black border rounded-lg focus:outline-none focus:border-[#E22345]"
+              placeholder="Deskripsi poli (opsional)"
             />
           </div>
 

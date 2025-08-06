@@ -251,7 +251,7 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               className="w-full p-2 text-black border border-gray-300 rounded-md"
             >
               <option value="">-- Pilih Klinik --</option>
-              {clinics.map((clinic) => (
+              {Array.isArray(clinics) && clinics.map((clinic) => (
                 <option key={clinic.id} value={clinic.id.toString()}>
                   {clinic.name} ({clinic.code})
                 </option>

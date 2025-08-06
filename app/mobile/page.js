@@ -54,24 +54,22 @@ export default function MobileDashboard() {
       setError(null);
 
       // Fetch data from all mobile APIs
-      const [usersResponse, foodsResponse, missionsResponse, wellnessResponse] = await Promise.all([
+      const [usersResponse, foodsResponse, missionsResponse] = await Promise.all([
         fetch('/api/mobile/users?limit=1'),
         fetch('/api/mobile/food?limit=1'),
-        fetch('/api/mobile/missions?limit=1'),
-        fetch('/api/mobile/wellness?limit=1')
+        fetch('/api/mobile/missions?limit=1')
       ]);
 
       // Parse responses
       const usersData = await usersResponse.json();
       const foodsData = await foodsResponse.json();
       const missionsData = await missionsResponse.json();
-      const wellnessData = await wellnessResponse.json();
 
       // Calculate statistics
       const totalUsers = usersData.pagination?.total || 0;
       const totalFoods = foodsData.pagination?.total || 0;
       const totalMissions = missionsData.pagination?.total || 0;
-      const totalWellnessActivities = wellnessData.pagination?.total || 0;
+      const totalWellnessActivities = 0; // Wellness activities removed
 
       // Calculate active users (users created in last 30 days)
       const thirtyDaysAgo = new Date();
@@ -181,8 +179,8 @@ export default function MobileDashboard() {
       trend: `${dashboardData.totalFoods.toLocaleString()} items`
     },
     {
-      title: "Missions & Activities",
-      description: "Sistem misi dan aktivitas wellness",
+      title: "Missions",
+      description: "Sistem misi wellness dan tantangan kesehatan",
       icon: Target,
       href: "/mobile/missions",
       gradient: "from-orange-500 to-red-500",
@@ -191,14 +189,24 @@ export default function MobileDashboard() {
       trend: `${dashboardData.totalMissions.toLocaleString()} missions`
     },
     {
-      title: "Wellness Activities",
-      description: "Kelola aktivitas wellness dan mindfulness",
+      title: "Activities",
+      description: "Kelola aktivitas wellness yang dilakukan pengguna",
       icon: Activity,
-      href: "/mobile/wellness",
-      gradient: "from-indigo-500 to-purple-500",
-      iconBg: "bg-indigo-100",
-      iconColor: "text-indigo-600",
+      href: "/mobile/activities",
+      gradient: "from-blue-500 to-purple-500",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
       trend: `${dashboardData.totalWellnessActivities.toLocaleString()} activities`
+    },
+    {
+      title: "Wellness Progress",
+      description: "Pantau progress program wellness pengguna",
+      icon: TrendingUp,
+      href: "/mobile/wellness-progress",
+      gradient: "from-green-500 to-emerald-500",
+      iconBg: "bg-green-100",
+      iconColor: "text-green-600",
+      trend: "Monitor Progress"
     }
   ];
 
@@ -225,11 +233,18 @@ export default function MobileDashboard() {
       gradient: "from-orange-500 to-red-500"
     },
     {
-      title: "Aktivitas Wellness",
-      description: "Kelola aktivitas wellness",
+      title: "Tambah Activity",
+      description: "Input aktivitas wellness baru",
       icon: Activity,
-      href: "/mobile/wellness",
-      gradient: "from-indigo-500 to-purple-500"
+      href: "/mobile/activities",
+      gradient: "from-blue-500 to-purple-500"
+    },
+    {
+      title: "Monitor Progress",
+      description: "Pantau progress wellness pengguna",
+      icon: TrendingUp,
+      href: "/mobile/wellness-progress",
+      gradient: "from-green-500 to-emerald-500"
     }
   ];
 

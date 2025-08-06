@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getCachedCount, invalidateTableCache } from "@/lib/cache";
 
 // GET all foods with search functionality
 export async function GET(request) {
@@ -7,7 +8,7 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
-    const limit = Math.max(1, parseInt(searchParams.get("limit"), 10) || 20);
+    const limit = Math.max(1, parseInt(searchParams.get("limit"), 10) || 50); // Increased default from 20 to 50
     const offset = Math.max(0, parseInt(searchParams.get("offset"), 10) || 0);
 
     let sql = `
@@ -59,22 +60,21 @@ export async function GET(request) {
 
     const foods = await query(sql, params);
 
-    // Get total count for pagination
-    let countSql = "SELECT COUNT(*) as total FROM food_database WHERE 1=1";
+    // Get total count for pagination using cached COUNT
+    let whereClause = "WHERE 1=1";
     let countParams = [];
     
     if (search) {
-      countSql += " AND (name LIKE ? OR name_indonesian LIKE ? OR category LIKE ?)";
+      whereClause += " AND (name LIKE ? OR name_indonesian LIKE ? OR category LIKE ?)";
       countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
     
     if (category) {
-      countSql += " AND category = ?";
+      whereClause += " AND category = ?";
       countParams.push(category);
     }
 
-    const countResult = await query(countSql, countParams);
-    const total = countResult[0]?.total || 0;
+    const total = await getCachedCount('food_database', whereClause, countParams, query);
 
     return NextResponse.json({
       success: true,
@@ -99,70 +99,64 @@ export async function GET(request) {
   }
 }
 
-// POST - Create new food item
+// POST - Add new food
 export async function POST(request) {
   try {
     const body = await request.json();
-    const {
-      name,
-      name_indonesian,
-      category,
-      calories_per_100g,
-      protein_per_100g = 0,
-      carbs_per_100g = 0,
-      fat_per_100g = 0,
-      fiber_per_100g = 0,
-      sugar_per_100g = 0,
-      sodium_per_100g = 0,
-      serving_size,
-      serving_weight,
-      barcode,
-      image_url,
-      is_verified = false,
-      source = 'manual'
-    } = body;
-
+    
     // Validate required fields
-    if (!name || !category || calories_per_100g === undefined) {
+    if (!body.name || !body.category) {
       return NextResponse.json(
-        { 
-          success: false,
-          message: "Name, category, dan calories per 100g wajib diisi" 
-        },
+        { success: false, message: "Nama dan kategori makanan wajib diisi" },
         { status: 400 }
       );
     }
 
     const sql = `
       INSERT INTO food_database (
-        name, name_indonesian, category, calories_per_100g, protein_per_100g,
-        carbs_per_100g, fat_per_100g, fiber_per_100g, sugar_per_100g,
-        sodium_per_100g, serving_size, serving_weight, barcode, image_url,
-        is_verified, source, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        name, name_indonesian, category, calories_per_100g, 
+        protein_per_100g, carbs_per_100g, fat_per_100g, 
+        fiber_per_100g, sugar_per_100g, sodium_per_100g,
+        serving_size, serving_weight, barcode, image_url, 
+        is_verified, source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
-      name, name_indonesian, category, calories_per_100g, protein_per_100g,
-      carbs_per_100g, fat_per_100g, fiber_per_100g, sugar_per_100g,
-      sodium_per_100g, serving_size, serving_weight, barcode, image_url,
-      is_verified, source
+      body.name,
+      body.name_indonesian || body.name,
+      body.category,
+      body.calories_per_100g || 0,
+      body.protein_per_100g || 0,
+      body.carbs_per_100g || 0,
+      body.fat_per_100g || 0,
+      body.fiber_per_100g || 0,
+      body.sugar_per_100g || 0,
+      body.sodium_per_100g || 0,
+      body.serving_size || '',
+      body.serving_weight || 0,
+      body.barcode || '',
+      body.image_url || '',
+      body.is_verified || false,
+      body.source || 'manual'
     ];
 
     const result = await query(sql, params);
+    
+    // Invalidate cache after adding new food
+    invalidateTableCache('food_database');
 
     return NextResponse.json({
       success: true,
-      message: "Data makanan berhasil ditambahkan",
+      message: "Makanan berhasil ditambahkan",
       data: { id: result.insertId }
-    }, { status: 201 });
-    
+    });
   } catch (error) {
-    console.error("Error creating food:", error);
+    console.error("Error adding food:", error);
     return NextResponse.json(
       { 
         success: false,
-        message: "Gagal menambah data makanan",
+        message: "Gagal menambahkan makanan",
         error: error.message 
       },
       { status: 500 }

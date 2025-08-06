@@ -135,7 +135,7 @@ export default function UsersPage() {
       }
 
       const data = await response.json();
-      setClinics(data);
+      setClinics(data.clinics || []);
     } catch (error) {
       console.error("Error fetching clinics:", error);
       toast.error("Gagal memuat data klinik");

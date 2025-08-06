@@ -201,9 +201,7 @@ Get sleep tracking data
 Get user missions
 - **Response**: Array of user mission objects
 
-### GET /api/mobile/wellness
-Get wellness data
-- **Response**: Array of wellness objects
+
 
 ## Chat API
 

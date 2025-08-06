@@ -187,7 +187,7 @@ export default function MedicineForm({
             value={formData.Detail}
             onChange={handleInputChange}
             placeholder="Contoh: Paracetamol 500mg"
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border text-black rounded-md focus:ring-blue-500 focus:border-blue-500 ${
               errors.Detail ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={loading}
@@ -207,7 +207,7 @@ export default function MedicineForm({
             value={formData.DetailDescription}
             onChange={handleInputChange}
             placeholder="Deskripsi obat"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
         </div>
@@ -228,7 +228,7 @@ export default function MedicineForm({
             value={formatCurrency(formData.HNA)}
             onChange={handleCurrencyChange}
             placeholder="0"
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border text-black rounded-md focus:ring-blue-500 focus:border-blue-500 ${
               errors.HNA ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={loading}
@@ -251,7 +251,7 @@ export default function MedicineForm({
             value={formatCurrency(formData.HNAJual)}
             onChange={handleCurrencyChange}
             placeholder="0"
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border text-black rounded-md focus:ring-blue-500 focus:border-blue-500 ${
               errors.HNAJual ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={loading}
@@ -277,7 +277,7 @@ export default function MedicineForm({
             value={formData.SmallUnit}
             onChange={handleInputChange}
             placeholder="Contoh: Tablet"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
         </div>
@@ -292,7 +292,7 @@ export default function MedicineForm({
             value={formData.MediumUnit}
             onChange={handleInputChange}
             placeholder="Contoh: Strip"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
         </div>
@@ -307,7 +307,7 @@ export default function MedicineForm({
             value={formData.LargeUnit}
             onChange={handleInputChange}
             placeholder="Contoh: Box"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
         </div>
@@ -327,7 +327,7 @@ export default function MedicineForm({
             placeholder="1"
             step="0.01"
             min="0"
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border text-black rounded-md focus:ring-blue-500 focus:border-blue-500 ${
               errors.factor_3 ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={loading}
@@ -348,7 +348,7 @@ export default function MedicineForm({
             onChange={handleInputChange}
             placeholder="0"
             min="0"
-            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border text-black rounded-md focus:ring-blue-500 focus:border-blue-500 ${
               errors.QtyMin ? 'border-red-500' : 'border-gray-300'
             }`}
             disabled={loading}
@@ -374,7 +374,7 @@ export default function MedicineForm({
             value={formData.KFA_Code}
             onChange={handleInputChange}
             placeholder="Kode KFA"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
         </div>
@@ -392,7 +392,7 @@ export default function MedicineForm({
             value={formData.APLN_Code}
             onChange={handleInputChange}
             placeholder="Kode APLN"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={loading}
           />
         </div>

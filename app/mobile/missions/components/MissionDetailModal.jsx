@@ -20,6 +20,8 @@ export default function MissionDetailModal({ mission, onClose }) {
       sleep: 'badge-secondary'
     };
     
+    if (!category) return <span className="badge badge-default">UNKNOWN</span>;
+    
     return (
       <span className={`badge ${colors[category] || 'badge-default'}`}>
         {category.replace('_', ' ').toUpperCase()}

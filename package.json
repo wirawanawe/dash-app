@@ -12,6 +12,7 @@
     "create-superadmin": "node scripts/create-superadmin.js",
     "init-db": "node scripts/init-db.js",
     "setup-complete-db": "node scripts/setup-complete-db.js",
+    "setup-medicines": "node scripts/setup-medicines.js",
     "create-users-table": "node scripts/create-users-table.js",
     "full-setup": "node scripts/full-setup.js",
     "check-db": "node scripts/check-db-connection.js",

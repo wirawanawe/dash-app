@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function MissionForm({ mission, onSubmit, onClose }) {
   const [formData, setFormData] = useState({
@@ -58,16 +59,16 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
 
       const data = await response.json();
 
-      if (response.ok) {
-        alert('Mission saved successfully!');
+      if (data.success || response.ok) {
+        toast.success('Mission saved successfully!');
         onSubmit();
       } else {
-        const errorMessage = data.error || data.message || 'Failed to save mission';
-        alert(`Error: ${errorMessage}`);
+        const errorMessage = data.message || data.error || 'Failed to save mission';
+        toast.error(`Error: ${errorMessage}`);
       }
     } catch (error) {
-      console.error('Error saving mission:', error);
-      alert('Network error: Failed to save mission. Please check your connection.');
+      console.error('Error submitting form:', error);
+      toast.error('Network error: Failed to save mission. Please check your connection.');
     } finally {
       setLoading(false);
     }

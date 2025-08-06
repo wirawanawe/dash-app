@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Moon, RefreshCw, BarChart3, TrendingUp, Zap, Clock,
@@ -9,6 +10,7 @@ import {
 import SleepTrackingForm from "./components/SleepTrackingForm";
 import SleepTrackingDetailModal from "./components/SleepTrackingDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import toast from "react-hot-toast";
 
 export default function SleepTrackingPage() {
   const [sleepData, setSleepData] = useState([]);
@@ -82,6 +84,7 @@ export default function SleepTrackingPage() {
       });
 
       if (response.ok) {
+        toast.success('Data tidur berhasil dihapus');
         fetchSleepData();
       } else {
         const data = await response.json();
@@ -89,7 +92,7 @@ export default function SleepTrackingPage() {
       }
     } catch (err) {
       console.error('Error deleting sleep data:', err);
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -115,6 +118,7 @@ export default function SleepTrackingPage() {
       });
 
       if (response.ok) {
+        toast.success(editingSleepData ? 'Data tidur berhasil diperbarui' : 'Data tidur berhasil ditambahkan');
         setShowForm(false);
         setEditingSleepData(null);
         fetchSleepData();
@@ -124,7 +128,7 @@ export default function SleepTrackingPage() {
       }
     } catch (err) {
       console.error('Error saving sleep data:', err);
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 

@@ -20,6 +20,11 @@ export async function GET(request) {
 
     const token = authHeader.substring(7);
 
+    // Get query parameters for date filtering
+    const { searchParams } = new URL(request.url);
+    const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const showAllDates = searchParams.get('all_dates') === 'true';
+
     try {
       // Verify JWT token
       const { payload } = await jwtVerify(
@@ -31,16 +36,23 @@ export async function GET(request) {
       console.log("Authenticated user ID:", userId);
 
       // Simple query first to check if user has any missions
-      const simpleQuery = "SELECT COUNT(*) as count FROM user_missions WHERE user_id = ?";
-      console.log("Simple query:", simpleQuery);
-      console.log("Params:", [userId]);
+      let simpleQuery = "SELECT COUNT(*) as count FROM user_missions WHERE user_id = ?";
+      let simpleParams = [userId];
       
-      const simpleResult = await query(simpleQuery, [userId]);
+      if (!showAllDates) {
+        simpleQuery += " AND mission_date = ?";
+        simpleParams.push(targetDate);
+      }
+      
+      console.log("Simple query:", simpleQuery);
+      console.log("Params:", simpleParams);
+      
+      const simpleResult = await query(simpleQuery, simpleParams);
       console.log("Simple result:", simpleResult);
 
-      // If user has no missions, return empty response
+      // If user has no missions for the specified date, return empty response
       if (simpleResult[0]?.count === 0) {
-        console.log("User has no missions, returning empty response");
+        console.log(`User has no missions for date ${targetDate}, returning empty response`);
         return NextResponse.json({
           success: true,
           data: [],
@@ -59,11 +71,12 @@ export async function GET(request) {
             offset: 0,
             hasMore: false,
           },
+          target_date: targetDate,
         });
       }
 
       // If simple query works, try the complex query
-      const complexQuery = `
+      let complexQuery = `
         SELECT 
           um.id as user_mission_id,
           um.status,
@@ -72,6 +85,7 @@ export async function GET(request) {
           um.completed_at,
           um.created_at,
           um.updated_at,
+          um.mission_date,
           um.notes,
           m.id as mission_id,
           m.title,
@@ -88,23 +102,31 @@ export async function GET(request) {
         WHERE um.user_id = ?
       `;
       
-      console.log("Complex query:", complexQuery);
-      console.log("Complex params:", [userId]);
+      let complexParams = [userId];
       
-      const userMissions = await query(complexQuery, [userId]);
+      if (!showAllDates) {
+        complexQuery += " AND um.mission_date = ?";
+        complexParams.push(targetDate);
+      }
+      
+      complexQuery += " ORDER BY um.created_at DESC";
+      
+      console.log("Complex query:", complexQuery);
+      console.log("Complex params:", complexParams);
+      
+      const userMissions = await query(complexQuery, complexParams);
       console.log("Complex result count:", userMissions.length);
 
       // Process user missions to ensure correct progress calculation
       const processedUserMissions = userMissions.map(mission => {
-        // Calculate progress if not set or if current_value has changed
-        let progress = mission.progress;
-        if (mission.current_value !== null && mission.target_value) {
-          progress = Math.min(Math.round((mission.current_value / mission.target_value) * 100), 100);
-        }
+        // Use the progress field from the database
+        let progress = mission.progress || 0;
         
         return {
           ...mission,
           progress: progress,
+          current_value: mission.current_value || 0,
+          notes: mission.notes || "",
           // Add mission object for frontend compatibility
           mission: {
             id: mission.mission_id,
@@ -131,14 +153,21 @@ export async function GET(request) {
       })));
 
       // Get total count
-      const countQuery = `
+      let countQuery = `
         SELECT COUNT(*) as total
         FROM user_missions um
         JOIN missions m ON um.mission_id = m.id
         WHERE um.user_id = ?
       `;
       
-      const countResult = await query(countQuery, [userId]);
+      let countParams = [userId];
+      
+      if (!showAllDates) {
+        countQuery += " AND um.mission_date = ?";
+        countParams.push(targetDate);
+      }
+      
+      const countResult = await query(countQuery, countParams);
       const total = countResult[0]?.total || 0;
 
       // Calculate summary
@@ -179,6 +208,8 @@ export async function GET(request) {
         success: true,
         data: processedUserMissions,
         summary,
+        target_date: targetDate,
+        show_all_dates: showAllDates,
         pagination: {
           total,
           limit: 20,

@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
-// GET single doctor
+// GET single doctor with polyclinic and clinic information
 export async function GET(request, { params }) {
   try {
     const [doctor] = await query(
       `SELECT 
-        id, 
-        name, 
-        specialist, 
-        license_number, 
-        phone, 
-        email, 
-        address,
-        created_at as createdAt, 
-        updated_at as updatedAt
-      FROM doctors
-      WHERE id = ?`,
+        d.id, 
+        d.name, 
+        d.specialist, 
+        d.license_number, 
+        d.phone, 
+        d.email, 
+        d.address,
+        d.clinic_id,
+        d.polyclinic_id,
+        c.name as clinic_name,
+        p.name as polyclinic_name,
+        p.code as polyclinic_code,
+        d.created_at as createdAt, 
+        d.updated_at as updatedAt
+      FROM doctors d
+      LEFT JOIN clinics c ON d.clinic_id = c.id
+      LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
+      WHERE d.id = ?`,
       [params.id]
     );
 
@@ -40,7 +47,7 @@ export async function GET(request, { params }) {
 // PUT update doctor
 export async function PUT(request, { params }) {
   try {
-    const { name, specialist, license_number, phone, email, address } =
+    const { name, specialist, license_number, phone, email, address, clinic_id, polyclinic_id } =
       await request.json();
 
     // Validasi data
@@ -72,6 +79,8 @@ export async function PUT(request, { params }) {
         phone = ?, 
         email = ?, 
         address = ?,
+        clinic_id = ?,
+        polyclinic_id = ?,
         updated_at = NOW()
       WHERE id = ?`,
       [
@@ -81,6 +90,8 @@ export async function PUT(request, { params }) {
         phone || null,
         email || null,
         address || null,
+        clinic_id || null,
+        polyclinic_id || null,
         params.id,
       ]
     );
@@ -88,17 +99,24 @@ export async function PUT(request, { params }) {
     // Get updated doctor data
     const [updatedDoctor] = await query(
       `SELECT 
-        id, 
-        name, 
-        specialist, 
-        license_number, 
-        phone, 
-        email, 
-        address,
-        created_at as createdAt, 
-        updated_at as updatedAt
-      FROM doctors
-      WHERE id = ?`,
+        d.id, 
+        d.name, 
+        d.specialist, 
+        d.license_number, 
+        d.phone, 
+        d.email, 
+        d.address,
+        d.clinic_id,
+        d.polyclinic_id,
+        c.name as clinic_name,
+        p.name as polyclinic_name,
+        p.code as polyclinic_code,
+        d.created_at as createdAt, 
+        d.updated_at as updatedAt
+      FROM doctors d
+      LEFT JOIN clinics c ON d.clinic_id = c.id
+      LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
+      WHERE d.id = ?`,
       [params.id]
     );
 

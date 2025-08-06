@@ -44,26 +44,35 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
+      console.log("Fetching dashboard data...");
+
       // Fetch dashboard statistics from API
       const statsResponse = await fetch('/api/dashboard/stats');
+      console.log("Stats response status:", statsResponse.status);
+      
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
+        console.log("Stats data:", statsData);
         if (statsData.success) {
           setStats(statsData.data);
         } else {
           throw new Error(statsData.message || 'Failed to fetch stats');
         }
       } else {
+        const errorText = await statsResponse.text();
+        console.error("Stats response error:", errorText);
         throw new Error('Failed to fetch dashboard stats');
       }
 
       // Fetch visits data for rooms and queue
       const today = new Date();
       const todayString = today.toISOString().split("T")[0];
+      console.log("Fetching visits with status Aktif...");
       const activeVisits = await fetchVisits({ status: "Aktif", limit: 100 });
+      console.log("Active visits:", activeVisits);
 
       // Process doctor rooms from active visits
-      const rooms = processDoctorRooms(activeVisits.data || []);
+      const rooms = await processDoctorRooms(activeVisits.data || []);
       setDoctorRooms(rooms);
 
       // Process upcoming queue from active visits
@@ -71,7 +80,7 @@ export default function Dashboard() {
       setUpcomingQueue(queue);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
-      setError("Gagal memuat data dashboard");
+      setError("Gagal memuat data dashboard: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -90,7 +99,7 @@ export default function Dashboard() {
     return response.json();
   };
 
-  const processDoctorRooms = (visits) => {
+  const processDoctorRooms = async (visits) => {
     const roomMap = new Map();
 
     visits.forEach((visit) => {
@@ -110,69 +119,68 @@ export default function Dashboard() {
       }
     });
 
-          // Get all available rooms from database via API
-      try {
-        const roomsResponse = await fetch('/api/dashboard/rooms');
-        if (roomsResponse.ok) {
-          const roomsData = await roomsResponse.json();
-          const availableRooms = roomsData.data || [];
+    // Initialize rooms array with occupied rooms
+    let rooms = Array.from(roomMap.values());
+
+    // Get all available rooms from database via API
+    try {
+      const roomsResponse = await fetch('/api/dashboard/rooms');
+      if (roomsResponse.ok) {
+        const roomsData = await roomsResponse.json();
+        const availableRooms = roomsData.data || [];
+        
+        // Add available rooms that are not occupied
+        availableRooms.forEach((room, index) => {
+          const isOccupied = rooms.some(occupiedRoom => 
+            occupiedRoom.name === room.room_name
+          );
           
-          // Map occupied rooms
-          const rooms = Array.from(roomMap.values());
-          
-          // Add available rooms that are not occupied
-          availableRooms.forEach((room, index) => {
-            const isOccupied = rooms.some(occupiedRoom => 
-              occupiedRoom.name === room.room_name
-            );
-            
-            if (!isOccupied) {
-              rooms.push({
-                id: `room-${index}`,
-                name: room.room_name,
-                doctor: null,
-                status: room.room_status || "Kosong",
-                currentPatient: null,
-                estimatedTime: null,
-                visitId: null,
-              });
-            }
-          });
-          
-          // If no rooms in database, add default rooms
-          if (rooms.length === 0) {
-            for (let i = 0; i < 4; i++) {
-              rooms.push({
-                id: `default-${i}`,
-                name: `Ruang Dokter ${i + 1}`,
-                doctor: null,
-                status: "Kosong",
-                currentPatient: null,
-                estimatedTime: null,
-                visitId: null,
-              });
-            }
+          if (!isOccupied) {
+            rooms.push({
+              id: `room-${index}`,
+              name: room.room_name,
+              doctor: null,
+              status: room.room_status || "Kosong",
+              currentPatient: null,
+              estimatedTime: null,
+              visitId: null,
+            });
           }
-        } else {
-          throw new Error('Failed to fetch rooms');
+        });
+        
+        // If no rooms in database, add default rooms
+        if (rooms.length === 0) {
+          for (let i = 0; i < 4; i++) {
+            rooms.push({
+              id: `default-${i}`,
+              name: `Ruang Dokter ${i + 1}`,
+              doctor: null,
+              status: "Kosong",
+              currentPatient: null,
+              estimatedTime: null,
+              visitId: null,
+            });
+          }
         }
-      } catch (error) {
-        console.error("Error fetching rooms:", error);
-        // Fallback to basic room structure
-        const rooms = Array.from(roomMap.values());
-        const totalRooms = Math.max(4, rooms.length);
-        for (let i = rooms.length; i < totalRooms; i++) {
-          rooms.push({
-            id: `fallback-${i}`,
-            name: `Ruang Dokter ${i + 1}`,
-            doctor: null,
-            status: "Kosong",
-            currentPatient: null,
-            estimatedTime: null,
-            visitId: null,
-          });
-        }
+      } else {
+        throw new Error('Failed to fetch rooms');
       }
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+      // Fallback to basic room structure
+      const totalRooms = Math.max(4, rooms.length);
+      for (let i = rooms.length; i < totalRooms; i++) {
+        rooms.push({
+          id: `fallback-${i}`,
+          name: `Ruang Dokter ${i + 1}`,
+          doctor: null,
+          status: "Kosong",
+          currentPatient: null,
+          estimatedTime: null,
+          visitId: null,
+        });
+      }
+    }
 
     return rooms;
   };

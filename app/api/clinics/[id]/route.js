@@ -1,21 +1,69 @@
 import { query } from "@/lib/db";
-import { verifyJwtToken } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { jwtVerify } from "jose";
+
+// Function to get user from token
+async function getUserFromToken(request) {
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get("authorization");
+  let token = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  } else {
+    // Fallback to cookies
+    const cookieToken = request.cookies.get("token");
+    if (cookieToken) {
+      token = cookieToken.value;
+    }
+  }
+  
+  if (!token) return null;
+
+  try {
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(token, secretKey);
+    return payload;
+  } catch (error) {
+    console.error("Error verifying token:", error);
+    return null;
+  }
+}
 
 // GET /api/clinics/[id] - get clinic by id
 export async function GET(request, { params }) {
   try {
     const { id } = params;
 
-    const result = await query("SELECT * FROM polyclinics WHERE id = ?", [id]);
+    const result = await query("SELECT * FROM clinics WHERE id = ?", [id]);
 
     if (result.length === 0) {
-      return Response.json({ error: "Clinic not found" }, { status: 404 });
+      return NextResponse.json({ error: "Clinic not found" }, { status: 404 });
     }
 
-    return Response.json(result[0]);
+    const clinic = result[0];
+
+    // Get polyclinics for this clinic
+    const polyclinicsQuery = `
+      SELECT 
+        p.id, p.name, p.code, p.description, p.status
+      FROM polyclinics p
+      INNER JOIN clinic_polyclinics cp ON p.id = cp.polyclinic_id
+      WHERE cp.clinic_id = ? AND cp.is_active = TRUE
+      ORDER BY p.name ASC
+    `;
+    
+    const polyclinics = await query(polyclinicsQuery, [id]);
+    
+    const clinicWithPolyclinics = {
+      ...clinic,
+      polyclinics
+    };
+
+    return NextResponse.json(clinicWithPolyclinics);
   } catch (error) {
     console.error("Error getting clinic:", error);
-    return Response.json({ error: "Failed to get clinic" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to get clinic" }, { status: 500 });
   }
 }
 
@@ -24,26 +72,29 @@ export async function PUT(request, { params }) {
   try {
     const { id } = params;
 
-    // Verify admin authorization
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const payload = await verifyJwtToken(token);
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
 
-    if (payload?.role !== "ADMIN" && payload?.role !== "admin") {
-      return Response.json({ error: "Unauthorized access" }, { status: 403 });
+    // Allow SUPERADMIN and ADMIN roles
+    if (!userPayload || (userPayload.role !== "SUPERADMIN" && userPayload.role !== "ADMIN")) {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { name, code, description } = body;
+    const { 
+      name, address, city, phone, email, rating, total_reviews,
+      latitude, longitude, operating_hours, description, image_url, is_active 
+    } = body;
 
-    if (!name || !code) {
-      return Response.json(
-        { error: "Name and code are required" },
+    if (!name || !address || !city) {
+      return NextResponse.json(
+        { error: "Name, address, and city are required" },
         { status: 400 }
       );
     }
 
     // Check if clinic exists
-    const clinicResult = await query("SELECT * FROM polyclinics WHERE id = ?", [
+    const clinicResult = await query("SELECT * FROM clinics WHERE id = ?", [
       id,
     ]);
 
@@ -51,29 +102,24 @@ export async function PUT(request, { params }) {
       return Response.json({ error: "Clinic not found" }, { status: 404 });
     }
 
-    // Check if code is already used by another clinic
-    const existingClinic = await query(
-      "SELECT * FROM polyclinics WHERE code = ? AND id != ?",
-      [code, id]
-    );
-
-    if (existingClinic.length > 0) {
-      return Response.json(
-        { error: "Clinic with this code already exists" },
-        { status: 409 }
-      );
-    }
-
     // Update clinic
     await query(
-      "UPDATE polyclinics SET name = ?, code = ?, description = ? WHERE id = ?",
-      [name, code, description || "", id]
+      `UPDATE clinics SET 
+        name = ?, address = ?, city = ?, phone = ?, email = ?, 
+        rating = ?, total_reviews = ?, latitude = ?, longitude = ?,
+        operating_hours = ?, description = ?, image_url = ?, is_active = ?
+        WHERE id = ?`,
+      [
+        name, address, city, phone, email, rating, total_reviews,
+        latitude, longitude, operating_hours ? JSON.stringify(operating_hours) : null,
+        description, image_url, is_active, id
+      ]
     );
 
-    return Response.json({ message: "Clinic updated successfully" });
+    return NextResponse.json({ message: "Clinic updated successfully" });
   } catch (error) {
     console.error("Error updating clinic:", error);
-    return Response.json({ error: "Failed to update clinic" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update clinic" }, { status: 500 });
   }
 }
 
@@ -82,29 +128,29 @@ export async function DELETE(request, { params }) {
   try {
     const { id } = params;
 
-    // Verify admin authorization
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const payload = await verifyJwtToken(token);
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
 
-    if (payload?.role !== "ADMIN" && payload?.role !== "admin") {
-      return Response.json({ error: "Unauthorized access" }, { status: 403 });
+    // Allow SUPERADMIN and ADMIN roles
+    if (!userPayload || (userPayload.role !== "SUPERADMIN" && userPayload.role !== "ADMIN")) {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
     }
 
     // Check if clinic exists
-    const clinicResult = await query("SELECT * FROM polyclinics WHERE id = ?", [
+    const clinicResult = await query("SELECT * FROM clinics WHERE id = ?", [
       id,
     ]);
 
     if (clinicResult.length === 0) {
-      return Response.json({ error: "Clinic not found" }, { status: 404 });
+      return NextResponse.json({ error: "Clinic not found" }, { status: 404 });
     }
 
     // Delete clinic
-    await query("DELETE FROM polyclinics WHERE id = ?", [id]);
+    await query("DELETE FROM clinics WHERE id = ?", [id]);
 
-    return Response.json({ message: "Clinic deleted successfully" });
+    return NextResponse.json({ message: "Clinic deleted successfully" });
   } catch (error) {
     console.error("Error deleting clinic:", error);
-    return Response.json({ error: "Failed to delete clinic" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete clinic" }, { status: 500 });
   }
 }

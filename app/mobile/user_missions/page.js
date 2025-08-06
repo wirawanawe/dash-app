@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Target, RefreshCw, BarChart3, TrendingUp, Activity, Zap, Award,
@@ -9,6 +10,7 @@ import {
 import UserMissionForm from "./components/UserMissionForm";
 import UserMissionDetailModal from "./components/UserMissionDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import toast from "react-hot-toast";
 
 export default function UserMissionsPage() {
   const [userMissions, setUserMissions] = useState([]);
@@ -71,7 +73,7 @@ export default function UserMissionsPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteUserMission = async (id) => {
     if (!confirm('Apakah Anda yakin ingin menghapus user mission ini?')) {
       return;
     }
@@ -80,16 +82,18 @@ export default function UserMissionsPage() {
       const response = await fetch(`/api/mobile/user_missions/${id}`, {
         method: 'DELETE',
       });
-
-      if (response.ok) {
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('User mission berhasil dihapus');
         fetchUserMissions();
       } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Gagal menghapus user mission');
+        toast.error(data.message || 'Gagal menghapus user mission');
       }
     } catch (err) {
       console.error('Error deleting user mission:', err);
-      alert(err.message);
+      toast.error('Gagal menghapus user mission');
     }
   };
 
@@ -124,7 +128,7 @@ export default function UserMissionsPage() {
       }
     } catch (err) {
       console.error('Error saving user mission:', err);
-      alert(err.message);
+      toast.error(err.message || 'Gagal menyimpan user mission');
     }
   };
 
@@ -417,7 +421,7 @@ export default function UserMissionsPage() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(userMission.id)}
+                            onClick={() => handleDeleteUserMission(userMission.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                             title="Hapus"
                           >

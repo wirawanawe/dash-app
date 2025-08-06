@@ -51,8 +51,8 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Check if mission is cancelled
-    if (userMission.status === "cancelled") {
+    // Check if mission is cancelled or abandoned
+    if (userMission.status === "cancelled" || userMission.status === "abandoned") {
       return NextResponse.json(
         {
           success: false,

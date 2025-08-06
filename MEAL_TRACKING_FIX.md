@@ -42,7 +42,7 @@ The complete setup creates all necessary tables:
 - `meal_foods` - Individual food items in meals ✅
 - `missions` - Health missions/challenges ✅
 - `user_missions` - User mission progress ✅
-- `wellness_activities` - Wellness activities ✅
+
 - `mood_tracking` - Mood tracking ✅
 - `water_tracking` - Water intake tracking ✅
 - `sleep_tracking` - Sleep tracking ✅

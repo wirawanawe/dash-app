@@ -4,21 +4,27 @@ import { query } from "@/lib/db";
 // Helper function to add delay between requests
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Helper function to fetch with retry
-async function fetchWithRetry(url, options, maxRetries = 3) {
+// Helper function to fetch with retry - reduced timeout and better error handling
+async function fetchWithRetry(url, options, maxRetries = 2) {
   for (let i = 0; i < maxRetries; i++) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Reduced to 15 seconds
+      
       const response = await fetch(url, {
         ...options,
-        timeout: 30000, // 30 second timeout
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       return response;
     } catch (error) {
+      console.error(`Attempt ${i + 1} failed:`, error.message);
       if (i === maxRetries - 1) {
         throw error; // Throw on last attempt
       }
-      // Wait before retrying (exponential backoff)
-      await delay(Math.pow(2, i) * 1000);
+      // Wait before retrying (shorter backoff)
+      await delay(1000 * (i + 1));
     }
   }
 }
@@ -32,78 +38,145 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get("limit") || "10");
 
     // Build API URL with keyword parameter for server-side filtering
-    let apiUrl = `http://api-klinik.doctorphcindonesia.web.id/pasien?page=${page}&limit=${limit}`;
+    let apiUrl = `http://api-klinik.doctorphc.id/pasien?page=${page}&limit=${limit}`;
 
     // Add keyword parameter if search is provided
     if (search) {
       apiUrl += `&keyword=${encodeURIComponent(search)}`;
     }
 
-    const response = await fetchWithRetry(apiUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        // Add any required headers here (e.g., Authorization if needed)
-      },
-    });
+    console.log(`🔍 Fetching patients from external API: ${apiUrl}`);
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch from external API: ${response.status} ${response.statusText}`
-      );
+    try {
+      const response = await fetchWithRetry(apiUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          // Add any required headers here (e.g., Authorization if needed)
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch from external API: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const externalData = await response.json();
+
+      // Process the external data - the API returns data in a specific format
+      let rawPatients = [];
+      if (externalData.data && Array.isArray(externalData.data)) {
+        rawPatients = externalData.data;
+      } else if (Array.isArray(externalData)) {
+        rawPatients = externalData;
+      }
+
+      // Transform the external API data to match our expected format
+      const patients = rawPatients.map((patient) => ({
+        id: patient.No_MR,
+        mrn: patient.No_MR,
+        name: patient.Nama_Pasien,
+        gender: patient.Jenis_Kelamin?.[0]?.name || "-",
+        birthDate: patient.Tgl_Lahir ? patient.Tgl_Lahir.split(" ")[0] : null,
+        nik: patient.Identitas?.find((id) => id.type === "nik")?.id || "",
+        nip: patient.Identitas?.find((id) => id.type === "nip")?.id || "",
+        phone: "", // Not available in external API
+        address: patient.Alamat_Rumah?.[0]?.Alamat || "",
+        city: patient.Alamat_Rumah?.[0]?.Kota?.[0]?.name || "",
+        province: patient.Alamat_Rumah?.[0]?.Propinsi?.[0]?.name || "",
+        bloodType: patient.Golongan_Darah?.[0]?.name || "-",
+        religion: patient.Agama?.[0]?.name || "-",
+        maritalStatus: patient.Status_Marital?.[0]?.name || "-",
+        occupation: patient.Pekerjaan?.[0]?.name || "-",
+        education: patient.Pendidikan?.[0]?.name || "-",
+        created_at: patient.audittrail?.CreatedDate || null,
+        updated_at: patient.audittrail?.LastModifiedDate || null,
+      }));
+
+      // Use the pagination info from the external API
+      const totalFromAPI =
+        externalData["total pasien"] || externalData.total || patients.length;
+      const totalPages = Math.ceil(totalFromAPI / limit);
+
+      console.log(`✅ Successfully fetched ${patients.length} patients from external API`);
+
+      return NextResponse.json({
+        data: patients,
+        pagination: {
+          total: totalFromAPI,
+          page,
+          limit,
+          totalPages,
+        },
+      });
+    } catch (externalApiError) {
+      console.error("External API failed, trying local database fallback:", externalApiError.message);
+      
+      // Fallback to local database if external API fails
+      try {
+        let sql = "SELECT * FROM patients WHERE 1=1";
+        const params = [];
+        
+        if (search) {
+          sql += " AND (name LIKE ? OR mr_number LIKE ? OR nik LIKE ?)";
+          const searchTerm = `%${search}%`;
+          params.push(searchTerm, searchTerm, searchTerm);
+        }
+        
+        sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        const offset = (page - 1) * limit;
+        params.push(limit, offset);
+        
+        const localPatients = await query(sql, params);
+        
+        // Get total count for pagination
+        let countSql = "SELECT COUNT(*) as total FROM patients WHERE 1=1";
+        const countParams = [];
+        
+        if (search) {
+          countSql += " AND (name LIKE ? OR mr_number LIKE ? OR nik LIKE ?)";
+          const searchTerm = `%${search}%`;
+          countParams.push(searchTerm, searchTerm, searchTerm);
+        }
+        
+        const [{ total }] = await query(countSql, countParams);
+        const totalPages = Math.ceil(total / limit);
+        
+        console.log(`✅ Fallback: Found ${localPatients.length} patients in local database`);
+        
+        return NextResponse.json({
+          data: localPatients,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages,
+          },
+          note: "Data from local database (external API unavailable)"
+        });
+      } catch (localDbError) {
+        console.error("Local database fallback also failed:", localDbError);
+        
+        // Return empty result with error message
+        return NextResponse.json({
+          data: [],
+          pagination: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+          error: "External API and local database both unavailable",
+          note: "Please try again later or contact support"
+        }, { status: 503 });
+      }
     }
-
-    const externalData = await response.json();
-
-    // Process the external data - the API returns data in a specific format
-    let rawPatients = [];
-    if (externalData.data && Array.isArray(externalData.data)) {
-      rawPatients = externalData.data;
-    } else if (Array.isArray(externalData)) {
-      rawPatients = externalData;
-    }
-
-    // Transform the external API data to match our expected format
-    const patients = rawPatients.map((patient) => ({
-      id: patient.No_MR,
-      mrn: patient.No_MR,
-      name: patient.Nama_Pasien,
-      gender: patient.Jenis_Kelamin?.[0]?.name || "-",
-      birthDate: patient.Tgl_Lahir ? patient.Tgl_Lahir.split(" ")[0] : null,
-      nik: patient.Identitas?.find((id) => id.type === "nik")?.id || "",
-      nip: patient.Identitas?.find((id) => id.type === "nip")?.id || "",
-      phone: "", // Not available in external API
-      address: patient.Alamat_Rumah?.[0]?.Alamat || "",
-      city: patient.Alamat_Rumah?.[0]?.Kota?.[0]?.name || "",
-      province: patient.Alamat_Rumah?.[0]?.Propinsi?.[0]?.name || "",
-      bloodType: patient.Golongan_Darah?.[0]?.name || "-",
-      religion: patient.Agama?.[0]?.name || "-",
-      maritalStatus: patient.Status_Marital?.[0]?.name || "-",
-      occupation: patient.Pekerjaan?.[0]?.name || "-",
-      education: patient.Pendidikan?.[0]?.name || "-",
-      created_at: patient.audittrail?.CreatedDate || null,
-      updated_at: patient.audittrail?.LastModifiedDate || null,
-    }));
-
-    // Use the pagination info from the external API
-    const totalFromAPI =
-      externalData["total pasien"] || externalData.total || patients.length;
-    const totalPages = Math.ceil(totalFromAPI / limit);
-
-    return NextResponse.json({
-      data: patients,
-      pagination: {
-        total: totalFromAPI,
-        page,
-        limit,
-        totalPages,
-      },
-    });
   } catch (error) {
-    console.error("Error fetching patients from external API:", error);
+    console.error("Error in patients API:", error);
     return NextResponse.json(
       {
-        message: "Failed to fetch patients from external API",
+        message: "Failed to fetch patients",
         error: error.message,
       },
       { status: 500 }

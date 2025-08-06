@@ -5,9 +5,9 @@ import { query } from "@/lib/db";
 export async function POST(request, { params }) {
   try {
     const { missionId } = params;
-    const { user_id } = await request.json();
+    const { user_id, mission_date } = await request.json();
 
-    console.log(`🎯 Accepting mission: ${missionId} for user: ${user_id}`);
+    console.log(`🎯 Accepting mission: ${missionId} for user: ${user_id} on date: ${mission_date}`);
 
     if (!user_id || !missionId) {
       return NextResponse.json(
@@ -18,6 +18,9 @@ export async function POST(request, { params }) {
         { status: 400 }
       );
     }
+
+    // Use provided mission_date or default to today
+    const targetDate = mission_date || new Date().toISOString().split('T')[0];
 
     // Check if mission exists and is active
     const missionCheck = await query(
@@ -39,34 +42,40 @@ export async function POST(request, { params }) {
     const mission = missionCheck[0];
     console.log(`✅ Mission found: ${mission.title}`);
 
-    // Check if user has already accepted this mission
+    // Check if user has already accepted this mission for the same date
     const existingAcceptance = await query(
-      "SELECT id, status FROM user_missions WHERE user_id = ? AND mission_id = ?",
-      [user_id, missionId]
+      "SELECT id, status, mission_date FROM user_missions WHERE user_id = ? AND mission_id = ? AND mission_date = ?",
+      [user_id, missionId, targetDate]
     );
 
     if (existingAcceptance.length > 0) {
       const existing = existingAcceptance[0];
-      console.log(`🔄 User already has mission with status: ${existing.status}`);
+      console.log(`🔄 User already has mission for this date with status: ${existing.status}`);
       
       if (existing.status === "completed") {
         return NextResponse.json(
           {
             success: false,
-            message: "Mission sudah diselesaikan",
+            message: "Mission sudah diselesaikan untuk tanggal ini",
           },
           { status: 409 }
         );
       } else if (existing.status === "active") {
         return NextResponse.json(
           {
-            success: false,
-            message: "Mission sudah diterima dan sedang dalam progress",
+            success: true,
+            message: "Mission sudah diterima dan sedang dalam progress untuk tanggal ini",
+            data: {
+              user_mission_id: existing.id,
+              mission_title: mission.title,
+              status: "active",
+              mission_date: targetDate,
+            },
           },
-          { status: 409 }
+          { status: 200 }
         );
       } else if (existing.status === "cancelled") {
-        // Allow re-accepting cancelled missions
+        // Allow re-accepting cancelled missions for the same date
         const updateSql = `
           UPDATE user_missions 
           SET status = 'active', progress = 0, updated_at = NOW()
@@ -82,6 +91,7 @@ export async function POST(request, { params }) {
             user_mission_id: existing.id,
             mission_title: mission.title,
             status: "active",
+            mission_date: targetDate,
           },
         });
       }
@@ -90,11 +100,11 @@ export async function POST(request, { params }) {
     // Accept the mission
     const acceptSql = `
       INSERT INTO user_missions (
-        user_id, mission_id, status, progress, created_at, updated_at
-      ) VALUES (?, ?, 'active', 0, NOW(), NOW())
+        user_id, mission_id, mission_date, status, progress, created_at, updated_at
+      ) VALUES (?, ?, ?, 'active', 0, NOW(), NOW())
     `;
 
-    const result = await query(acceptSql, [user_id, missionId]);
+    const result = await query(acceptSql, [user_id, missionId, targetDate]);
     console.log(`✅ Mission accepted successfully. User mission ID: ${result.insertId}`);
 
     return NextResponse.json({
@@ -105,6 +115,7 @@ export async function POST(request, { params }) {
         mission_title: mission.title,
         status: "active",
         points: mission.points,
+        mission_date: targetDate,
       },
     });
   } catch (error) {

@@ -148,18 +148,7 @@ const Sidebar = ({ onClose }) => {
       path: "/settings",
       roles: ["SUPERADMIN", "ADMIN"],
     },
-    {
-      title: "Role Management",
-      icon: <FaShield />,
-      path: "/role-management",
-      roles: ["SUPERADMIN"],
-    },
-    {
-      title: "Role Info",
-      icon: <FaUserTie />,
-      path: "/role-info",
-      roles: ["SUPERADMIN"],
-    },
+   
     user?.role === "PHARMACIST" && {
       title: "Farmasi",
       icon: <FaPills />,

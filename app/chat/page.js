@@ -213,13 +213,13 @@ export default function ChatPage() {
     fetchChats();
   };
 
-  // Auto-refresh chats every 30 seconds
+  // Auto-refresh chats every 60 seconds (increased from 30 seconds to reduce server load)
   useEffect(() => {
     if (!user || !canAccessChat) return;
 
     const interval = setInterval(() => {
       fetchChats();
-    }, 30000);
+    }, 60000); // Increased from 30000 to 60000ms
 
     return () => clearInterval(interval);
   }, [user, searchTerm, statusFilter]);

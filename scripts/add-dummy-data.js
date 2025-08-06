@@ -1,6 +1,10 @@
-const mysql = require('mysql2/promise');
-const fs = require('fs');
-const path = require('path');
+import mysql from 'mysql2/promise';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function addDummyData() {
   let connection;
@@ -93,16 +97,12 @@ async function addDummyData() {
 }
 
 // Run the script
-if (require.main === module) {
-  addDummyData()
-    .then(() => {
-      console.log('\n🎉 Script completed successfully!');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('\n💥 Script failed:', error);
-      process.exit(1);
-    });
-}
-
-module.exports = { addDummyData }; 
+addDummyData()
+  .then(() => {
+    console.log('\n🎉 Script completed successfully!');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('❌ Script failed:', error);
+    process.exit(1);
+  }); 

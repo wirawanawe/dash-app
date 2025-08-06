@@ -69,7 +69,7 @@ export async function GET(request) {
     const doctorStatsQuery = `
       SELECT COUNT(*) as total_doctors
       FROM doctors 
-      WHERE is_active = 1
+      WHERE is_available_for_consultation = 1
     `;
     const doctorStatsResult = await query(doctorStatsQuery);
     const totalDoctors = doctorStatsResult[0]?.total_doctors || 0;
@@ -78,7 +78,6 @@ export async function GET(request) {
     const patientStatsQuery = `
       SELECT COUNT(*) as total_patients
       FROM patients 
-      WHERE is_active = 1
     `;
     const patientStatsResult = await query(patientStatsQuery);
     const totalPatients = patientStatsResult[0]?.total_patients || 0;

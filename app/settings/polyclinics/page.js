@@ -55,7 +55,7 @@ export default function PolyclinicsPage() {
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || "Gagal menghapus poli");
+          throw new Error(error.message || "Gagal menghapus poli");
         }
 
         toast.success("Poli berhasil dihapus");
@@ -110,7 +110,16 @@ export default function PolyclinicsPage() {
                     Nama
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Kode
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
                     Deskripsi
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Klinik
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
+                    Dokter
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
                     Status
@@ -128,10 +137,33 @@ export default function PolyclinicsPage() {
                         {polyclinic.name}
                       </td>
                       <td className="px-6 py-4 text-black whitespace-nowrap">
-                        {polyclinic.description}
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">
+                          {polyclinic.code}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-black">
+                        <div className="max-w-xs truncate" title={polyclinic.description}>
+                          {polyclinic.description || "-"}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-black whitespace-nowrap">
-                        {polyclinic.status}
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                          {polyclinic.clinic_count || 0} klinik
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-black whitespace-nowrap">
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                          {polyclinic.doctor_count || 0} dokter
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-black whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          polyclinic.status === 'Aktif' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {polyclinic.status}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-black whitespace-nowrap">
                         <button

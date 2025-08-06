@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 export default function PatientForm({ patient, isEdit = false }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     name: "",
     nik: "",

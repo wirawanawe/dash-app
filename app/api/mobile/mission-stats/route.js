@@ -19,6 +19,11 @@ export async function GET(request) {
 
     const token = authHeader.substring(7);
 
+    // Get query parameters for date filtering
+    const { searchParams } = new URL(request.url);
+    const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const showAllDates = searchParams.get('all_dates') === 'true';
+
     try {
       // Verify JWT token
       const { payload } = await jwtVerify(
@@ -28,21 +33,30 @@ export async function GET(request) {
 
       const userId = payload.userId;
 
-      // Get mission statistics
+      // Build the WHERE clause for date filtering
+      let whereClause = "WHERE um.user_id = ?";
+      let params = [userId];
+      
+      if (!showAllDates) {
+        whereClause += " AND DATE(um.created_at) = ?";
+        params.push(targetDate);
+      }
+
+      // Get mission statistics with date filtering
       const statsQuery = `
         SELECT 
           COUNT(*) as total_missions,
-          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_missions,
-          SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_missions,
-          SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END) as expired_missions,
-          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_missions,
-          SUM(CASE WHEN status = 'completed' THEN m.points ELSE 0 END) as total_points_earned
+          SUM(CASE WHEN um.status = 'completed' THEN 1 ELSE 0 END) as completed_missions,
+          SUM(CASE WHEN um.status = 'active' THEN 1 ELSE 0 END) as active_missions,
+          SUM(CASE WHEN um.status = 'expired' THEN 1 ELSE 0 END) as expired_missions,
+          SUM(CASE WHEN um.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_missions,
+          SUM(CASE WHEN um.status = 'completed' THEN m.points ELSE 0 END) as total_points_earned
         FROM user_missions um
         JOIN missions m ON um.mission_id = m.id
-        WHERE um.user_id = ?
+        ${whereClause}
       `;
 
-      const [stats] = await query(statsQuery, [userId]);
+      const [stats] = await query(statsQuery, params);
 
       // Calculate completion rate
       const completionRate = stats.total_missions > 0 
@@ -57,6 +71,8 @@ export async function GET(request) {
         cancelled_missions: stats.cancelled_missions || 0,
         total_points_earned: stats.total_points_earned || 0,
         completion_rate: Math.round(completionRate * 100) / 100, // Round to 2 decimal places
+        target_date: targetDate,
+        show_all_dates: showAllDates,
       };
 
       return NextResponse.json({

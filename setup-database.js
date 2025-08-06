@@ -60,7 +60,8 @@ async function initializeTables() {
       'init-scripts/01-create-tables.sql',
       'init-scripts/02-mobile-app-tables.sql',
       'init-scripts/03-mobile-tables.sql',
-      'init-scripts/15-create-meal-tracking-tables.sql'
+      'init-scripts/15-create-meal-tracking-tables.sql',
+      'init-scripts/21-add-mission-date.sql'
     ];
     
     for (const file of sqlFiles) {

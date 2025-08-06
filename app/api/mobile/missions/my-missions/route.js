@@ -111,6 +111,8 @@ export async function GET(request) {
       return {
         ...mission,
         progress: progress,
+        current_value: mission.current_value || 0,
+        notes: mission.notes || "",
         // Add mission object for frontend compatibility
         mission: {
           id: mission.mission_id,

@@ -1,166 +1,127 @@
-import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+import { query } from '@/lib/db';
 
-// GET - Get wellness statistics
 export async function GET(request) {
   try {
-    const searchParams = new URL(request.url).searchParams;
-    const user_id = searchParams.get("user_id");
-    const period = searchParams.get("period") || "week"; // week, month, year
-
-    if (!user_id) {
+    // Get authorization header
+    const authHeader = request.headers.get("authorization");
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
         {
           success: false,
-          message: "User ID is required",
+          message: "Authorization header required",
         },
-        { status: 400 }
+        { status: 401 }
       );
     }
 
-    // Calculate date range based on period
-    let startDate, endDate;
-    const today = new Date();
-    
-    switch (period) {
-      case "week":
-        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "month":
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        break;
-      case "year":
-        startDate = new Date(today.getFullYear(), 0, 1);
-        break;
-      default:
-        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    }
+    const token = authHeader.substring(7);
 
-    endDate = today;
+    // Verify JWT token
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(process.env.JWT_SECRET)
+    );
 
-    // Get wellness activity completions
-    const completionsSql = `
+    const userId = payload.userId;
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get('period') || '7';
+
+    // Get wellness statistics for the specified period
+    const statsQuery = `
       SELECT 
-        wa.id as activity_id,
-        wa.activity_name as title,
-        wa.activity_category as category,
-        wa.points_earned as points,
-        COUNT(*) as completion_count,
-        SUM(wa.duration) as total_duration,
-        MAX(wa.completed_at) as last_completed
-      FROM wellness_activities wa
-      WHERE wa.user_id = ? AND wa.completed_at BETWEEN ? AND ?
-      GROUP BY wa.id, wa.activity_name, wa.activity_category, wa.points_earned
-      ORDER BY completion_count DESC
+        COUNT(DISTINCT DATE(created_at)) as active_days,
+        SUM(CASE WHEN type = 'fitness' THEN duration ELSE 0 END) as total_fitness_minutes,
+        SUM(CASE WHEN type = 'nutrition' THEN calories ELSE 0 END) as total_calories,
+        SUM(CASE WHEN type = 'water' THEN amount ELSE 0 END) as total_water_intake,
+        SUM(CASE WHEN type = 'sleep' THEN duration ELSE 0 END) as total_sleep_hours,
+        AVG(CASE WHEN type = 'mood' THEN score ELSE NULL END) as avg_mood_score,
+        COUNT(CASE WHEN type = 'fitness' THEN 1 END) as fitness_entries,
+        COUNT(CASE WHEN type = 'nutrition' THEN 1 END) as nutrition_entries,
+        COUNT(CASE WHEN type = 'water' THEN 1 END) as water_entries,
+        COUNT(CASE WHEN type = 'sleep' THEN 1 END) as sleep_entries,
+        COUNT(CASE WHEN type = 'mood' THEN 1 END) as mood_entries
+      FROM wellness_data 
+      WHERE user_id = ? 
+        AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
     `;
+    
+    const [statsResult] = await query(statsQuery, [userId, parseInt(period)]);
+    const stats = statsResult[0];
 
-    const completions = await query(completionsSql, [
-      user_id,
-      startDate.toISOString(),
-      endDate.toISOString(),
-    ]);
+    // Calculate wellness score based on various factors
+    const wellnessScore = calculateWellnessScore(stats);
 
-    // Calculate statistics
-    const stats = {
-      period: period,
-      start_date: startDate.toISOString().split('T')[0],
-      end_date: endDate.toISOString().split('T')[0],
-      total_activities_completed: 0,
-      total_points_earned: 0,
-      total_duration_minutes: 0,
-      favorite_category: null,
-      most_completed_activity: null,
-      streak_days: 0,
-      category_breakdown: {},
+    const response = {
+      success: true,
+      data: {
+        period: parseInt(period),
+        active_days: stats.active_days || 0,
+        total_fitness_minutes: stats.total_fitness_minutes || 0,
+        total_calories: stats.total_calories || 0,
+        total_water_intake: stats.total_water_intake || 0,
+        total_sleep_hours: stats.total_sleep_hours || 0,
+        avg_mood_score: stats.avg_mood_score || 0,
+        fitness_entries: stats.fitness_entries || 0,
+        nutrition_entries: stats.nutrition_entries || 0,
+        water_entries: stats.water_entries || 0,
+        sleep_entries: stats.sleep_entries || 0,
+        mood_entries: stats.mood_entries || 0,
+        wellness_score: wellnessScore
+      }
     };
 
-    let maxCompletions = 0;
-    const categoryCounts = {};
+    return NextResponse.json(response);
 
-    completions.forEach(completion => {
-      stats.total_activities_completed += completion.completion_count;
-      stats.total_points_earned += (completion.points * completion.completion_count);
-      stats.total_duration_minutes += completion.total_duration;
-
-      // Track most completed activity
-      if (completion.completion_count > maxCompletions) {
-        maxCompletions = completion.completion_count;
-        stats.most_completed_activity = {
-          title: completion.title,
-          completions: completion.completion_count,
-        };
-      }
-
-      // Track category breakdown
-      if (!categoryCounts[completion.category]) {
-        categoryCounts[completion.category] = 0;
-      }
-      categoryCounts[completion.category] += completion.completion_count;
-    });
-
-    // Find favorite category
-    let maxCategoryCount = 0;
-    Object.keys(categoryCounts).forEach(category => {
-      if (categoryCounts[category] > maxCategoryCount) {
-        maxCategoryCount = categoryCounts[category];
-        stats.favorite_category = category;
-      }
-    });
-
-    stats.category_breakdown = categoryCounts;
-
-    // Calculate streak (consecutive days with activity)
-    const streakSql = `
-      SELECT DISTINCT DATE(completed_at) as completion_date
-      FROM wellness_activities
-      WHERE user_id = ? AND completed_at BETWEEN ? AND ?
-      ORDER BY completion_date DESC
-    `;
-
-    const completionDates = await query(streakSql, [
-      user_id,
-      startDate.toISOString(),
-      endDate.toISOString(),
-    ]);
-
-    // Calculate streak
-    let currentStreak = 0;
-    let maxStreak = 0;
-    let previousDate = null;
-
-    completionDates.forEach((record, index) => {
-      const currentDate = new Date(record.completion_date);
-      
-      if (index === 0) {
-        currentStreak = 1;
-      } else {
-        const daysDiff = Math.floor((previousDate - currentDate) / (1000 * 60 * 60 * 24));
-        if (daysDiff === 1) {
-          currentStreak++;
-        } else {
-          currentStreak = 1;
-        }
-      }
-      
-      maxStreak = Math.max(maxStreak, currentStreak);
-      previousDate = currentDate;
-    });
-
-    stats.streak_days = maxStreak;
-
-    return NextResponse.json({
-      success: true,
-      data: stats,
-    });
   } catch (error) {
-    console.error("Error fetching wellness stats:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal mengambil wellness stats",
-        error: error.message,
-      },
-      { status: 500 }
-    );
+    console.error('Error in wellness stats endpoint:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
+}
+
+function calculateWellnessScore(stats) {
+  let score = 0;
+  const maxScore = 100;
+
+  // Fitness contribution (25 points)
+  if (stats.total_fitness_minutes > 0) {
+    const fitnessScore = Math.min(25, (stats.total_fitness_minutes / 150) * 25);
+    score += fitnessScore;
+  }
+
+  // Nutrition contribution (20 points)
+  if (stats.nutrition_entries > 0) {
+    const nutritionScore = Math.min(20, (stats.nutrition_entries / 7) * 20);
+    score += nutritionScore;
+  }
+
+  // Water intake contribution (15 points)
+  if (stats.total_water_intake > 0) {
+    const waterScore = Math.min(15, (stats.total_water_intake / 7000) * 15);
+    score += waterScore;
+  }
+
+  // Sleep contribution (20 points)
+  if (stats.total_sleep_hours > 0) {
+    const sleepScore = Math.min(20, (stats.total_sleep_hours / 56) * 20);
+    score += sleepScore;
+  }
+
+  // Mood contribution (10 points)
+  if (stats.avg_mood_score > 0) {
+    const moodScore = (stats.avg_mood_score / 5) * 10;
+    score += moodScore;
+  }
+
+  // Consistency bonus (10 points)
+  if (stats.active_days >= 7) {
+    score += 10;
+  }
+
+  return Math.round(Math.min(maxScore, score));
 } 

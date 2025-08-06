@@ -1,89 +1,108 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
-// Role hierarchy: Superadmin > Admin > Doctor > Staff
-const roleHierarchy = {
-  SUPERADMIN: 4,
-  ADMIN: 3,
-  DOCTOR: 2,
-  STAFF: 1
-};
+// Rate limiting storage
+const rateLimitStore = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 100; // 100 requests per minute per IP
 
-const getUserRoleLevel = (role) => {
-  return roleHierarchy[role?.toUpperCase()] || 0;
-};
+function getClientIP(request) {
+  return request.headers.get('x-forwarded-for') || 
+         request.headers.get('x-real-ip') || 
+         request.ip || 
+         'unknown';
+}
 
-const canAccess = (userRole, requiredRole) => {
-  const userLevel = getUserRoleLevel(userRole);
-  const requiredLevel = roleHierarchy[requiredRole?.toUpperCase()] || 0;
-  return userLevel >= requiredLevel;
-};
-
-// Route permissions
-const routePermissions = {
-  // Superadmin routes
-  "/role-management": "SUPERADMIN",
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW;
   
-  // Admin and above routes
-  "/users": "ADMIN",
-  "/settings": "ADMIN",
-  "/doctors": "ADMIN",
-  "/clinics": "ADMIN",
-  "/mobile": "ADMIN",
+  if (!rateLimitStore.has(ip)) {
+    rateLimitStore.set(ip, []);
+  }
   
-  // Doctor and above routes
-  "/examinations": "DOCTOR",
-  "/chat": "DOCTOR",
-  "/laboratory/results": "DOCTOR",
+  const requests = rateLimitStore.get(ip);
   
-  // Staff and above routes
-  "/patients": "STAFF",
-  "/visits": "STAFF",
-  "/dashboard": "STAFF",
-};
+  // Clean old requests
+  const validRequests = requests.filter(time => time > windowStart);
+  rateLimitStore.set(ip, validRequests);
+  
+  if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+    return false; // Rate limited
+  }
+  
+  validRequests.push(now);
+  return true; // Allowed
+}
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   
-  // Skip middleware for API routes, static files, and auth pages
-  if (
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname === "/"
-  ) {
-    return NextResponse.next();
+  // Apply rate limiting to API routes
+  if (pathname.startsWith('/api/')) {
+    const clientIP = getClientIP(request);
+    
+    if (!checkRateLimit(clientIP)) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: "Terlalu banyak request. Silakan coba lagi dalam 1 menit.",
+          error: "RATE_LIMIT_EXCEEDED"
+        },
+        { status: 429 }
+      );
+    }
   }
 
-  // Check if user is authenticated
-  const token = request.cookies.get("token");
-  const apiToken = request.cookies.get("api_token");
-
-  if (!token && !apiToken) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // Authentication check for protected routes
+  if (pathname.startsWith('/dashboard') || 
+      pathname.startsWith('/users') || 
+      pathname.startsWith('/patients') || 
+      pathname.startsWith('/clinics') || 
+      pathname.startsWith('/medicine') || 
+      pathname.startsWith('/visits') || 
+      pathname.startsWith('/chat') || 
+      pathname.startsWith('/mobile/') ||
+      pathname.startsWith('/settings/')) {
+    
+    // Check for authentication cookie
+    const authCookie = request.cookies.get('auth-token') || 
+                      request.cookies.get('token') ||
+                      request.headers.get('authorization');
+    
+    if (!authCookie && pathname !== '/login') {
+      // Redirect to login if not authenticated
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
   }
 
-  // For protected routes, check role permissions
-  const requiredRole = routePermissions[pathname];
-  if (requiredRole) {
-    // This is a simplified check - in a real app, you'd verify the token and get user role
-    // For now, we'll allow access and let the frontend handle role-based UI
-    return NextResponse.next();
+  // Add security headers
+  const response = NextResponse.next();
+  
+  // Security headers
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // CORS headers for API routes
+  if (pathname.startsWith('/api/')) {
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - public folder
      */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
 };

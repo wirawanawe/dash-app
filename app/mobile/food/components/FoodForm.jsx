@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Utensils, Database, TrendingUp, Activity } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function FoodForm({ food, categories, onSubmit, onClose }) {
   const [formData, setFormData] = useState({
@@ -113,15 +114,15 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
       const data = await response.json();
 
       if (data.success || response.ok) {
-        alert(data.message || `Makanan berhasil ${food ? 'diperbarui' : 'ditambahkan'}`);
+        toast.success(data.message || `Makanan berhasil ${food ? 'diperbarui' : 'ditambahkan'}`);
         onSubmit();
       } else {
         const errorMessage = data.message || data.error || `Gagal ${food ? 'memperbarui' : 'menambahkan'} makanan`;
-        alert(`Error: ${errorMessage}`);
+        toast.error(`Error: ${errorMessage}`);
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert(`Network error: Gagal ${food ? 'memperbarui' : 'menambahkan'} makanan. Please check your connection.`);
+      toast.error(`Network error: Gagal ${food ? 'memperbarui' : 'menambahkan'} makanan. Please check your connection.`);
     } finally {
       setLoading(false);
     }
@@ -188,7 +189,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                   name="name_indonesian"
                   value={formData.name_indonesian}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nama dalam bahasa Indonesia"
                 />
               </div>
@@ -310,7 +311,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                     name="fat_per_100g"
                     value={formData.fat_per_100g}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
                 </div>
@@ -325,7 +326,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                     name="fiber_per_100g"
                     value={formData.fiber_per_100g}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
                 </div>
@@ -342,7 +343,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                     name="sugar_per_100g"
                     value={formData.sugar_per_100g}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
                 </div>
@@ -357,7 +358,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                     name="sodium_per_100g"
                     value={formData.sodium_per_100g}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
                 </div>
@@ -373,7 +374,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                     name="serving_size"
                     value={formData.serving_size}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="1 mangkuk"
                   />
                 </div>
@@ -388,7 +389,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
                     name="serving_weight"
                     value={formData.serving_weight}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="150"
                   />
                 </div>

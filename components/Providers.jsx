@@ -36,13 +36,13 @@ export function Providers({ children }) {
     window.addEventListener("click", resetTimer);
     window.addEventListener("scroll", resetTimer);
 
-    // Verificar session timeout a cada 30 segundos
+    // Verificar session timeout a cada 60 segundos (increased from 30 seconds to reduce server load)
     const interval = setInterval(() => {
       const now = Date.now();
       if (now - lastActivity >= SESSION_TIMEOUT && user) {
         handleSessionTimeout();
       }
-    }, 30000);
+    }, 60000); // Increased from 30000 to 60000ms
 
     // Cleanup event listeners
     return () => {
@@ -52,7 +52,7 @@ export function Providers({ children }) {
       window.removeEventListener("scroll", resetTimer);
       clearInterval(interval);
     };
-  }, [pathname]);
+  }, []); // Remove pathname dependency to prevent infinite loops
 
   const checkAuth = async () => {
     try {

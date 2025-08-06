@@ -80,29 +80,33 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Check if user mission already exists for different record
+    // Check if user mission already exists for different record with same date
+    const missionDate = start_date ? new Date(start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    
     const [duplicateUserMission] = await query(
-      'SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? AND id != ?',
-      [user_id, mission_id, id]
+      'SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? AND mission_date = ? AND id != ?',
+      [user_id, mission_id, missionDate, id]
     );
 
     if (duplicateUserMission.length > 0) {
       return NextResponse.json(
-        { message: 'User mission already exists' },
+        { message: 'User mission already exists for this date' },
         { status: 409 }
       );
     }
 
-    // Update user mission
+    // Update user mission with mission_date
+    
     const updateQuery = `
       UPDATE user_missions 
-      SET user_id = ?, mission_id = ?, status = ?, progress = ?, start_date = ?, end_date = ?, notes = ?, updated_at = NOW()
+      SET user_id = ?, mission_id = ?, mission_date = ?, status = ?, progress = ?, start_date = ?, end_date = ?, notes = ?, updated_at = NOW()
       WHERE id = ?
     `;
 
     await query(updateQuery, [
       user_id,
       mission_id,
+      missionDate,
       status || 'pending',
       progress || 0,
       start_date || null,

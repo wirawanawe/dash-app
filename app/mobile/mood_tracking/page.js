@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Heart, RefreshCw, BarChart3, TrendingUp, Zap, Smile,
@@ -9,6 +10,7 @@ import {
 import MoodTrackingForm from "./components/MoodTrackingForm";
 import MoodTrackingDetailModal from "./components/MoodTrackingDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import toast from "react-hot-toast";
 
 export default function MoodTrackingPage() {
   const [moodData, setMoodData] = useState([]);
@@ -82,6 +84,7 @@ export default function MoodTrackingPage() {
       });
 
       if (response.ok) {
+        toast.success('Data mood berhasil dihapus');
         fetchMoodData();
       } else {
         const data = await response.json();
@@ -89,7 +92,7 @@ export default function MoodTrackingPage() {
       }
     } catch (err) {
       console.error('Error deleting mood data:', err);
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -115,6 +118,7 @@ export default function MoodTrackingPage() {
       });
 
       if (response.ok) {
+        toast.success(editingMoodData ? 'Data mood berhasil diperbarui' : 'Data mood berhasil ditambahkan');
         setShowForm(false);
         setEditingMoodData(null);
         fetchMoodData();
@@ -124,7 +128,7 @@ export default function MoodTrackingPage() {
       }
     } catch (err) {
       console.error('Error saving mood data:', err);
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 

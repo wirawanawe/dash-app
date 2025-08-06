@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Activity, RefreshCw, BarChart3, TrendingUp, Zap, Heart,
@@ -9,6 +10,7 @@ import {
 import HealthDataForm from "./components/HealthDataForm";
 import HealthDataDetailModal from "./components/HealthDataDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import toast from "react-hot-toast";
 
 export default function HealthDataPage() {
   const [healthData, setHealthData] = useState([]);
@@ -71,7 +73,7 @@ export default function HealthDataPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteHealthData = async (id) => {
     if (!confirm('Apakah Anda yakin ingin menghapus data kesehatan ini?')) {
       return;
     }
@@ -80,16 +82,18 @@ export default function HealthDataPage() {
       const response = await fetch(`/api/mobile/health_data/${id}`, {
         method: 'DELETE',
       });
-
-      if (response.ok) {
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('Data kesehatan berhasil dihapus');
         fetchHealthData();
       } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Gagal menghapus data kesehatan');
+        toast.error(data.message || 'Gagal menghapus data kesehatan');
       }
     } catch (err) {
       console.error('Error deleting health data:', err);
-      alert(err.message);
+      toast.error('Gagal menghapus data kesehatan');
     }
   };
 
@@ -117,17 +121,17 @@ export default function HealthDataPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Health data saved successfully!');
+        toast.success('Health data saved successfully!');
         setShowForm(false);
         setEditingHealthData(null);
         fetchHealthData();
       } else {
         const errorMessage = data.message || data.error || 'Gagal menyimpan data kesehatan';
-        alert(`Error: ${errorMessage}`);
+        toast.error(`Error: ${errorMessage}`);
       }
     } catch (err) {
       console.error('Error saving health data:', err);
-      alert('Network error: Gagal menyimpan data kesehatan. Please check your connection.');
+      toast.error('Network error: Gagal menyimpan data kesehatan. Please check your connection.');
     }
   };
 
@@ -420,7 +424,7 @@ export default function HealthDataPage() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(healthDataItem.id)}
+                            onClick={() => handleDeleteHealthData(healthDataItem.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                             title="Hapus"
                           >

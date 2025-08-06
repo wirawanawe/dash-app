@@ -7,6 +7,7 @@ import MobileUserForm from './components/MobileUserForm';
 import MobileUserDetailModal from './components/MobileUserDetailModal';
 import DashboardLayout from "@/components/DashboardLayout";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import toast from "react-hot-toast";
 
 export default function MobileUsersPage() {
   const [users, setUsers] = useState([]);
@@ -56,23 +57,25 @@ export default function MobileUsersPage() {
     fetchUsers(1, searchTerm);
   };
 
-  const handleDelete = async (userId) => {
+  const handleDeleteUser = async (id) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`/api/mobile/users/${userId}`, {
+      const response = await fetch(`/api/mobile/users/${id}`, {
         method: 'DELETE',
       });
-
-      if (response.ok) {
-        fetchUsers(currentPage, searchTerm);
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('User berhasil dihapus');
+        fetchUsers();
       } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to delete user');
+        toast.error(data.error || 'Failed to delete user');
       }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('Failed to delete user');
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      toast.error('Failed to delete user');
     }
   };
 
@@ -374,7 +377,7 @@ export default function MobileUsersPage() {
                               <Edit className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(user.id)}
+                              onClick={() => handleDeleteUser(user.id)}
                               className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
                               title="Hapus User"
                             >

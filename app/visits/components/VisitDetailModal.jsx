@@ -40,6 +40,7 @@ import {
   FaCheckCircle,
   FaMinusCircle,
 } from "react-icons/fa";
+import toast from "react-hot-toast";
 
 export default function VisitDetailModal({ visit, onClose }) {
   if (!visit) return null;
@@ -154,7 +155,7 @@ export default function VisitDetailModal({ visit, onClose }) {
             <button
               onClick={() => {
                 // Export functionality could be added here
-                alert("Fitur export akan segera tersedia");
+                toast.info("Fitur export akan segera tersedia");
               }}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 text-gray-600 hover:text-gray-800"
               title="Export"
@@ -593,7 +594,7 @@ export default function VisitDetailModal({ visit, onClose }) {
             <button
               onClick={() => {
                 // Share functionality could be added here
-                alert("Fitur berbagi akan segera tersedia");
+                toast.info("Fitur berbagi akan segera tersedia");
               }}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
             >

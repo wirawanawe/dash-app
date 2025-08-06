@@ -60,22 +60,22 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Cancel the mission
-    const cancelSql = `
+    // Abandon the mission
+    const abandonSql = `
       UPDATE user_missions 
-      SET status = 'cancelled', notes = ?, updated_at = NOW()
+      SET status = 'abandoned', cancelled_at = NOW(), notes = ?, updated_at = NOW()
       WHERE id = ?
     `;
 
-    await query(cancelSql, [reason || "Mission dibatalkan oleh user", userMissionId]);
+    await query(abandonSql, [reason || "Mission ditinggalkan oleh user", userMissionId]);
 
     return NextResponse.json({
       success: true,
-      message: "Mission berhasil dibatalkan",
+      message: "Mission berhasil ditinggalkan",
       data: {
         user_mission_id: userMissionId,
         mission_title: userMission.title,
-        status: "cancelled",
+        status: "abandoned",
         progress: userMission.progress,
       },
     });

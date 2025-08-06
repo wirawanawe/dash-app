@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { jwtVerify } from "jose";
-import { query } from "@/lib/db";
+import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+import { query } from '@/lib/db';
 
 export async function GET(request) {
   try {
@@ -19,79 +19,69 @@ export async function GET(request) {
 
     const token = authHeader.substring(7);
 
-    try {
-      // Verify JWT token
-      const { payload } = await jwtVerify(
-        token,
-        new TextEncoder().encode(process.env.JWT_SECRET)
-      );
-
-      const userId = payload.userId;
-
-      // Get user profile to check wellness program status
-      const profileQuery = `
-        SELECT 
-          wellness_program_joined,
-          wellness_join_date,
-          fitness_goal,
-          activity_level,
-          weight,
-          height,
-          TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) as age,
-          gender
-        FROM mobile_users 
-        WHERE id = ?
-      `;
-      
-      const [profile] = await query(profileQuery, [userId]);
-
-      // Check if user has any missions
-      const missionsQuery = `
-        SELECT COUNT(*) as mission_count
-        FROM user_missions 
-        WHERE user_id = ?
-      `;
-      
-      const [missionsResult] = await query(missionsQuery, [userId]);
-      const hasMissions = missionsResult.mission_count > 0;
-
-      // Determine wellness program status
-      const hasJoinedWellness = profile?.wellness_program_joined || hasMissions;
-
-      const wellnessStatus = {
-        has_joined: hasJoinedWellness,
-        join_date: profile?.wellness_join_date || null,
-        fitness_goal: profile?.fitness_goal || null,
-        activity_level: profile?.activity_level || null,
-        has_missions: hasMissions,
-        mission_count: missionsResult.mission_count || 0,
-        profile_complete: !!(profile?.weight && profile?.height && profile?.age && profile?.gender),
-        needs_onboarding: !hasJoinedWellness && !hasMissions
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: wellnessStatus,
-      });
-    } catch (jwtError) {
-      console.error("JWT verification error:", jwtError);
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid token",
-        },
-        { status: 401 }
-      );
-    }
-  } catch (error) {
-    console.error("Error checking wellness program status:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal memeriksa status program wellness",
-        error: error.message,
-      },
-      { status: 500 }
+    // Verify JWT token
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(process.env.JWT_SECRET)
     );
+
+    const userId = payload.userId;
+
+    // Get user profile data
+    const userQuery = `
+      SELECT 
+        wellness_program_joined,
+        wellness_join_date,
+        fitness_goal,
+        activity_level,
+        weight,
+        height,
+        age,
+        gender
+      FROM mobile_users 
+      WHERE id = ?
+    `;
+    
+    const [userResult] = await query(userQuery, [userId]);
+    const user = userResult[0];
+
+    // Get user missions count
+    const missionsQuery = `
+      SELECT COUNT(*) as mission_count
+      FROM user_missions 
+      WHERE user_id = ? AND status IN ('active', 'completed')
+    `;
+    
+    const [missionsResult] = await query(missionsQuery, [userId]);
+    const missionCount = missionsResult[0]?.mission_count || 0;
+
+    // Determine if profile is complete
+    const profileComplete = !!(user?.weight && user?.height && user?.age && user?.gender && user?.activity_level && user?.fitness_goal);
+
+    // Determine if user needs onboarding
+    const needsOnboarding = !user?.wellness_program_joined && missionCount === 0;
+
+    const response = {
+      success: true,
+      data: {
+        has_joined: !!user?.wellness_program_joined,
+        join_date: user?.wellness_join_date,
+        fitness_goal: user?.fitness_goal,
+        activity_level: user?.activity_level,
+        has_missions: missionCount > 0,
+        mission_count: missionCount,
+        profile_complete: profileComplete,
+        needs_onboarding: needsOnboarding
+      }
+    };
+
+    return NextResponse.json(response);
+
+  } catch (error) {
+    console.error('Error in wellness status endpoint:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
 } 

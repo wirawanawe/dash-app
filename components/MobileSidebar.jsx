@@ -52,12 +52,7 @@ const MobileSidebar = ({ isOpen, onClose }) => {
       path: "/mobile/missions",
       description: "Kelola misi dan reward untuk user"
     },
-    {
-      title: "Aktivitas Wellness",
-      icon: <Activity className="h-5 w-5" />,
-      path: "/mobile/wellness",
-      description: "Kelola aktivitas wellness dan mindfulness"
-    },
+
     {
       title: "Health Data",
       icon: <Heart className="h-5 w-5" />,

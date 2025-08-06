@@ -68,7 +68,7 @@ export async function GET(request) {
     // Return in the format expected by frontend
     return NextResponse.json({
       success: true,
-      data: missions,
+      missions: missions,
       pagination: {
         page,
         limit,

@@ -1,59 +1,61 @@
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Database configuration
 const dbConfig = {
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "pr1k1t1w",
-  database: process.env.DB_NAME || "phc_dashboard",
-  port: process.env.DB_PORT || 3306
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'phc_mobile',
+  port: process.env.DB_PORT || 3306,
+  timezone: '+07:00'
 };
 
 async function testConnection() {
   let connection;
   
   try {
-    console.log('🔍 Testing database connection...');
-    console.log('Config:', { ...dbConfig, password: '***' });
+    console.log('Testing database connection...');
+    console.log('Database config:', {
+      host: dbConfig.host,
+      user: dbConfig.user,
+      database: dbConfig.database,
+      port: dbConfig.port
+    });
     
+    // Create database connection
     connection = await mysql.createConnection(dbConfig);
-    console.log('✅ Connected to database successfully');
+    console.log('Database connected successfully');
 
-    // Test query
-    console.log('\n📊 Testing query...');
-    const [rows] = await connection.execute('SELECT COUNT(*) as count FROM users');
-    console.log(`✅ Found ${rows[0].count} users in database`);
+    // Test a simple query
+    const [result] = await connection.execute('SELECT 1 as test');
+    console.log('Test query result:', result);
 
-    // Get sample users
-    console.log('\n👥 Sample users:');
-    const [users] = await connection.execute('SELECT id, name, email, role FROM users LIMIT 5');
-    
-    if (users.length === 0) {
-      console.log('❌ No users found');
-    } else {
-      users.forEach((user, index) => {
-        console.log(`${index + 1}. ${user.name} (${user.email}) - ${user.role}`);
-      });
+    // Check if user_missions table exists
+    const [tables] = await connection.execute("SHOW TABLES LIKE 'user_missions'");
+    console.log('user_missions table exists:', tables.length > 0);
+
+    if (tables.length > 0) {
+      // Check user_missions count
+      const [countResult] = await connection.execute('SELECT COUNT(*) as total FROM user_missions');
+      console.log('Total user_missions:', countResult[0].total);
     }
 
-    // Check mobile_users table
-    console.log('\n📱 Checking mobile_users table...');
-    try {
-      const [mobileUsers] = await connection.execute('SELECT COUNT(*) as count FROM mobile_users');
-      console.log(`✅ Found ${mobileUsers[0].count} mobile users`);
-    } catch (error) {
-      console.log('❌ mobile_users table not found or error:', error.message);
-    }
+    console.log('Database connection test completed successfully!');
 
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
-    console.error('Full error:', error);
+    console.error('Database connection test failed:', error);
+    throw error;
   } finally {
     if (connection) {
       await connection.end();
-      console.log('\n🔌 Database connection closed');
+      console.log('Database connection closed');
     }
   }
 }
 
-testConnection(); 
+// Run the test
+testConnection().catch(console.error); 

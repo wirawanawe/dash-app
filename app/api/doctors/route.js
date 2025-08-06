@@ -1,33 +1,57 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
-// GET all doctors
+// GET all doctors with polyclinic and clinic information
 export async function GET(request) {
   try {
     const searchParams = new URL(request.url).searchParams;
     const search = searchParams.get("search") || "";
+    const polyclinicId = searchParams.get("polyclinic_id");
+    const clinicId = searchParams.get("clinic_id");
 
     let sql = `
       SELECT 
-        id, 
-        name, 
-        specialist, 
-        license_number, 
-        phone, 
-        email, 
-        address,
-        created_at as createdAt, 
-        updated_at as updatedAt
-      FROM doctors
+        d.id, 
+        d.name, 
+        d.specialist, 
+        d.license_number, 
+        d.phone, 
+        d.email, 
+        d.address,
+        d.clinic_id,
+        d.polyclinic_id,
+        c.name as clinic_name,
+        p.name as polyclinic_name,
+        p.code as polyclinic_code,
+        d.created_at as createdAt, 
+        d.updated_at as updatedAt
+      FROM doctors d
+      LEFT JOIN clinics c ON d.clinic_id = c.id
+      LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
     `;
     let params = [];
+    let conditions = [];
 
     if (search) {
-      sql += " WHERE name LIKE ? OR specialist LIKE ?";
-      params = [`%${search}%`, `%${search}%`];
+      conditions.push("(d.name LIKE ? OR d.specialist LIKE ? OR p.name LIKE ?)");
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    sql += " ORDER BY name ASC";
+    if (polyclinicId) {
+      conditions.push("d.polyclinic_id = ?");
+      params.push(polyclinicId);
+    }
+
+    if (clinicId) {
+      conditions.push("d.clinic_id = ?");
+      params.push(clinicId);
+    }
+
+    if (conditions.length > 0) {
+      sql += " WHERE " + conditions.join(" AND ");
+    }
+
+    sql += " ORDER BY d.name ASC";
 
     const doctors = await query(sql, params);
 
@@ -69,8 +93,8 @@ export async function POST(request) {
 
     const sql = `
       INSERT INTO doctors 
-      (name, specialist, license_number, phone, email, address, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+      (name, specialist, license_number, phone, email, address, clinic_id, polyclinic_id, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
     const params = [
@@ -80,6 +104,8 @@ export async function POST(request) {
       data.phone || null,
       data.email || null,
       data.address || null,
+      data.clinic_id || null,
+      data.polyclinic_id || null,
     ];
 
     const result = await query(sql, params);
@@ -87,17 +113,24 @@ export async function POST(request) {
     // Ambil data yang baru dibuat
     const [newDoctor] = await query(
       `SELECT 
-        id, 
-        name, 
-        specialist, 
-        license_number, 
-        phone, 
-        email, 
-        address,
-        created_at as createdAt, 
-        updated_at as updatedAt
-      FROM doctors 
-      WHERE id = ?`,
+        d.id, 
+        d.name, 
+        d.specialist, 
+        d.license_number, 
+        d.phone, 
+        d.email, 
+        d.address,
+        d.clinic_id,
+        d.polyclinic_id,
+        c.name as clinic_name,
+        p.name as polyclinic_name,
+        p.code as polyclinic_code,
+        d.created_at as createdAt, 
+        d.updated_at as updatedAt
+      FROM doctors d
+      LEFT JOIN clinics c ON d.clinic_id = c.id
+      LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
+      WHERE d.id = ?`,
       [result.insertId]
     );
 

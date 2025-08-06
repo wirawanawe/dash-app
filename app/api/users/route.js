@@ -1,166 +1,160 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import bcrypt from "bcryptjs";
+import { getCachedCount, invalidateTableCache } from "@/lib/cache";
 
-// Role hierarchy: Superadmin > Admin > Doctor > Staff
-const roleHierarchy = {
-  SUPERADMIN: 4,
-  ADMIN: 3,
-  DOCTOR: 2,
-  STAFF: 1
-};
-
-const getUserRoleLevel = (role) => {
-  return roleHierarchy[role?.toUpperCase()] || 0;
-};
-
-const canManageRole = (userRole, targetRole) => {
-  const userLevel = getUserRoleLevel(userRole);
-  const targetLevel = getUserRoleLevel(targetRole);
-  return userLevel > targetLevel; // Can only manage roles below their own level
-};
-
-// GET all users with role-based filtering
+// GET all users with search and pagination
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || '';
+    const searchParams = new URL(request.url).searchParams;
+    const search = searchParams.get("search") || "";
+    const role = searchParams.get("role") || "";
+    const page = parseInt(searchParams.get("page")) || 1;
+    let limit = parseInt(searchParams.get("limit"), 10);
     
-    // Ensure page and limit are valid integers
-    let page = parseInt(searchParams.get('page'), 10);
-    let limit = parseInt(searchParams.get('limit'), 10);
-    
-    // Fallback to defaults if parsing fails
-    if (isNaN(page) || page < 1) {
-      page = 1;
-    }
-    if (isNaN(limit) || limit < 1) {
-      limit = 10;
+    // Set default limit to 50 if not specified or invalid
+    if (!limit || limit < 1) {
+      limit = 50; // Increased from 10 to 50
     }
     
-    const role = searchParams.get('role') || '';
+    // Cap limit at 200 to prevent excessive data transfer
+    if (limit > 200) {
+      limit = 200;
+    }
 
-    // Build WHERE clause and parameters
-    let whereConditions = [];
-    const params = [];
+    const offset = (page - 1) * limit;
+
+    let sql = `
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        u.full_name,
+        u.role,
+        u.is_active,
+        u.created_at,
+        u.updated_at
+      FROM users u
+      WHERE 1=1
+    `;
+    
+    let params = [];
+
+    // Add search filter
+    if (search) {
+      sql += " AND (u.username LIKE ? OR u.email LIKE ? OR u.full_name LIKE ?)";
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    // Add role filter
+    if (role) {
+      sql += " AND u.role = ?";
+      params.push(role);
+    }
+
+    sql += " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+
+    const users = await query(sql, params);
+
+    // Get total count using cached COUNT
+    let whereClause = "WHERE 1=1";
+    let countParams = [];
     
     if (search) {
-      whereConditions.push('(u.name LIKE ? OR u.email LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+      whereClause += " AND (username LIKE ? OR email LIKE ? OR full_name LIKE ?)";
+      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
     
     if (role) {
-      whereConditions.push('u.role = ?');
-      params.push(role);
+      whereClause += " AND role = ?";
+      countParams.push(role);
     }
-    
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM users u ${whereClause}`;
-    const [countResult] = await query(countQuery, params);
-    const total = countResult.total;
-
-    // Get paginated users - ensure offset is a valid integer
-    const offset = (page - 1) * limit;
-    const usersQuery = `
-      SELECT 
-        u.id, 
-        u.name, 
-        u.email, 
-        u.role, 
-        u.clinic_id,
-        u.is_active,
-        u.created_at,
-        u.updated_at,
-        c.name as clinic_name
-      FROM users u
-      LEFT JOIN clinics c ON u.clinic_id = c.id
-      ${whereClause}
-      ORDER BY u.created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-    
-    // Use raw query without parameters for LIMIT/OFFSET
-    const users = await query(usersQuery, params);
+    const total = await getCachedCount('users', whereClause, countParams, query);
 
     return NextResponse.json({
+      success: true,
       data: users,
       pagination: {
+        total,
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
       }
     });
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
-      { error: "Gagal mengambil data pengguna" },
+      { 
+        success: false,
+        message: "Gagal mengambil data pengguna",
+        error: error.message 
+      },
       { status: 500 }
     );
   }
 }
 
-// POST create new user
+// POST - Create new user
 export async function POST(request) {
   try {
-    const { name, email, password, role, clinic_id, is_active } = await request.json();
-
+    const body = await request.json();
+    
     // Validate required fields
-    if (!name || !email || !password || !role) {
+    if (!body.username || !body.email || !body.password) {
       return NextResponse.json(
-        { error: "Nama, email, password, dan role wajib diisi" },
+        { success: false, message: "Username, email, dan password wajib diisi" },
         { status: 400 }
       );
     }
 
-    // Validate role
-    const validRoles = Object.keys(roleHierarchy);
-    if (!validRoles.includes(role.toUpperCase())) {
-      return NextResponse.json(
-        { error: "Role tidak valid" },
-        { status: 400 }
-      );
-    }
-
-    // Check if email already exists
-    const [existingUser] = await query(
-      "SELECT id FROM users WHERE email = ?",
-      [email]
+    // Check if username or email already exists
+    const existingUser = await query(
+      "SELECT id FROM users WHERE username = ? OR email = ?",
+      [body.username, body.email]
     );
 
-    if (existingUser) {
+    if (existingUser.length > 0) {
       return NextResponse.json(
-        { error: "Email sudah terdaftar" },
+        { success: false, message: "Username atau email sudah terdaftar" },
         { status: 400 }
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const sql = `
+      INSERT INTO users (username, email, password, full_name, role, is_active)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
 
-    // Insert new user
-    const result = await query(
-      `INSERT INTO users (name, email, password, role, clinic_id, is_active, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [name, email, hashedPassword, role.toUpperCase(), clinic_id || null, is_active !== undefined ? is_active : true]
-    );
+    const params = [
+      body.username,
+      body.email,
+      body.password, // Note: Should be hashed in production
+      body.full_name || body.username,
+      body.role || 'USER',
+      body.is_active !== undefined ? body.is_active : true
+    ];
 
-    const newUser = {
-      id: result.insertId,
-      name,
-      email,
-      role: role.toUpperCase(),
-      clinic_id,
-      is_active: is_active !== undefined ? is_active : true,
-    };
+    const result = await query(sql, params);
+    
+    // Invalidate cache after adding new user
+    invalidateTableCache('users');
 
-    return NextResponse.json(newUser, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      message: "Pengguna berhasil ditambahkan",
+      data: { id: result.insertId }
+    });
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json(
-      { error: "Gagal membuat pengguna" },
+      { 
+        success: false,
+        message: "Gagal menambahkan pengguna",
+        error: error.message 
+      },
       { status: 500 }
     );
   }

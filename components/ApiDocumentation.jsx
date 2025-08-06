@@ -505,7 +505,7 @@ const ApiDocumentation = ({ pageType }) => {
         {
           method: 'GET',
           endpoint: '/api/mobile/missions',
-          description: 'Get wellness missions',
+          description: 'Get missions',
           parameters: [
             { name: 'search', type: 'string', description: 'Search by mission title' },
             { name: 'category', type: 'string', description: 'Filter by category' },
@@ -626,58 +626,7 @@ const ApiDocumentation = ({ pageType }) => {
           description: 'Delete mobile user'
         }
       ],
-      wellness: [
-        {
-          method: 'GET',
-          endpoint: '/api/mobile/wellness',
-          description: 'Get wellness activities',
-          parameters: [
-            { name: 'search', type: 'string', description: 'Search by activity name' },
-            { name: 'category', type: 'string', description: 'Filter by activity category' },
-            { name: 'page', type: 'number', description: 'Page number' },
-            { name: 'limit', type: 'number', description: 'Items per page' }
-          ],
-          example: `${baseUrl}/api/mobile/wellness?search=yoga&category=exercise&page=1&limit=10`
-        },
-        {
-          method: 'GET',
-          endpoint: '/api/mobile/wellness/[id]',
-          description: 'Get specific wellness activity',
-          example: `${baseUrl}/api/mobile/wellness/123`
-        },
-        {
-          method: 'POST',
-          endpoint: '/api/mobile/wellness',
-          description: 'Create wellness activity',
-          body: {
-            user_id: 'number',
-            activity_type: 'string',
-            activity_name: 'string',
-            duration_minutes: 'number',
-            calories_burned: 'number',
-            activity_date: 'string (YYYY-MM-DD)',
-            notes: 'string'
-          }
-        },
-        {
-          method: 'PUT',
-          endpoint: '/api/mobile/wellness/[id]',
-          description: 'Update wellness activity',
-          body: {
-            activity_type: 'string',
-            activity_name: 'string',
-            duration_minutes: 'number',
-            calories_burned: 'number',
-            activity_date: 'string (YYYY-MM-DD)',
-            notes: 'string'
-          }
-        },
-        {
-          method: 'DELETE',
-          endpoint: '/api/mobile/wellness/[id]',
-          description: 'Delete wellness activity'
-        }
-      ],
+
       user_missions: [
         {
           method: 'GET',
@@ -1395,8 +1344,7 @@ const ApiDocumentation = ({ pageType }) => {
           food: apiEndpoints.mobile.food,
           health_data: apiEndpoints.mobile.health_data,
           missions: apiEndpoints.mobile.missions,
-          users: apiEndpoints.mobile.users,
-          wellness: apiEndpoints.mobile.wellness
+          users: apiEndpoints.mobile.users
         };
       
       case 'mobile-food':
@@ -1420,8 +1368,7 @@ const ApiDocumentation = ({ pageType }) => {
       case 'mobile-sleep-tracking':
         return apiEndpoints.mobile.sleep_tracking;
       
-      case 'mobile-wellness':
-        return apiEndpoints.mobile.wellness;
+
       
       case 'settings':
         return apiEndpoints.settings;
@@ -1479,7 +1426,7 @@ const ApiDocumentation = ({ pageType }) => {
     if (endpoint.includes('/doctors/')) return <Stethoscope className="w-4 h-4" />;
     if (endpoint.includes('/food/')) return <Utensils className="w-4 h-4" />;
     if (endpoint.includes('/health_data/')) return <Activity className="w-4 h-4" />;
-    if (endpoint.includes('/wellness/')) return <Heart className="w-4 h-4" />;
+
     if (endpoint.includes('/settings/')) return <Settings className="w-4 h-4" />;
     if (endpoint.includes('/regions/')) return <MapPin className="w-4 h-4" />;
     if (endpoint.includes('/laboratory/')) return <FileText className="w-4 h-4" />;

@@ -50,6 +50,7 @@ export default function ClinicsPage() {
   const [editingClinic, setEditingClinic] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
   const [isLoaded, setIsLoaded] = useState(false);
+  const [selectedPolyclinics, setSelectedPolyclinics] = useState([]);
 
   // Check if user has access
   const isSuperadmin = user?.role === "SUPERADMIN";
@@ -72,7 +73,17 @@ export default function ClinicsPage() {
         search: searchQuery,
       });
 
-      const response = await fetch(`/api/clinics?${params}`);
+      // Add cache-busting parameter for force refresh
+      if (forceRefresh) {
+        params.append('_t', Date.now());
+      }
+
+      const response = await fetch(`/api/clinics?${params}`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -108,6 +119,7 @@ export default function ClinicsPage() {
 
   const handleEdit = (clinic) => {
     setEditingClinic(clinic);
+    setSelectedPolyclinics(clinic.polyclinics?.map(p => p.id) || []);
     setShowForm(true);
   };
 
@@ -156,14 +168,46 @@ export default function ClinicsPage() {
         throw new Error(errorData.error || "Failed to save clinic");
       }
 
+      const result = await response.json();
+
+      // If creating new clinic and there are selected polyclinics, add them
+      if (!editingClinic && selectedPolyclinics.length > 0 && result.id) {
+        try {
+          for (const polyclinicId of selectedPolyclinics) {
+            await fetch(`/api/settings/clinics/${result.id}/polyclinics`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` }),
+              },
+              body: JSON.stringify({ polyclinic_id: polyclinicId })
+            });
+          }
+        } catch (error) {
+          console.error("Error adding polyclinics to new clinic:", error);
+          // Don't fail the whole operation if polyclinic assignment fails
+        }
+      }
+
+      // Close form immediately
+      setShowForm(false);
+      setEditingClinic(null);
+      setSelectedPolyclinics([]);
+      
+      // Show success message
       toast.success(
         editingClinic
           ? "Klinik berhasil diperbarui"
           : "Klinik berhasil ditambahkan"
       );
-      setShowForm(false);
-      setEditingClinic(null);
-      fetchClinics(true);
+      
+      // Show loading state briefly
+      setLoading(true);
+      
+      // Force refresh data with a small delay to ensure server has processed the update
+      setTimeout(() => {
+        fetchClinics(true);
+      }, 300);
     } catch (error) {
       console.error("Error saving clinic:", error);
       toast.error("Gagal menyimpan klinik");
@@ -252,7 +296,11 @@ export default function ClinicsPage() {
               </button>
               {isSuperadmin && (
                 <button
-                  onClick={() => setShowForm(true)}
+                  onClick={() => {
+                    setEditingClinic(null);
+                    setSelectedPolyclinics([]);
+                    setShowForm(true);
+                  }}
                   className="flex items-center px-6 py-3 bg-white text-blue-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
                 >
                   <Plus className="w-5 h-5 mr-2" />
@@ -463,6 +511,9 @@ export default function ClinicsPage() {
                 <div className="loading-spinner h-8 w-8 text-green-600 mx-auto mb-4"></div>
                 <p className="text-xl font-medium text-gray-700 mb-2">Memuat Data Klinik</p>
                 <p className="text-gray-500">Mengambil informasi terkini...</p>
+                <div className="mt-4 text-sm text-gray-400">
+                  Memperbarui data setelah perubahan...
+                </div>
               </div>
             ) : clinics.length === 0 ? (
               <div className="text-center py-12">
@@ -504,6 +555,9 @@ export default function ClinicsPage() {
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Rating
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Poli Tersedia
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -575,6 +629,29 @@ export default function ClinicsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {clinic.polyclinics && clinic.polyclinics.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {clinic.polyclinics.slice(0, 3).map((polyclinic) => (
+                                  <span
+                                    key={polyclinic.id}
+                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                  >
+                                    {polyclinic.name}
+                                  </span>
+                                ))}
+                                {clinic.polyclinics.length > 3 && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    +{clinic.polyclinics.length - 3} lagi
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">Tidak ada poli</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(clinic.is_active)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -582,6 +659,13 @@ export default function ClinicsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => router.push(`/clinics/${clinic.id}`)}
+                              className="text-green-600 hover:text-green-700 p-2 rounded-lg hover:bg-green-50 transition-colors"
+                              title="Lihat Detail"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => handleEdit(clinic)}
                               className="text-blue-600 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors"
@@ -649,6 +733,32 @@ export default function ClinicsPage() {
                         <span className="text-sm text-gray-600">{formatRating(clinic.rating)}</span>
                       </div>
                       
+                      {/* Polyclinics */}
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <span className="text-xs font-medium text-gray-500">Poli Tersedia:</span>
+                        </div>
+                        {clinic.polyclinics && clinic.polyclinics.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {clinic.polyclinics.slice(0, 4).map((polyclinic) => (
+                              <span
+                                key={polyclinic.id}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {polyclinic.name}
+                              </span>
+                            ))}
+                            {clinic.polyclinics.length > 4 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                +{clinic.polyclinics.length - 4} lagi
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">Tidak ada poli</span>
+                        )}
+                      </div>
+                      
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
                         <p className="text-sm text-gray-500">Dibuat: {formatDate(clinic.created_at)}</p>
@@ -657,6 +767,12 @@ export default function ClinicsPage() {
                     
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => router.push(`/clinics/${clinic.id}`)}
+                          className="text-green-600 hover:text-green-900 text-sm font-medium"
+                        >
+                          Detail
+                        </button>
                         <button
                           onClick={() => handleEdit(clinic)}
                           className="text-blue-600 hover:text-blue-900 text-sm font-medium"
@@ -714,9 +830,12 @@ export default function ClinicsPage() {
       {showForm && (
         <ClinicForm
           clinic={editingClinic}
+          selectedPolyclinics={selectedPolyclinics}
+          onPolyclinicsChange={setSelectedPolyclinics}
           onCancel={() => {
             setShowForm(false);
             setEditingClinic(null);
+            setSelectedPolyclinics([]);
           }}
           onSubmit={handleFormSubmit}
         />

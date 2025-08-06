@@ -21,7 +21,7 @@ Script ini menambahkan data dummy yang komprehensif untuk semua tabel dalam data
 - **10 Additional Food Items** - Makanan tambahan dalam database
 - **8 Additional Missions** - Mission tambahan untuk mobile app
 - **8 User Missions** - Data mission user (user_id 1)
-- **5 Wellness Activities** - Aktivitas wellness
+
 - **8 Mood Tracking** - Data tracking mood
 - **8 Water Tracking** - Data tracking air minum
 - **1 User Water Settings** - Pengaturan air minum user
