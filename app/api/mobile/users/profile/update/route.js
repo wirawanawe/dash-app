@@ -17,7 +17,11 @@ export async function PUT(request) {
       activity_level,
       fitness_goal,
       wellness_program_joined,
-      wellness_join_date
+      wellness_join_date,
+      ktp_number,
+      address,
+      insurance,
+      insurance_card_number
     } = await request.json();
 
     // Validate required fields
@@ -73,6 +77,27 @@ export async function PUT(request) {
     const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     const validatedBloodType = blood_type && validBloodTypes.includes(blood_type) ? blood_type : null;
 
+    // Convert date_of_birth from ISO string to MySQL DATE format
+    let formattedDateOfBirth = null;
+    if (date_of_birth !== undefined && date_of_birth !== null) {
+      try {
+        const date = new Date(date_of_birth);
+        if (!isNaN(date.getTime())) {
+          // Format as YYYY-MM-DD for MySQL DATE column
+          formattedDateOfBirth = date.toISOString().split('T')[0];
+        }
+      } catch (error) {
+        console.error("Error parsing date_of_birth:", error);
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Format tanggal lahir tidak valid",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Build update query dynamically based on provided fields
     const updateFields = [];
     const updateValues = [];
@@ -102,9 +127,9 @@ export async function PUT(request) {
       updateValues.push(phone);
     }
 
-    if (date_of_birth !== undefined) {
+    if (formattedDateOfBirth !== null) {
       updateFields.push('date_of_birth = ?');
-      updateValues.push(date_of_birth);
+      updateValues.push(formattedDateOfBirth);
     }
 
     if (gender !== undefined) {
@@ -157,6 +182,27 @@ export async function PUT(request) {
       updateValues.push(wellness_join_date);
     }
 
+    // New fields
+    if (ktp_number !== undefined) {
+      updateFields.push('ktp_number = ?');
+      updateValues.push(ktp_number);
+    }
+
+    if (address !== undefined) {
+      updateFields.push('address = ?');
+      updateValues.push(address);
+    }
+
+    if (insurance !== undefined) {
+      updateFields.push('insurance = ?');
+      updateValues.push(insurance);
+    }
+
+    if (insurance_card_number !== undefined) {
+      updateFields.push('insurance_card_number = ?');
+      updateValues.push(insurance_card_number);
+    }
+
     if (updateFields.length === 0) {
       return NextResponse.json(
         {
@@ -179,7 +225,7 @@ export async function PUT(request) {
 
     // Get updated user data
     const [updatedUser] = await query(
-      'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, emergency_contact_name, emergency_contact_phone, wellness_program_joined, wellness_join_date, activity_level, fitness_goal FROM mobile_users WHERE id = ?',
+      'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, emergency_contact_name, emergency_contact_phone, wellness_program_joined, wellness_join_date, activity_level, fitness_goal, ktp_number, address, insurance, insurance_card_number FROM mobile_users WHERE id = ?',
       [actualUserId]
     );
 

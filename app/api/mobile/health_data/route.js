@@ -1,161 +1,165 @@
 import { NextResponse } from 'next/server';
-import { query, rawQuery } from '@/lib/db';
+import { getMobileUserFromRequest } from '../../../../lib/auth';
+import { query } from '../../../../lib/db';
 
+// GET - Get user health data
 export async function GET(request) {
   try {
+    const user = await getMobileUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
+    const dataType = searchParams.get('type'); // Optional filter by data type
     const limit = parseInt(searchParams.get('limit')) || 10;
-    const search = searchParams.get('search') || '';
-    const type = searchParams.get('type') || '';
-    
-    const offset = (page - 1) * limit;
 
-    // Build WHERE clause
-    let whereConditions = [];
-    let params = [];
-
-    if (search) {
-      whereConditions.push(`(u.name LIKE ? OR u.email LIKE ? OR hd.data_type LIKE ?)`);
-      const searchParam = `%${search}%`;
-      params.push(searchParam, searchParam, searchParam);
-    }
-
-    if (type) {
-      whereConditions.push(`hd.data_type = ?`);
-      params.push(type);
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    // Get total count
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM health_data hd
-      LEFT JOIN mobile_users u ON hd.user_id = u.id
-      ${whereClause}
-    `;
-
-    const countResult = await query(countQuery, params);
-    const total = countResult[0]?.total || 0;
-
-    // Get paginated data
-    const dataQuery = `
+    let sql = `
       SELECT 
-        hd.*,
-        u.name as user_name,
-        u.email as user_email
+        hd.id,
+        hd.data_type,
+        hd.value,
+        hd.unit,
+        hd.measured_at,
+        hd.source,
+        hd.created_at,
+        mu.date_of_birth,
+        mu.gender,
+        mu.fitness_goal,
+        mu.activity_level
       FROM health_data hd
-      LEFT JOIN mobile_users u ON hd.user_id = u.id
-      ${whereClause}
-      ORDER BY hd.measured_at DESC, hd.created_at DESC
-      LIMIT ? OFFSET ?
+      LEFT JOIN mobile_users mu ON hd.user_id = mu.id
+      WHERE hd.user_id = ?
     `;
-
-    // Use raw query to avoid parameter binding issues with LIMIT/OFFSET
-    let finalQuery = dataQuery;
     
-    // Replace parameter placeholders with actual values
-    params.forEach((param) => {
-      const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
-      finalQuery = finalQuery.replace('?', value);
+    const params = [user.id];
+
+    if (dataType) {
+      sql += ' AND hd.data_type = ?';
+      params.push(dataType);
+    }
+
+    sql += ' ORDER BY hd.measured_at DESC LIMIT ?';
+    params.push(limit);
+
+    const [healthData] = await query(sql, params);
+
+    // Hitung usia dari tanggal lahir
+    let age = null;
+    if (healthData && healthData.length > 0 && healthData[0].date_of_birth) {
+      const today = new Date();
+      const birthDate = new Date(healthData[0].date_of_birth);
+      
+      age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
+
+    // Kelompokkan data berdasarkan tipe
+    const groupedData = {};
+    if (healthData) {
+      healthData.forEach(record => {
+        if (!groupedData[record.data_type]) {
+          groupedData[record.data_type] = [];
+        }
+        groupedData[record.data_type].push({
+          id: record.id,
+          value: record.value,
+          unit: record.unit,
+          measured_at: record.measured_at,
+          source: record.source,
+          created_at: record.created_at
+        });
+      });
+    }
+
+    // Ambil data terbaru untuk setiap tipe
+    const latestData = {};
+    Object.keys(groupedData).forEach(type => {
+      if (groupedData[type].length > 0) {
+        latestData[type] = groupedData[type][0]; // Data terbaru (sudah diurutkan DESC)
+      }
     });
-    
-    // Replace LIMIT and OFFSET placeholders
-    finalQuery = finalQuery.replace('?', parseInt(limit, 10)).replace('?', parseInt(offset, 10));
-    
-    const healthData = await rawQuery(finalQuery);
-
-    const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      healthData,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+      success: true,
+      data: {
+        age: age,
+        gender: healthData && healthData.length > 0 ? healthData[0].gender : null,
+        fitness_goal: healthData && healthData.length > 0 ? healthData[0].fitness_goal : null,
+        activity_level: healthData && healthData.length > 0 ? healthData[0].activity_level : null,
+        latest_data: latestData,
+        all_data: groupedData
       }
     });
 
   } catch (error) {
-    console.error('Error fetching health data:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Get health data error:', error);
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }
 
+// POST - Add new health data
 export async function POST(request) {
   try {
+    const user = await getMobileUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { user_id, data_type, value, unit, measured_at, notes } = body;
+    const { data_type, value, unit, notes, source = 'manual' } = body;
 
-    // Validate required fields
-    if (!user_id || !data_type || !value) {
-      return NextResponse.json(
-        { message: 'User ID, data type, and value are required' },
-        { status: 400 }
-      );
+    // Validasi input
+    if (!data_type || !value || !unit) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'data_type, value, dan unit harus diisi' 
+      }, { status: 400 });
     }
 
-    // Check if user exists
-    const userExists = await query('SELECT id FROM mobile_users WHERE id = ?', [user_id]);
-    if (userExists.length === 0) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Validate data type
-    const validDataTypes = ['blood_pressure', 'heart_rate', 'blood_sugar', 'weight', 'temperature', 'oxygen_saturation'];
+    // Validasi data_type
+    const validDataTypes = ['blood_pressure', 'heart_rate', 'temperature', 'weight', 'height', 'bmi', 'blood_sugar', 'cholesterol'];
     if (!validDataTypes.includes(data_type)) {
-      return NextResponse.json(
-        { message: 'Invalid data type' },
-        { status: 400 }
-      );
+      return NextResponse.json({ 
+        success: false, 
+        message: `data_type harus salah satu dari: ${validDataTypes.join(', ')}` 
+      }, { status: 400 });
     }
 
-    // Insert new health data
-    const insertQuery = `
-      INSERT INTO health_data (user_id, data_type, value, unit, measured_at, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `;
+    // Validasi nilai
+    if (value <= 0) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Value harus lebih dari 0' 
+      }, { status: 400 });
+    }
 
-    const result = await query(insertQuery, [
-      user_id,
-      data_type,
-      value,
-      unit || null,
-      measured_at || null,
-      notes || null
-    ]);
-
-    // Get the created health data with joined data
-    const newHealthData = await query(`
-      SELECT 
-        hd.*,
-        u.name as user_name,
-        u.email as user_email
-      FROM health_data hd
-      LEFT JOIN mobile_users u ON hd.user_id = u.id
-      WHERE hd.id = ?
-    `, [result.insertId]);
+    // Insert data kesehatan
+    const [result] = await query(
+      'INSERT INTO health_data (user_id, data_type, value, unit, notes, measured_at, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), ?, NOW(), NOW())',
+      [user.id, data_type, value, unit, notes || null, source]
+    );
 
     return NextResponse.json({
-      message: 'Health data created successfully',
-      healthData: newHealthData[0]
-    }, { status: 201 });
+      success: true,
+      message: 'Data kesehatan berhasil ditambahkan!',
+      data: {
+        id: result.insertId,
+        data_type,
+        value,
+        unit,
+        notes,
+        source,
+        measured_at: new Date().toISOString()
+      }
+    });
 
   } catch (error) {
-    console.error('Error creating health data:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Add health data error:', error);
+    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 } 

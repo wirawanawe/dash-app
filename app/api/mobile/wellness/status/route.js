@@ -20,10 +20,22 @@ export async function GET(request) {
     const token = authHeader.substring(7);
 
     // Verify JWT token
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(process.env.JWT_SECRET)
-    );
+    let payload;
+    try {
+      const result = await jwtVerify(
+        token,
+        new TextEncoder().encode(process.env.JWT_SECRET)
+      );
+      payload = result.payload;
+    } catch (jwtError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid token",
+        },
+        { status: 401 }
+      );
+    }
 
     const userId = payload.userId;
 
@@ -34,16 +46,24 @@ export async function GET(request) {
         wellness_join_date,
         fitness_goal,
         activity_level,
-        weight,
-        height,
-        age,
+        date_of_birth,
         gender
       FROM mobile_users 
       WHERE id = ?
     `;
     
-    const [userResult] = await query(userQuery, [userId]);
+    const userResult = await query(userQuery, [userId]);
     const user = userResult[0];
+    
+    if (!user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User not found",
+        },
+        { status: 404 }
+      );
+    }
 
     // Get user missions count
     const missionsQuery = `
@@ -52,11 +72,23 @@ export async function GET(request) {
       WHERE user_id = ? AND status IN ('active', 'completed')
     `;
     
-    const [missionsResult] = await query(missionsQuery, [userId]);
+    const missionsResult = await query(missionsQuery, [userId]);
     const missionCount = missionsResult[0]?.mission_count || 0;
 
+    // Calculate age from date_of_birth if available
+    let age = null;
+    if (user.date_of_birth) {
+      const birthDate = new Date(user.date_of_birth);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    }
+
     // Determine if profile is complete
-    const profileComplete = !!(user?.weight && user?.height && user?.age && user?.gender && user?.activity_level && user?.fitness_goal);
+    const profileComplete = !!(age && user?.gender && user?.activity_level && user?.fitness_goal);
 
     // Determine if user needs onboarding
     const needsOnboarding = !user?.wellness_program_joined && missionCount === 0;
@@ -71,7 +103,8 @@ export async function GET(request) {
         has_missions: missionCount > 0,
         mission_count: missionCount,
         profile_complete: profileComplete,
-        needs_onboarding: needsOnboarding
+        needs_onboarding: needsOnboarding,
+        age: age
       }
     };
 
@@ -81,7 +114,7 @@ export async function GET(request) {
     console.error('Error in wellness status endpoint:', error);
     return NextResponse.json({ 
       success: false, 
-      error: 'Internal server error' 
+      error: 'Internal server error'
     }, { status: 500 });
   }
 } 

@@ -20,11 +20,36 @@ export async function POST(request) {
       weight,
       blood_type,
       emergency_contact_name,
-      emergency_contact_phone
+      emergency_contact_phone,
+      ktp_number,
+      address,
+      insurance,
+      insurance_card_number
     } = body;
 
     // Use dateOfBirth if date_of_birth is not provided
     const finalDateOfBirth = date_of_birth || dateOfBirth;
+
+    // Convert date_of_birth from ISO string to MySQL DATE format
+    let formattedDateOfBirth = null;
+    if (finalDateOfBirth !== null && finalDateOfBirth !== undefined) {
+      try {
+        const date = new Date(finalDateOfBirth);
+        if (!isNaN(date.getTime())) {
+          // Format as YYYY-MM-DD for MySQL DATE column
+          formattedDateOfBirth = date.toISOString().split('T')[0];
+        }
+      } catch (error) {
+        console.error("Error parsing date_of_birth:", error);
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Format tanggal lahir tidak valid",
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     // Validate required fields
     if (!name || !email || !phone || !password) {
@@ -81,9 +106,9 @@ export async function POST(request) {
     const sql = `
       INSERT INTO mobile_users (
         name, email, phone, password, date_of_birth, gender,
-        height, weight, blood_type, emergency_contact_name,
-        emergency_contact_phone, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+        emergency_contact_name, emergency_contact_phone, ktp_number, address, insurance,
+        insurance_card_number, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
     `;
 
     // Ensure all parameters are properly handled (convert undefined to null)
@@ -92,20 +117,21 @@ export async function POST(request) {
       email || null,
       phone || null,
       hashedPassword || null,
-      finalDateOfBirth || null,
+      formattedDateOfBirth || null,
       gender || null,
-      height || null,
-      weight || null,
-      validatedBloodType || null,
       emergency_contact_name || null,
-      emergency_contact_phone || null
+      emergency_contact_phone || null,
+      ktp_number || null,
+      address || null,
+      insurance || null,
+      insurance_card_number || null
     ];
 
     const result = await query(sql, params);
 
     // Get the created user
     const [newUser] = await query(
-      'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type FROM mobile_users WHERE id = ?',
+      'SELECT id, name, email, phone, date_of_birth, gender, ktp_number, address, insurance, insurance_card_number FROM mobile_users WHERE id = ?',
       [result.insertId]
     );
 

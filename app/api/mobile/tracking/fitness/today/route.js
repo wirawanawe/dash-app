@@ -21,11 +21,32 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const date = searchParams.get("date") || new Date().toISOString().split('T')[0];
 
-    // Try to get data with new schema first, fallback to old schema
-    let sql, fitnessData;
+    // Check database schema first to determine which columns exist
+    let hasNewSchema = false;
+    let hasExerciseMinutes = false;
     
     try {
-      // Try new schema first
+      const schemaCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'workout_type'");
+      hasNewSchema = schemaCheck.length > 0;
+      console.log("🔍 Today endpoint - has new schema:", hasNewSchema);
+    } catch (error) {
+      console.log("🔍 Today endpoint - schema check failed:", error.message);
+      hasNewSchema = false;
+    }
+    
+    try {
+      const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
+      hasExerciseMinutes = exerciseMinutesCheck.length > 0;
+      console.log("🔍 Today endpoint - has exercise_minutes column:", hasExerciseMinutes);
+    } catch (error) {
+      console.log("🔍 Today endpoint - exercise minutes check failed:", error.message);
+      hasExerciseMinutes = false;
+    }
+    
+    let sql, fitnessData;
+    
+    if (hasNewSchema) {
+      // Use new schema
       sql = `
         SELECT 
           workout_type as activity_type,
@@ -41,10 +62,25 @@ export async function GET(request) {
       `;
       
       fitnessData = await query(sql, [userInfo.id, date]);
-    } catch (error) {
-      // If new schema fails, try old schema
-      console.log("New schema failed, trying old schema:", error.message);
+    } else if (hasExerciseMinutes) {
+      // Use updated old schema with exercise_minutes column
+      sql = `
+        SELECT 
+          activity_type,
+          SUM(COALESCE(exercise_minutes, duration_minutes)) as total_duration,
+          SUM(calories_burned) as total_calories,
+          SUM(distance_km) as total_distance,
+          SUM(steps) as total_steps,
+          COUNT(*) as activity_count
+        FROM fitness_tracking
+        WHERE user_id = ? AND tracking_date = ?
+        GROUP BY activity_type
+        ORDER BY total_duration DESC
+      `;
       
+      fitnessData = await query(sql, [userInfo.id, date]);
+    } else {
+      // Use old schema
       sql = `
         SELECT 
           activity_type,

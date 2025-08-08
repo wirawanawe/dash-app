@@ -39,22 +39,20 @@ export async function PUT(request) {
       } = body;
 
       // Validate required fields
-      if (!weight || !height || !age || !gender) {
+      if (!gender) {
         return NextResponse.json(
           {
             success: false,
-            message: "Weight, height, age, and gender are required",
+            message: "Gender is required",
           },
           { status: 400 }
         );
       }
 
-      // Update user profile
+      // Update user profile (without weight/height since they don't exist in mobile_users table)
       const updateSql = `
         UPDATE mobile_users 
         SET 
-          weight = ?,
-          height = ?,
           gender = ?,
           activity_level = ?,
           fitness_goal = ?,
@@ -65,8 +63,6 @@ export async function PUT(request) {
       `;
 
       const result = await query(updateSql, [
-        weight,
-        height,
         gender,
         activity_level || null,
         fitness_goal || null,
@@ -87,7 +83,7 @@ export async function PUT(request) {
 
       // Get updated user data
       const getUserSql = `
-        SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, 
+        SELECT id, name, email, phone, date_of_birth, gender, 
                emergency_contact_name, emergency_contact_phone, is_active, 
                wellness_program_joined, wellness_join_date, activity_level, fitness_goal,
                created_at, updated_at

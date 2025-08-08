@@ -22,11 +22,18 @@ export async function GET(request) {
         id,
         user_id,
         daily_goal_ml,
-        reminder_interval_minutes,
-        start_time,
-        end_time,
-        is_reminder_enabled,
+        custom_goal_ml,
+        doctor_recommended_ml,
         doctor_id,
+        is_doctor_set,
+        reminder_enabled,
+        reminder_interval_minutes,
+        reminder_start_time,
+        reminder_end_time,
+        weight_kg,
+        activity_level,
+        climate_factor,
+        notes,
         created_at,
         updated_at
       FROM user_water_settings
@@ -42,11 +49,18 @@ export async function GET(request) {
         data: {
           user_id: parseInt(user_id),
           daily_goal_ml: 2000,
+          custom_goal_ml: null,
+          doctor_recommended_ml: null,
+          doctor_id: null,
+          is_doctor_set: false,
+          reminder_enabled: true,
           reminder_interval_minutes: 60,
-          start_time: "07:00:00",
-          end_time: "22:00:00",
-          is_reminder_enabled: true,
-          doctor_id: null
+          reminder_start_time: "07:00:00",
+          reminder_end_time: "22:00:00",
+          weight_kg: null,
+          activity_level: "moderate",
+          climate_factor: "normal",
+          notes: null
         }
       });
     }
@@ -74,11 +88,18 @@ export async function PUT(request) {
     const {
       user_id,
       daily_goal_ml,
+      custom_goal_ml,
+      doctor_recommended_ml,
+      doctor_id,
+      is_doctor_set,
+      reminder_enabled,
       reminder_interval_minutes,
-      start_time,
-      end_time,
-      is_reminder_enabled,
-      doctor_id
+      reminder_start_time,
+      reminder_end_time,
+      weight_kg,
+      activity_level,
+      climate_factor,
+      notes
     } = await request.json();
 
     if (!user_id) {
@@ -99,48 +120,77 @@ export async function PUT(request) {
       // Create new settings
       const insertSql = `
         INSERT INTO user_water_settings (
-          user_id, daily_goal_ml, reminder_interval_minutes, start_time, end_time,
-          is_reminder_enabled, doctor_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          user_id, daily_goal_ml, custom_goal_ml, doctor_recommended_ml, doctor_id, is_doctor_set,
+          reminder_enabled, reminder_interval_minutes, reminder_start_time, reminder_end_time,
+          weight_kg, activity_level, climate_factor, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       await query(insertSql, [
         user_id,
         daily_goal_ml || 2000,
+        custom_goal_ml || null,
+        doctor_recommended_ml || null,
+        doctor_id || null,
+        is_doctor_set || false,
+        reminder_enabled !== undefined ? reminder_enabled : true,
         reminder_interval_minutes || 60,
-        start_time || "07:00:00",
-        end_time || "22:00:00",
-        is_reminder_enabled !== undefined ? is_reminder_enabled : true,
-        doctor_id || null
+        reminder_start_time || "07:00:00",
+        reminder_end_time || "22:00:00",
+        weight_kg || null,
+        activity_level || "moderate",
+        climate_factor || "normal",
+        notes || null
       ]);
     } else {
       // Update existing settings
       const updateSql = `
         UPDATE user_water_settings SET
           daily_goal_ml = ?,
-          reminder_interval_minutes = ?,
-          start_time = ?,
-          end_time = ?,
-          is_reminder_enabled = ?,
+          custom_goal_ml = ?,
+          doctor_recommended_ml = ?,
           doctor_id = ?,
+          is_doctor_set = ?,
+          reminder_enabled = ?,
+          reminder_interval_minutes = ?,
+          reminder_start_time = ?,
+          reminder_end_time = ?,
+          weight_kg = ?,
+          activity_level = ?,
+          climate_factor = ?,
+          notes = ?,
           updated_at = NOW()
         WHERE user_id = ?
       `;
 
       await query(updateSql, [
         daily_goal_ml || 2000,
-        reminder_interval_minutes || 60,
-        start_time || "07:00:00",
-        end_time || "22:00:00",
-        is_reminder_enabled !== undefined ? is_reminder_enabled : true,
+        custom_goal_ml || null,
+        doctor_recommended_ml || null,
         doctor_id || null,
+        is_doctor_set || false,
+        reminder_enabled !== undefined ? reminder_enabled : true,
+        reminder_interval_minutes || 60,
+        reminder_start_time || "07:00:00",
+        reminder_end_time || "22:00:00",
+        weight_kg || null,
+        activity_level || "moderate",
+        climate_factor || "normal",
+        notes || null,
         user_id
       ]);
     }
 
+    // Get the updated settings to return
+    const updatedSettings = await query(
+      "SELECT * FROM user_water_settings WHERE user_id = ?",
+      [user_id]
+    );
+
     return NextResponse.json({
       success: true,
       message: "Water settings updated successfully",
+      data: updatedSettings[0] || null,
     });
   } catch (error) {
     console.error("Error updating water settings:", error);

@@ -4,10 +4,13 @@ import { query } from '@/lib/db';
 
 export async function GET(request) {
   try {
+    console.log('🔍 Wellness stats endpoint called');
+    
     // Get authorization header
     const authHeader = request.headers.get("authorization");
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log('❌ No authorization header');
       return NextResponse.json(
         {
           success: false,
@@ -18,8 +21,26 @@ export async function GET(request) {
     }
 
     const token = authHeader.substring(7);
+    console.log('🔍 Token received:', token.substring(0, 20) + '...');
 
     // Verify JWT token
+    try {
+      const { payload } = await jwtVerify(
+        token,
+        new TextEncoder().encode(process.env.JWT_SECRET)
+      );
+      console.log('✅ JWT verified, userId:', payload.userId);
+    } catch (jwtError) {
+      console.error('❌ JWT verification failed:', jwtError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid token",
+        },
+        { status: 401 }
+      );
+    }
+
     const { payload } = await jwtVerify(
       token,
       new TextEncoder().encode(process.env.JWT_SECRET)
@@ -29,54 +50,58 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '7';
 
-    // Get wellness statistics for the specified period
-    const statsQuery = `
-      SELECT 
-        COUNT(DISTINCT DATE(created_at)) as active_days,
-        SUM(CASE WHEN type = 'fitness' THEN duration ELSE 0 END) as total_fitness_minutes,
-        SUM(CASE WHEN type = 'nutrition' THEN calories ELSE 0 END) as total_calories,
-        SUM(CASE WHEN type = 'water' THEN amount ELSE 0 END) as total_water_intake,
-        SUM(CASE WHEN type = 'sleep' THEN duration ELSE 0 END) as total_sleep_hours,
-        AVG(CASE WHEN type = 'mood' THEN score ELSE NULL END) as avg_mood_score,
-        COUNT(CASE WHEN type = 'fitness' THEN 1 END) as fitness_entries,
-        COUNT(CASE WHEN type = 'nutrition' THEN 1 END) as nutrition_entries,
-        COUNT(CASE WHEN type = 'water' THEN 1 END) as water_entries,
-        COUNT(CASE WHEN type = 'sleep' THEN 1 END) as sleep_entries,
-        COUNT(CASE WHEN type = 'mood' THEN 1 END) as mood_entries
-      FROM wellness_data 
-      WHERE user_id = ? 
-        AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-    `;
-    
-    const [statsResult] = await query(statsQuery, [userId, parseInt(period)]);
-    const stats = statsResult[0];
+    console.log('🔍 Processing request for userId:', userId, 'period:', period);
 
-    // Calculate wellness score based on various factors
-    const wellnessScore = calculateWellnessScore(stats);
+    // Test each query individually
+    console.log('🔍 Testing mood query...');
+    const moodQuery = 'SELECT COUNT(*) as mood_entries FROM mood_tracking WHERE user_id = ?';
+    const [moodResult] = await query(moodQuery, [userId]);
+    const moodEntries = moodResult[0]?.mood_entries || 0;
+    console.log('✅ Mood entries:', moodEntries);
+
+    console.log('🔍 Testing water query...');
+    const waterQuery = 'SELECT COUNT(*) as water_entries FROM water_tracking WHERE user_id = ?';
+    const [waterResult] = await query(waterQuery, [userId]);
+    const waterEntries = waterResult[0]?.water_entries || 0;
+    console.log('✅ Water entries:', waterEntries);
+
+    console.log('🔍 Testing sleep query...');
+    const sleepQuery = 'SELECT COUNT(*) as sleep_entries FROM sleep_tracking WHERE user_id = ?';
+    const [sleepResult] = await query(sleepQuery, [userId]);
+    const sleepEntries = sleepResult[0]?.sleep_entries || 0;
+    console.log('✅ Sleep entries:', sleepEntries);
+
+    console.log('🔍 Testing fitness query...');
+    const fitnessQuery = 'SELECT COUNT(*) as fitness_entries FROM fitness_tracking WHERE user_id = ?';
+    const [fitnessResult] = await query(fitnessQuery, [userId]);
+    const fitnessEntries = fitnessResult[0]?.fitness_entries || 0;
+    console.log('✅ Fitness entries:', fitnessEntries);
 
     const response = {
       success: true,
       data: {
         period: parseInt(period),
-        active_days: stats.active_days || 0,
-        total_fitness_minutes: stats.total_fitness_minutes || 0,
-        total_calories: stats.total_calories || 0,
-        total_water_intake: stats.total_water_intake || 0,
-        total_sleep_hours: stats.total_sleep_hours || 0,
-        avg_mood_score: stats.avg_mood_score || 0,
-        fitness_entries: stats.fitness_entries || 0,
-        nutrition_entries: stats.nutrition_entries || 0,
-        water_entries: stats.water_entries || 0,
-        sleep_entries: stats.sleep_entries || 0,
-        mood_entries: stats.mood_entries || 0,
-        wellness_score: wellnessScore
+        active_days: 0,
+        total_fitness_minutes: 0,
+        total_calories: 0,
+        total_water_intake: 0,
+        total_sleep_hours: 0,
+        avg_mood_score: 0,
+        fitness_entries: fitnessEntries,
+        nutrition_entries: 0,
+        water_entries: waterEntries,
+        sleep_entries: sleepEntries,
+        mood_entries: moodEntries,
+        wellness_score: 0
       }
     };
 
+    console.log('✅ Returning response:', response);
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in wellness stats endpoint:', error);
+    console.error('❌ Error in wellness stats endpoint:', error);
+    console.error('❌ Error stack:', error.stack);
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 
@@ -92,12 +117,6 @@ function calculateWellnessScore(stats) {
   if (stats.total_fitness_minutes > 0) {
     const fitnessScore = Math.min(25, (stats.total_fitness_minutes / 150) * 25);
     score += fitnessScore;
-  }
-
-  // Nutrition contribution (20 points)
-  if (stats.nutrition_entries > 0) {
-    const nutritionScore = Math.min(20, (stats.nutrition_entries / 7) * 20);
-    score += nutritionScore;
   }
 
   // Water intake contribution (15 points)

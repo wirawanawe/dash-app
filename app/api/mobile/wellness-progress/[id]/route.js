@@ -12,14 +12,32 @@ export async function GET(request, { params }) {
       );
     }
 
+    // Validate that userId is a number
+    const numericUserId = parseInt(userId);
+    if (isNaN(numericUserId)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid user ID format' },
+        { status: 400 }
+      );
+    }
+
     // Get user basic info from mobile_users table
-    const userQuery = `
-      SELECT id, name, email, wellness_program_joined, wellness_join_date, 
-             weight, height, date_of_birth, gender, activity_level, fitness_goal
-      FROM mobile_users 
-      WHERE id = ?
-    `;
-    const userResult = await query(userQuery, [userId]);
+    let userResult = [];
+    try {
+      const userQuery = `
+        SELECT id, name, email, wellness_program_joined, wellness_join_date, 
+               date_of_birth, gender, activity_level, fitness_goal
+        FROM mobile_users 
+        WHERE id = ?
+      `;
+      userResult = await query(userQuery, [numericUserId]);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      return NextResponse.json(
+        { success: false, message: 'Database error while fetching user data', error: error.message },
+        { status: 500 }
+      );
+    }
     
     if (userResult.length === 0) {
       return NextResponse.json(
@@ -55,7 +73,7 @@ export async function GET(request, { params }) {
         ORDER BY completed_at DESC
         LIMIT 100
       `;
-      activities = await query(activitiesQuery, [userId]);
+      activities = await query(activitiesQuery, [numericUserId]);
     } catch (error) {
       console.error('Error fetching wellness activities:', error);
       // Continue with empty activities array
@@ -80,7 +98,7 @@ export async function GET(request, { params }) {
         WHERE um.user_id = ?
         ORDER BY um.created_at DESC
       `;
-      missions = await query(missionsQuery, [userId]);
+      missions = await query(missionsQuery, [numericUserId]);
     } catch (error) {
       console.error('Error fetching user missions:', error);
       // Try with minimal columns if the full query fails
@@ -96,7 +114,7 @@ export async function GET(request, { params }) {
           WHERE um.user_id = ?
           ORDER BY um.created_at DESC
         `;
-        missions = await query(fallbackMissionsQuery, [userId]);
+        missions = await query(fallbackMissionsQuery, [numericUserId]);
       } catch (fallbackError) {
         console.error('Error fetching user missions with fallback:', fallbackError);
         // Continue with empty missions array
@@ -149,7 +167,7 @@ export async function GET(request, { params }) {
         ORDER BY date DESC
         LIMIT 50
       `;
-      trackingData = await query(trackingQuery, [userId, userId, userId]);
+      trackingData = await query(trackingQuery, [numericUserId, numericUserId, numericUserId]);
     } catch (error) {
       console.error('Error fetching tracking data:', error);
       // Try individual queries if the union fails
@@ -165,7 +183,7 @@ export async function GET(request, { params }) {
           ORDER BY created_at DESC
           LIMIT 20
         `;
-        const waterData = await query(waterQuery, [userId]);
+        const waterData = await query(waterQuery, [numericUserId]);
         
         const moodQuery = `
           SELECT 
@@ -187,7 +205,7 @@ export async function GET(request, { params }) {
           ORDER BY created_at DESC
           LIMIT 20
         `;
-        const moodData = await query(moodQuery, [userId]);
+        const moodData = await query(moodQuery, [numericUserId]);
         
         const sleepQuery = `
           SELECT 
@@ -207,7 +225,7 @@ export async function GET(request, { params }) {
           ORDER BY created_at DESC
           LIMIT 20
         `;
-        const sleepData = await query(sleepQuery, [userId]);
+        const sleepData = await query(sleepQuery, [numericUserId]);
         
         trackingData = [...waterData, ...moodData, ...sleepData].sort((a, b) => 
           new Date(b.date) - new Date(a.date)
@@ -301,13 +319,11 @@ export async function GET(request, { params }) {
     return NextResponse.json({
       success: true,
       user: {
-        id: user.id,
+        id: numericUserId,
         name: user.name || 'Nama tidak tersedia',
         email: user.email || 'Email tidak tersedia',
         wellness_program_joined: user.wellness_program_joined || false,
         wellness_join_date: user.wellness_join_date,
-        weight: user.weight,
-        height: user.height,
         age: age,
         gender: user.gender,
         activity_level: user.activity_level,

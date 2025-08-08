@@ -36,7 +36,7 @@ export async function POST(request) {
 
       // Get user from database
       const sql = `
-        SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, is_active
+        SELECT id, name, email, phone, date_of_birth, gender, is_active
         FROM mobile_users 
         WHERE id = ?
       `;

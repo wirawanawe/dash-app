@@ -28,7 +28,7 @@ export async function GET(request) {
 
       // Get user from database
       const sql = `
-        SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, 
+        SELECT id, name, email, phone, date_of_birth, gender, 
                emergency_contact_name, emergency_contact_phone, is_active, 
                wellness_program_joined, wellness_join_date, activity_level, fitness_goal,
                created_at, updated_at

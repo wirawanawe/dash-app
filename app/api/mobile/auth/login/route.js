@@ -23,7 +23,7 @@ export async function POST(request) {
       // Try to get the user from database first
       try {
         const [user] = await query(
-          'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type FROM mobile_users WHERE email = ?',
+          'SELECT id, name, email, phone, date_of_birth, gender, ktp_number, address, insurance, insurance_card_number FROM mobile_users WHERE email = ?',
           [email]
         );
         
@@ -67,6 +67,10 @@ export async function POST(request) {
                   height: user.height,
                   weight: user.weight,
                   blood_type: user.blood_type,
+                  ktp_number: user.ktp_number,
+                  address: user.address,
+                  insurance: user.insurance,
+                  insurance_card_number: user.insurance_card_number,
                   role: "MOBILE_USER",
                 },
                 accessToken: token,
@@ -85,7 +89,7 @@ export async function POST(request) {
     try {
       // Cari user di database mobile_users
       let sql = `
-        SELECT id, name, email, password, phone, date_of_birth, gender, height, weight, blood_type, is_active
+        SELECT id, name, email, password, phone, date_of_birth, gender, is_active, ktp_number, address, insurance, insurance_card_number
         FROM mobile_users 
         WHERE email = ?
       `;
@@ -158,9 +162,10 @@ export async function POST(request) {
         phone: user.phone,
         date_of_birth: user.date_of_birth,
         gender: user.gender,
-        height: user.height,
-        weight: user.weight,
-        blood_type: user.blood_type,
+        ktp_number: user.ktp_number,
+        address: user.address,
+        insurance: user.insurance,
+        insurance_card_number: user.insurance_card_number,
         role: "MOBILE_USER",
       };
 

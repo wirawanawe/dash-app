@@ -272,12 +272,25 @@ INSERT IGNORE INTO fitness_tracking (user_id, activity_type, duration_minutes, c
 -- ========================================
 -- USER QUICK FOODS
 -- ========================================
-INSERT IGNORE INTO user_quick_foods (user_id, food_id, is_favorite) VALUES
-(1, 1, TRUE),
-(1, 2, TRUE),
-(1, 3, FALSE),
-(1, 4, TRUE),
-(1, 5, FALSE);
+INSERT IGNORE INTO user_quick_foods (user_id, food_id, custom_portion_grams, custom_name, order_index) VALUES
+(1, 1, 100, 'Nasi Goreng Favorit', 1),
+(1, 2, 150, 'Ayam Goreng Spesial', 2),
+(1, 3, 120, 'Gado-gado Sehat', 3),
+(1, 4, 100, 'Sate Ayam', 4),
+(1, 5, 200, 'Soto Ayam', 5),
+(1, 6, 150, 'Rendang', 6),
+(1, 7, 100, 'Mie Goreng', 7),
+(1, 8, 200, 'Bakso', 8),
+(1, 11, 100, 'Pisang', 9),
+(1, 14, 50, 'Brokoli', 10),
+(2, 1, 100, 'Nasi Goreng', 1),
+(2, 2, 150, 'Ayam Goreng', 2),
+(2, 3, 120, 'Gado-gado', 3),
+(2, 4, 100, 'Sate Ayam', 4),
+(2, 5, 200, 'Soto Ayam', 5),
+(3, 1, 100, 'Nasi Goreng', 1),
+(3, 2, 150, 'Ayam Goreng', 2),
+(3, 3, 120, 'Gado-gado', 3);
 
 -- ========================================
 -- CHATS

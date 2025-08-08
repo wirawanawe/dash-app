@@ -60,6 +60,17 @@ export async function GET(request) {
       console.log("🔍 Database schema check failed for GET, using old schema:", error.message);
       hasNewSchema = false;
     }
+    
+    // Also check if exercise_minutes column exists
+    let hasExerciseMinutes = false;
+    try {
+      const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
+      hasExerciseMinutes = exerciseMinutesCheck.length > 0;
+      console.log("🔍 Database has exercise_minutes column for GET:", hasExerciseMinutes);
+    } catch (error) {
+      console.log("🔍 Exercise minutes column check failed for GET:", error.message);
+      hasExerciseMinutes = false;
+    }
 
     // Build query based on available schema
     let sql, params;
@@ -87,6 +98,27 @@ export async function GET(request) {
       }
 
       sql += " ORDER BY tracking_date DESC, created_at DESC";
+    } else if (hasExerciseMinutes) {
+      // Use updated old schema with exercise_minutes column
+      sql = `
+        SELECT id, user_id, activity_type, activity_name, duration_minutes, exercise_minutes,
+               calories_burned, distance_km, steps, intensity, notes, tracking_date, tracking_time, created_at
+        FROM fitness_tracking
+        WHERE user_id = ?
+      `;
+      params = [userPayload.id];
+
+      if (date) {
+        sql += " AND tracking_date = ?";
+        params.push(date);
+      }
+
+      if (activity_type) {
+        sql += " AND activity_type = ?";
+        params.push(activity_type);
+      }
+
+      sql += " ORDER BY tracking_date DESC, tracking_time DESC";
     } else {
       // Use old schema
       sql = `
@@ -214,6 +246,17 @@ export async function POST(request) {
       console.log("🔍 Database schema check failed, using old schema:", error.message);
       hasNewSchema = false;
     }
+    
+    // Also check if exercise_minutes column exists
+    let hasExerciseMinutes = false;
+    try {
+      const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
+      hasExerciseMinutes = exerciseMinutesCheck.length > 0;
+      console.log("🔍 Database has exercise_minutes column:", hasExerciseMinutes);
+    } catch (error) {
+      console.log("🔍 Exercise minutes column check failed:", error.message);
+      hasExerciseMinutes = false;
+    }
 
     let sql, params;
     
@@ -235,6 +278,29 @@ export async function POST(request) {
         steps || null,
         notes || null,
         tracking_date || new Date().toISOString().split('T')[0],
+      ];
+    } else if (hasExerciseMinutes) {
+      // Use updated old schema with exercise_minutes column
+      sql = `
+        INSERT INTO fitness_tracking (
+          user_id, activity_type, activity_name, duration_minutes, exercise_minutes,
+          calories_burned, distance_km, steps, intensity, notes, tracking_date, tracking_time, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      `;
+      
+      params = [
+        userPayload.id,
+        activity_type,
+        activity_name,
+        duration_minutes,
+        duration_minutes, // Also store in exercise_minutes for compatibility
+        calories_burned || null,
+        distance_km || null,
+        steps || null,
+        intensity || null,
+        notes || null,
+        tracking_date || new Date().toISOString().split('T')[0],
+        tracking_time || new Date().toTimeString().split(' ')[0],
       ];
     } else {
       // Use old schema (activity_type, activity_name, duration_minutes)

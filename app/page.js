@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -75,9 +76,7 @@ export default function Home() {
         <nav className="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
-                <Stethoscope className="w-8 h-8 text-white" />
-              </div>
+              <Image src="/icon-phc.png" alt="PHC Logo" width={45} height={45} />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">PHC Dashboard</h1>
                 <p className="text-sm text-gray-600">Medical Record System</p>
@@ -85,7 +84,7 @@ export default function Home() {
             </div>
             <Link
               href="/login"
-              className="hidden md:flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              className="hidden md:flex items-center px-6 py-3 bg-[#E22345] text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
             >
               <span className="font-medium">Login</span>
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -111,7 +110,7 @@ export default function Home() {
               }`}
               style={{ animationDelay: '200ms' }}
             >
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#E22345] via-[#E22345] to-[#E22345] bg-clip-text text-transparent">
                 PHC Medical
               </span>
               <br />
@@ -136,7 +135,7 @@ export default function Home() {
             >
               <Link
                 href="/login"
-                className="group flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 font-semibold text-lg"
+                className="group flex items-center px-8 py-4 bg-[#E22345] text-white rounded-2xl shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 font-semibold text-lg"
               >
                 <span>Mulai Sekarang</span>
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -215,7 +214,7 @@ export default function Home() {
 
         {/* CTA Section */}
         <div className="container mx-auto px-6 py-16 lg:py-24">
-          <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-12 lg:p-16 text-center overflow-hidden">
+          <div className="relative bg-[#E22345] rounded-3xl p-12 lg:p-16 text-center overflow-hidden">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
@@ -249,13 +248,11 @@ export default function Home() {
         {/* Footer */}
         <footer className="container mx-auto px-6 py-12 text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
-              <Stethoscope className="w-6 h-6 text-white" />
-            </div>
+            <Image src="/icon-phc.png" alt="PHC Logo" width={45} height={45} />
             <span className="text-xl font-bold text-gray-900">PHC Dashboard</span>
           </div>
           <p className="text-gray-600">
-            © 2024 PHC Medical Record System. Dibuat dengan ❤️ untuk kesehatan yang lebih baik.
+            © 2025 PHC Medical Record System. Dibuat dengan ❤️ untuk kesehatan yang lebih baik.
           </p>
         </footer>
       </div>

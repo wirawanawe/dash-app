@@ -2,8 +2,17 @@ import { NextResponse } from 'next/server';
 
 // Rate limiting storage
 const rateLimitStore = new Map();
-const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 100; // 100 requests per minute per IP
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes (increased from 1 minute)
+const MAX_REQUESTS_PER_WINDOW = 500; // 500 requests per 15 minutes (increased from 100 per minute)
+
+// Specific rate limits for different endpoint types
+const RATE_LIMITS = {
+  auth: { window: 15 * 60 * 1000, max: 10 }, // 10 auth requests per 15 minutes
+  tracking: { window: 15 * 60 * 1000, max: 1000 }, // 1000 tracking requests per 15 minutes
+  dashboard: { window: 5 * 60 * 1000, max: 200 }, // 200 dashboard requests per 5 minutes
+  search: { window: 60 * 1000, max: 50 }, // 50 search requests per minute
+  default: { window: 15 * 60 * 1000, max: 500 } // 500 requests per 15 minutes
+};
 
 function getClientIP(request) {
   return request.headers.get('x-forwarded-for') || 
@@ -12,44 +21,85 @@ function getClientIP(request) {
          'unknown';
 }
 
-function checkRateLimit(ip) {
+function getEndpointType(pathname) {
+  if (pathname.includes('/auth/')) return 'auth';
+  if (pathname.includes('/tracking/') || pathname.includes('/mobile/tracking/')) return 'tracking';
+  if (pathname.includes('/missions/') || pathname.includes('/mobile/missions/') || 
+      pathname.includes('/dashboard/') || pathname.includes('/mobile/dashboard/')) return 'dashboard';
+  if (pathname.includes('/search/') || pathname.includes('/food/search/')) return 'search';
+  return 'default';
+}
+
+function checkRateLimit(ip, endpointType) {
   const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW;
+  const limit = RATE_LIMITS[endpointType];
+  const windowStart = now - limit.window;
   
-  if (!rateLimitStore.has(ip)) {
-    rateLimitStore.set(ip, []);
+  const key = `${ip}:${endpointType}`;
+  
+  if (!rateLimitStore.has(key)) {
+    rateLimitStore.set(key, []);
   }
   
-  const requests = rateLimitStore.get(ip);
+  const requests = rateLimitStore.get(key);
   
   // Clean old requests
   const validRequests = requests.filter(time => time > windowStart);
-  rateLimitStore.set(ip, validRequests);
+  rateLimitStore.set(key, validRequests);
   
-  if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
-    return false; // Rate limited
+  if (validRequests.length >= limit.max) {
+    return { allowed: false, remaining: 0, resetTime: windowStart + limit.window };
   }
   
   validRequests.push(now);
-  return true; // Allowed
+  return { 
+    allowed: true, 
+    remaining: limit.max - validRequests.length,
+    resetTime: windowStart + limit.window
+  };
 }
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   
+  // Debug logging
+  console.log(`🔍 Middleware: Processing ${pathname}`);
+  
   // Apply rate limiting to API routes
   if (pathname.startsWith('/api/')) {
     const clientIP = getClientIP(request);
+    const endpointType = getEndpointType(pathname);
+    const rateLimitResult = checkRateLimit(clientIP, endpointType);
     
-    if (!checkRateLimit(clientIP)) {
+    console.log(`📊 Rate limit check for ${pathname}: ${rateLimitResult.allowed ? 'ALLOWED' : 'BLOCKED'}, Remaining: ${rateLimitResult.remaining}`);
+    
+    if (!rateLimitResult.allowed) {
+      const resetTime = new Date(rateLimitResult.resetTime).toISOString();
+      console.warn(`🚨 Rate limit exceeded for IP: ${clientIP}, Endpoint: ${pathname}, Type: ${endpointType}`);
+      
       return NextResponse.json(
         { 
           success: false,
-          message: "Terlalu banyak request. Silakan coba lagi dalam 1 menit.",
-          error: "RATE_LIMIT_EXCEEDED"
+          message: "Terlalu banyak permintaan. Silakan tunggu beberapa menit dan coba lagi.",
+          error: "RATE_LIMIT_EXCEEDED",
+          retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
+          type: "RATE_LIMIT"
         },
-        { status: 429 }
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': RATE_LIMITS[endpointType].max.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': resetTime,
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+          }
+        }
       );
+    }
+    
+    // Log when approaching rate limit
+    if (rateLimitResult.remaining <= 10) {
+      console.warn(`⚠️ Rate limit approaching for IP: ${clientIP}, Endpoint: ${pathname}, Remaining: ${rateLimitResult.remaining}`);
     }
   }
 
@@ -89,6 +139,15 @@ export function middleware(request) {
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    // Add rate limit headers to all API responses
+    const clientIP = getClientIP(request);
+    const endpointType = getEndpointType(pathname);
+    const rateLimitResult = checkRateLimit(clientIP, endpointType);
+    
+    response.headers.set('X-RateLimit-Limit', RATE_LIMITS[endpointType].max.toString());
+    response.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
+    response.headers.set('X-RateLimit-Reset', new Date(rateLimitResult.resetTime).toISOString());
   }
 
   return response;
