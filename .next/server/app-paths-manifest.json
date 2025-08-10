@@ -1,11 +1,3 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/mobile/missions/stats/route": "app/api/mobile/missions/stats/route.js",
-  "/api/mobile/food/search/route": "app/api/mobile/food/search/route.js",
-  "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js",
-  "/api/mobile/mission-stats/route": "app/api/mobile/mission-stats/route.js",
-  "/api/mobile/wellness-progress/[id]/route": "app/api/mobile/wellness-progress/[id]/route.js",
-  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js",
-  "/api/mobile/my-missions/route": "app/api/mobile/my-missions/route.js",
-  "/api/health/route": "app/api/health/route.js"
+  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js"
 }
