@@ -39,6 +39,20 @@ export async function GET(request) {
 
     const userId = payload.userId;
 
+    // Validate userId
+    if (!userId) {
+      console.error('Error: userId is undefined in JWT payload');
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid token: missing user ID",
+        },
+        { status: 401 }
+      );
+    }
+
+    console.log('🔍 Wellness status: Checking user ID:', userId);
+
     // Get user profile data
     const userQuery = `
       SELECT 
@@ -52,6 +66,7 @@ export async function GET(request) {
       WHERE id = ?
     `;
     
+    console.log('🔍 Wellness status: Executing user query with userId:', userId);
     const userResult = await query(userQuery, [userId]);
     const user = userResult[0];
     
@@ -72,8 +87,10 @@ export async function GET(request) {
       WHERE user_id = ? AND status IN ('active', 'completed')
     `;
     
+    console.log('🔍 Wellness status: Executing missions query with userId:', userId);
     const missionsResult = await query(missionsQuery, [userId]);
     const missionCount = missionsResult[0]?.mission_count || 0;
+    console.log('🔍 Wellness status: Mission count:', missionCount);
 
     // Calculate age from date_of_birth if available
     let age = null;
@@ -111,10 +128,16 @@ export async function GET(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in wellness status endpoint:', error);
+    console.error('❌ Error in wellness status endpoint:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
     return NextResponse.json({ 
       success: false, 
-      error: 'Internal server error'
+      error: 'Internal server error',
+      details: error.message
     }, { status: 500 });
   }
 } 
