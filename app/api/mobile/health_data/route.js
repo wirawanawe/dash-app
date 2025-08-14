@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getMobileUserFromRequest } from '../../../../lib/auth';
 import { query } from '../../../../lib/db';
 
+export const dynamic = 'force-dynamic';
+
+
 // GET - Get user health data
 export async function GET(request) {
   try {

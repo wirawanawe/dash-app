@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET - Get summary for a specific date (defaults to today if no date provided)
 export async function GET(request) {
   try {

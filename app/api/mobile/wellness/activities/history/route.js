@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     // Get authorization header
@@ -29,29 +31,31 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '30';
 
-    // Get user's wellness activity history
+    // Get user's wellness activity history from user_wellness_activities table only
     const historyQuery = `
       SELECT 
         uwa.id,
-        uwa.progress,
         uwa.notes,
         uwa.completed_at,
         uwa.created_at,
+        uwa.duration_minutes,
         wa.id as activity_id,
         wa.title,
         wa.description,
         wa.category,
-        wa.duration,
-        wa.calories_burn,
-        wa.difficulty
+        wa.duration_minutes as activity_duration,
+        wa.difficulty,
+        wa.points,
+        wa.is_active,
+        wa.points as points_earned
       FROM user_wellness_activities uwa
-      JOIN wellness_activities wa ON uwa.activity_id = wa.id
+      JOIN available_wellness_activities wa ON uwa.activity_id = wa.id
       WHERE uwa.user_id = ? 
         AND uwa.completed_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
       ORDER BY uwa.completed_at DESC
     `;
     
-    const [historyResult] = await query(historyQuery, [userId, parseInt(period)]);
+    const historyResult = await query(historyQuery, [userId, parseInt(period)]);
 
     const response = {
       success: true,

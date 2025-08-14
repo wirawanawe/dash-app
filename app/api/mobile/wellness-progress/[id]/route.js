@@ -68,7 +68,7 @@ export async function GET(request, { params }) {
           id, activity_name as title, activity_type, activity_category as category,
           duration as duration_minutes, points_earned as points, notes,
           completed_at, created_at
-        FROM wellness_activities 
+        FROM available_wellness_activities 
         WHERE user_id = ?
         ORDER BY completed_at DESC
         LIMIT 100

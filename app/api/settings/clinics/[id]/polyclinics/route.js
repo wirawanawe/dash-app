@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET polyclinics for a specific clinic
 export async function GET(request, { params }) {
   try {

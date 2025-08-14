@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
+
 // Gunakan mock data statis untuk semua request
 const staticDate = "2023-12-31T12:00:00.000Z";
 

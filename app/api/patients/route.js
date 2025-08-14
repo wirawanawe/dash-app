@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // Helper function to add delay between requests
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

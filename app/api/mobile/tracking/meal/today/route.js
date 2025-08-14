@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET - Get today's nutrition summary
 export async function GET(request) {
   try {

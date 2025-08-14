@@ -5,6 +5,14 @@ const nextConfig = {
   // Bind to all interfaces for mobile app access
   experimental: {
     serverComponentsExternalPackages: ['mysql2'],
+    turbo: {
+      rules: {
+        "*.svg": {
+          loaders: ["@svgr/webpack"],
+          as: "*.js",
+        },
+      },
+    },
   },
   env: {
     JWT_SECRET:
@@ -23,16 +31,6 @@ const nextConfig = {
 
   serverRuntimeConfig: {
     timeout: 30000, // 30 seconds
-  },
-  experimental: {
-    turbo: {
-      rules: {
-        "*.svg": {
-          loaders: ["@svgr/webpack"],
-          as: "*.js",
-        },
-      },
-    },
   },
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {

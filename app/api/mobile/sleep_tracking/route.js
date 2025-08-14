@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { query, rawQuery } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -8,12 +11,24 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 10;
     const search = searchParams.get('search') || '';
     const quality = searchParams.get('quality') || '';
+    const user_id = searchParams.get('user_id') || '';
+    const sleep_date = searchParams.get('sleep_date') || '';
     
     const offset = (page - 1) * limit;
 
     // Build WHERE clause
     let whereConditions = [];
     let params = [];
+
+    if (user_id) {
+      whereConditions.push(`st.user_id = ?`);
+      params.push(user_id);
+    }
+
+    if (sleep_date) {
+      whereConditions.push(`st.sleep_date = ?`);
+      params.push(sleep_date);
+    }
 
     if (search) {
       whereConditions.push(`(u.name LIKE ? OR u.email LIKE ? OR st.sleep_quality LIKE ?)`);
@@ -70,6 +85,13 @@ export async function GET(request) {
 
     const totalPages = Math.ceil(total / limit);
 
+    // If filtering by user_id and sleep_date, return just the sleep data array
+    if (user_id && sleep_date) {
+      return NextResponse.json({
+        sleepData
+      });
+    }
+
     return NextResponse.json({
       sleepData,
       pagination: {
@@ -94,6 +116,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    console.log('Sleep tracking POST request body:', body);
     const { user_id, sleep_date, sleep_hours, sleep_minutes, sleep_quality, bedtime, wake_time, notes } = body;
 
     // Validate required fields
@@ -105,11 +128,25 @@ export async function POST(request) {
     }
 
     // Check if user exists
+    console.log('Checking if user exists with ID:', user_id);
     const userExists = await query('SELECT id FROM mobile_users WHERE id = ?', [user_id]);
+    console.log('User exists result:', userExists);
     if (userExists.length === 0) {
       return NextResponse.json(
         { message: 'User not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if sleep tracking data already exists for this user and date
+    console.log('Checking for existing sleep data for user:', user_id, 'date:', sleep_date);
+    const existingSleepData = await query('SELECT id FROM sleep_tracking WHERE user_id = ? AND sleep_date = ?', [user_id, sleep_date]);
+    console.log('Existing sleep data result:', existingSleepData);
+    
+    if (existingSleepData.length > 0) {
+      return NextResponse.json(
+        { message: 'Sleep tracking data already exists for this date. Please update the existing entry instead.' },
+        { status: 409 }
       );
     }
 
@@ -132,6 +169,26 @@ export async function POST(request) {
 
     // Calculate total sleep duration in minutes
     const sleepDurationMinutes = (sleep_hours * 60) + sleep_minutes;
+    
+    // Format bedtime and wake_time for MySQL TIME format
+    let formattedBedtime = null;
+    let formattedWakeTime = null;
+    
+    if (bedtime) {
+      // Remove seconds if present and ensure HH:MM format
+      const timeParts = bedtime.split(':');
+      if (timeParts.length >= 2) {
+        formattedBedtime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
+      }
+    }
+    
+    if (wake_time) {
+      // Remove seconds if present and ensure HH:MM format
+      const timeParts = wake_time.split(':');
+      if (timeParts.length >= 2) {
+        formattedWakeTime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
+      }
+    }
 
     // Insert new sleep tracking data
     const insertQuery = `
@@ -139,13 +196,16 @@ export async function POST(request) {
       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
+    console.log('Insert query:', insertQuery);
+    console.log('Insert parameters:', [user_id, sleep_date, sleepDurationMinutes, sleep_quality, formattedBedtime, formattedWakeTime, notes || null]);
+
     const result = await query(insertQuery, [
       user_id,
       sleep_date,
       sleepDurationMinutes,
       sleep_quality,
-      bedtime || null,
-      wake_time || null,
+      formattedBedtime,
+      formattedWakeTime,
       notes || null
     ]);
 
@@ -169,6 +229,22 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Error creating sleep tracking data:', error);
+    
+    // Handle specific database errors
+    if (error.message && error.message.includes('Duplicate entry')) {
+      return NextResponse.json(
+        { message: 'Sleep tracking data already exists for this date. Please update the existing entry instead.' },
+        { status: 409 }
+      );
+    }
+    
+    if (error.message && error.message.includes('foreign key constraint')) {
+      return NextResponse.json(
+        { message: 'User not found' },
+        { status: 404 }
+      );
+    }
+    
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

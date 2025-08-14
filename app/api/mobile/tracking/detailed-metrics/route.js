@@ -1,11 +1,36 @@
 import { NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 import { query } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
+
 
 // GET - Get detailed metrics for a user
 export async function GET(request) {
   try {
     const searchParams = new URL(request.url).searchParams;
-    const user_id = searchParams.get("user_id");
+    let user_id = null;
+    // Prefer user from Authorization token
+    const authHeader = request.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      try {
+        const { payload } = await jwtVerify(
+          token,
+          new TextEncoder().encode(process.env.JWT_SECRET)
+        );
+        user_id = payload.userId;
+      } catch (jwtError) {
+        return NextResponse.json(
+          { success: false, message: "Invalid token" },
+          { status: 401 }
+        );
+      }
+    }
+    // Fallback to explicit query param for testing
+    if (!user_id) {
+      user_id = searchParams.get("user_id");
+    }
     const start_date = searchParams.get("start_date");
     const end_date = searchParams.get("end_date");
     const metric_type = searchParams.get("metric_type"); // water, sleep, mood, health
@@ -14,9 +39,9 @@ export async function GET(request) {
       return NextResponse.json(
         {
           success: false,
-          message: "User ID is required",
+          message: "Authorization header required or user_id parameter",
         },
-        { status: 400 }
+        { status: 401 }
       );
     }
 

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(request) {
   try {
     const searchParams = new URL(request.url).searchParams;
@@ -54,12 +57,14 @@ export async function GET(request) {
       }
     }
 
-    // Get user profile data
+    // Get user profile data with all fields
     const [userProfile] = await query(
       `SELECT 
         id, name, email, phone, date_of_birth, gender, 
         height, weight, blood_type, emergency_contact_name, 
-        emergency_contact_phone, is_active, created_at, updated_at
+        emergency_contact_phone, is_active, created_at, updated_at,
+        wellness_program_joined, wellness_join_date, activity_level, fitness_goal,
+        ktp_number, address, insurance, insurance_card_number, insurance_type
       FROM mobile_users WHERE id = ?`,
       [actualUserId]
     );
@@ -72,6 +77,26 @@ export async function GET(request) {
         },
         { status: 404 }
       );
+    }
+
+    // Format date_of_birth to remove time part
+    if (userProfile.date_of_birth) {
+      // Handle different date formats
+      const dateStr = userProfile.date_of_birth.toString();
+      
+      try {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          userProfile.date_of_birth = `${year}-${month}-${day}`;
+        } else {
+          userProfile.date_of_birth = dateStr;
+        }
+      } catch (error) {
+        userProfile.date_of_birth = dateStr;
+      }
     }
 
     return NextResponse.json(

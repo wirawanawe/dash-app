@@ -40,7 +40,7 @@ import {
   FaLungs,
   FaTachometerAlt,
   FaUserCheck,
-  FaUserX,
+  FaUserTimes,
   FaKey,
   FaLock,
   FaUnlock,
@@ -48,19 +48,16 @@ import {
   FaServer,
   FaDatabase,
   FaNetworkWired,
-  FaShield,
   FaUserShield,
   FaUserTie,
   FaUserCog,
   FaUserEdit,
   FaUserPlus,
   FaUserMinus,
-  FaUserTimes,
   FaUserClock,
   FaUserGraduate,
   FaUserInjured,
   FaUserNurse,
-  FaUserDoctor,
   FaUserSecret,
   FaUserAstronaut,
   FaUserNinja,
@@ -128,7 +125,7 @@ export default function UserDetailModal({ user, onClose }) {
       </span>
     ) : (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-        <FaUserX className="h-3 w-3 mr-1" />
+        <FaUserTimes className="h-3 w-3 mr-1" />
         Tidak Aktif
       </span>
     );
@@ -564,7 +561,7 @@ export default function UserDetailModal({ user, onClose }) {
               {/* Permissions Information */}
               <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200">
                 <div className="flex items-center mb-6">
-                  <FaShield className="text-yellow-600 mr-3 text-xl" />
+                  <FaShieldAlt className="text-yellow-600 mr-3 text-xl" />
                   <h3 className="text-xl font-semibold text-gray-900">Hak Akses & Permissions</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -602,7 +599,7 @@ export default function UserDetailModal({ user, onClose }) {
                       {user.role === 'DOCTOR' && (
                         <>
                           <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                            <FaUserDoctor className="text-purple-600 mr-2" />
+                            <FaUserMd className="text-purple-600 mr-2" />
                             <span className="text-sm font-medium text-gray-700">Patient Management</span>
                           </div>
                           <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-200">

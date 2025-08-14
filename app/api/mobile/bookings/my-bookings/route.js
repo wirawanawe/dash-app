@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET /api/mobile/bookings/my-bookings - get user's own bookings
 export async function GET(request) {
   try {

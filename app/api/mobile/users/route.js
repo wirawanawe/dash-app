@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { query, rawQuery } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,39 +16,40 @@ export async function GET(request) {
     let params = [];
 
     if (search) {
-      whereClause = 'WHERE name LIKE ? OR email LIKE ?';
+      whereClause = 'WHERE mu.name LIKE ? OR mu.email LIKE ?';
       params = [`%${search}%`, `%${search}%`];
     }
 
     // Get users from mobile_users table only (since it has wellness data)
-    const countSql = `SELECT COUNT(*) as total FROM mobile_users ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as total FROM mobile_users mu ${whereClause}`;
     const countResult = await query(countSql, params);
     const total = countResult[0].total;
 
-    // Get users with wellness data from mobile_users table
+    // Get users with wellness data from mobile_users table and join with health_data for height/weight
     const sql = `
       SELECT 
-        id,
-        name,
-        email,
-        phone,
-        date_of_birth,
-        gender,
-        height,
-        weight,
-        blood_type,
-        emergency_contact_name,
-        emergency_contact_phone,
-        is_active,
-        wellness_program_joined,
-        wellness_join_date,
-        activity_level,
-        fitness_goal,
-        created_at,
-        updated_at
-      FROM mobile_users 
+        mu.id,
+        mu.name,
+        mu.email,
+        mu.phone,
+        mu.date_of_birth,
+        mu.gender,
+        mu.emergency_contact_name,
+        mu.emergency_contact_phone,
+        mu.is_active,
+        mu.wellness_program_joined,
+        mu.wellness_join_date,
+        mu.activity_level,
+        mu.fitness_goal,
+        mu.created_at,
+        mu.updated_at,
+        MAX(CASE WHEN hd.data_type = 'height' THEN hd.value END) as height,
+        MAX(CASE WHEN hd.data_type = 'weight' THEN hd.value END) as weight
+      FROM mobile_users mu
+      LEFT JOIN health_data hd ON mu.id = hd.user_id AND hd.data_type IN ('height', 'weight')
       ${whereClause}
-      ORDER BY created_at DESC 
+      GROUP BY mu.id
+      ORDER BY mu.created_at DESC 
       LIMIT ? OFFSET ?
     `;
 
@@ -94,7 +98,6 @@ export async function POST(request) {
       gender,
       height,
       weight,
-      blood_type,
       emergency_contact_name,
       emergency_contact_phone
     } = body;
@@ -120,23 +123,40 @@ export async function POST(request) {
       );
     }
 
-    // Insert new user
+    // Insert new user (without height and weight - these go to health_data table)
     const insertSql = `
       INSERT INTO mobile_users (
         name, email, phone, password, date_of_birth, gender,
-        height, weight, blood_type, emergency_contact_name, emergency_contact_phone
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        emergency_contact_name, emergency_contact_phone
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await query(insertSql, [
       name, email, phone, password, date_of_birth, gender,
-      height, weight, blood_type, emergency_contact_name, emergency_contact_phone
+      emergency_contact_name, emergency_contact_phone
     ]);
+
+    const userId = result.insertId;
+
+    // Insert height and weight into health_data table if provided
+    if (height && height > 0) {
+      await query(
+        'INSERT INTO health_data (user_id, data_type, value, unit, measured_at, source) VALUES (?, ?, ?, ?, NOW(), ?)',
+        [userId, 'height', height, 'cm', 'manual']
+      );
+    }
+
+    if (weight && weight > 0) {
+      await query(
+        'INSERT INTO health_data (user_id, data_type, value, unit, measured_at, source) VALUES (?, ?, ?, ?, NOW(), ?)',
+        [userId, 'weight', weight, 'kg', 'manual']
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: 'User created successfully',
-      userId: result.insertId
+      userId: userId
     });
 
   } catch (error) {

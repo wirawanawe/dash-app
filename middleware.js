@@ -5,9 +5,27 @@ const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes (increased from 1 minute)
 const MAX_REQUESTS_PER_WINDOW = 500; // 500 requests per 15 minutes (increased from 100 per minute)
 
+// Clean up old rate limit entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, requests] of rateLimitStore.entries()) {
+    const validRequests = requests.filter(time => time > now - RATE_LIMIT_WINDOW);
+    if (validRequests.length === 0) {
+      rateLimitStore.delete(key);
+    } else {
+      rateLimitStore.set(key, validRequests);
+    }
+  }
+}, 5 * 60 * 1000); // Clean up every 5 minutes
+
 // Specific rate limits for different endpoint types
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const RATE_LIMITS = {
-  auth: { window: 15 * 60 * 1000, max: 10 }, // 10 auth requests per 15 minutes
+  auth: { 
+    window: 15 * 60 * 1000, 
+    max: isDevelopment ? 100 : 20 // Higher limit for development
+  },
   tracking: { window: 15 * 60 * 1000, max: 1000 }, // 1000 tracking requests per 15 minutes
   dashboard: { window: 5 * 60 * 1000, max: 200 }, // 200 dashboard requests per 5 minutes
   search: { window: 60 * 1000, max: 50 }, // 50 search requests per minute
@@ -62,8 +80,13 @@ function checkRateLimit(ip, endpointType) {
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   
-  // Debug logging
-  console.log(`🔍 Middleware: Processing ${pathname}`);
+  // Development endpoint to clear rate limits
+  if (pathname === '/api/clear-rate-limit' && process.env.NODE_ENV === 'development') {
+    // Clear the rate limit store
+    rateLimitStore.clear();
+    console.log('🧹 Rate limit store cleared for development');
+    return NextResponse.next();
+  }
   
   // Apply rate limiting to API routes
   if (pathname.startsWith('/api/')) {
@@ -71,18 +94,18 @@ export function middleware(request) {
     const endpointType = getEndpointType(pathname);
     const rateLimitResult = checkRateLimit(clientIP, endpointType);
     
-    console.log(`📊 Rate limit check for ${pathname}: ${rateLimitResult.allowed ? 'ALLOWED' : 'BLOCKED'}, Remaining: ${rateLimitResult.remaining}`);
-    
     if (!rateLimitResult.allowed) {
       const resetTime = new Date(rateLimitResult.resetTime).toISOString();
-      console.warn(`🚨 Rate limit exceeded for IP: ${clientIP}, Endpoint: ${pathname}, Type: ${endpointType}`);
+      
+      // Calculate retry after time, ensure it's at least 1 second
+      const retryAfterSeconds = Math.max(1, Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000));
       
       return NextResponse.json(
         { 
           success: false,
           message: "Terlalu banyak permintaan. Silakan tunggu beberapa menit dan coba lagi.",
           error: "RATE_LIMIT_EXCEEDED",
-          retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000),
+          retryAfter: retryAfterSeconds,
           type: "RATE_LIMIT"
         },
         { 
@@ -91,16 +114,13 @@ export function middleware(request) {
             'X-RateLimit-Limit': RATE_LIMITS[endpointType].max.toString(),
             'X-RateLimit-Remaining': '0',
             'X-RateLimit-Reset': resetTime,
-            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+            'Retry-After': retryAfterSeconds.toString()
           }
         }
       );
     }
     
-    // Log when approaching rate limit
-    if (rateLimitResult.remaining <= 10) {
-      console.warn(`⚠️ Rate limit approaching for IP: ${clientIP}, Endpoint: ${pathname}, Remaining: ${rateLimitResult.remaining}`);
-    }
+
   }
 
   // Authentication check for protected routes

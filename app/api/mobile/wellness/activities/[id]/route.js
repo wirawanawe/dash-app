@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request, { params }) {
   try {
     // Get authorization header
@@ -35,19 +37,20 @@ export async function GET(request, { params }) {
         wa.title,
         wa.description,
         wa.category,
-        wa.duration,
-        wa.calories_burn,
+        wa.duration_minutes,
         wa.difficulty,
+        wa.points,
+        wa.is_active,
         wa.created_at,
         CASE WHEN uwa.id IS NOT NULL THEN 'completed' ELSE 'available' END as status,
         uwa.completed_at,
-        uwa.progress
-      FROM wellness_activities wa
+        uwa.duration as user_duration
+      FROM available_wellness_activities wa
       LEFT JOIN user_wellness_activities uwa ON wa.id = uwa.activity_id AND uwa.user_id = ?
       WHERE wa.id = ?
     `;
     
-    const [activityResult] = await query(activityQuery, [userId, activityId]);
+    const activityResult = await query(activityQuery, [userId, activityId]);
     
     if (activityResult.length === 0) {
       return NextResponse.json({

@@ -1,3 +1,4 @@
 {
-  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js"
+  "/api/mobile/wellness-progress/[id]/route": "app/api/mobile/wellness-progress/[id]/route.js",
+  "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js"
 }

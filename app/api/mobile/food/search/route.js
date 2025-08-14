@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query, rawQuery } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET - Search foods
 export async function GET(request) {
   try {

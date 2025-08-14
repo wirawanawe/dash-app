@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // DELETE - Clean up old meal tracking data (older than 24 hours)
 export async function DELETE(request) {
   try {

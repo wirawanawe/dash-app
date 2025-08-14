@@ -20,10 +20,17 @@ export async function POST(request) {
 
     // Hardcoded test user for mobile app testing (fallback)
     if (email === "test@mobile.com" && password === "password123") {
-      // Try to get the user from database first
+      // Try to get the user from database first with health data
       try {
         const [user] = await query(
-          'SELECT id, name, email, phone, date_of_birth, gender, ktp_number, address, insurance, insurance_card_number FROM mobile_users WHERE email = ?',
+          `SELECT mu.id, mu.name, mu.email, mu.phone, mu.date_of_birth, mu.gender, 
+                  mu.ktp_number, mu.address, mu.insurance, mu.insurance_card_number,
+                  MAX(CASE WHEN hd.data_type = 'height' THEN hd.value END) as height,
+                  MAX(CASE WHEN hd.data_type = 'weight' THEN hd.value END) as weight
+           FROM mobile_users mu
+           LEFT JOIN health_data hd ON mu.id = hd.user_id AND hd.data_type IN ('height', 'weight')
+           WHERE mu.email = ?
+           GROUP BY mu.id`,
           [email]
         );
         
@@ -66,7 +73,6 @@ export async function POST(request) {
                   gender: user.gender,
                   height: user.height,
                   weight: user.weight,
-                  blood_type: user.blood_type,
                   ktp_number: user.ktp_number,
                   address: user.address,
                   insurance: user.insurance,
@@ -87,11 +93,16 @@ export async function POST(request) {
 
     // Try database authentication for mobile users
     try {
-      // Cari user di database mobile_users
+      // Cari user di database mobile_users with health data
       let sql = `
-        SELECT id, name, email, password, phone, date_of_birth, gender, is_active, ktp_number, address, insurance, insurance_card_number
-        FROM mobile_users 
-        WHERE email = ?
+        SELECT mu.id, mu.name, mu.email, mu.password, mu.phone, mu.date_of_birth, mu.gender, 
+               mu.is_active, mu.ktp_number, mu.address, mu.insurance, mu.insurance_card_number,
+               MAX(CASE WHEN hd.data_type = 'height' THEN hd.value END) as height,
+               MAX(CASE WHEN hd.data_type = 'weight' THEN hd.value END) as weight
+        FROM mobile_users mu
+        LEFT JOIN health_data hd ON mu.id = hd.user_id AND hd.data_type IN ('height', 'weight')
+        WHERE mu.email = ?
+        GROUP BY mu.id
       `;
       let [user] = await query(sql, [email]);
 
@@ -162,6 +173,8 @@ export async function POST(request) {
         phone: user.phone,
         date_of_birth: user.date_of_birth,
         gender: user.gender,
+        height: user.height,
+        weight: user.weight,
         ktp_number: user.ktp_number,
         address: user.address,
         insurance: user.insurance,

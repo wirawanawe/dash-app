@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function POST(request) {
   const response = NextResponse.json({ message: "Logged out successfully" });
 

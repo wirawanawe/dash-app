@@ -3,6 +3,9 @@ import { query } from "@/lib/db";
 import { jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 
+export const dynamic = 'force-dynamic';
+
+
 export async function PUT(request) {
   try {
     // Get token from cookies instead of authorization header

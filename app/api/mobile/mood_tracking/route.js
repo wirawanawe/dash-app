@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { query, rawQuery } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function GET(request) {
   try {
     // Get authorization header

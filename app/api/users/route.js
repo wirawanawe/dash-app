@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getCachedCount, invalidateTableCache } from "@/lib/cache";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET all users with search and pagination
 export async function GET(request) {
   try {

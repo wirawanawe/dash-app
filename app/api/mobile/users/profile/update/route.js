@@ -21,7 +21,11 @@ export async function PUT(request) {
       ktp_number,
       address,
       insurance,
-      insurance_card_number
+      insurance_card_number,
+      insurance_type,
+      // Mobile app field names
+      insurance_provider,
+      insurance_number
     } = await request.json();
 
     // Validate required fields
@@ -193,14 +197,42 @@ export async function PUT(request) {
       updateValues.push(address);
     }
 
-    if (insurance !== undefined) {
+    // Handle insurance fields - support both formats
+    const finalInsurance = insurance !== undefined ? insurance : insurance_provider;
+    if (finalInsurance !== undefined) {
       updateFields.push('insurance = ?');
-      updateValues.push(insurance);
+      updateValues.push(finalInsurance);
     }
 
-    if (insurance_card_number !== undefined) {
+    const finalInsuranceCardNumber = insurance_card_number !== undefined ? insurance_card_number : insurance_number;
+    if (finalInsuranceCardNumber !== undefined) {
       updateFields.push('insurance_card_number = ?');
-      updateValues.push(insurance_card_number);
+      updateValues.push(finalInsuranceCardNumber);
+    }
+
+    // Handle insurance_type field and auto-update insurance field
+    if (insurance_type !== undefined) {
+      updateFields.push('insurance_type = ?');
+      updateValues.push(insurance_type);
+      
+      // Auto-update insurance field based on insurance_type
+      let insuranceValue = '';
+      switch (insurance_type) {
+        case 'umum':
+          insuranceValue = 'Umum';
+          break;
+        case 'bpjs':
+          insuranceValue = 'BPJS Kesehatan';
+          break;
+        case 'swasta':
+          insuranceValue = 'Asuransi Swasta';
+          break;
+        default:
+          insuranceValue = insurance_type;
+      }
+      
+      updateFields.push('insurance = ?');
+      updateValues.push(insuranceValue);
     }
 
     if (updateFields.length === 0) {
@@ -225,7 +257,7 @@ export async function PUT(request) {
 
     // Get updated user data
     const [updatedUser] = await query(
-      'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, emergency_contact_name, emergency_contact_phone, wellness_program_joined, wellness_join_date, activity_level, fitness_goal, ktp_number, address, insurance, insurance_card_number FROM mobile_users WHERE id = ?',
+      'SELECT id, name, email, phone, date_of_birth, gender, height, weight, blood_type, emergency_contact_name, emergency_contact_phone, wellness_program_joined, wellness_join_date, activity_level, fitness_goal, ktp_number, address, insurance, insurance_card_number, insurance_type FROM mobile_users WHERE id = ?',
       [actualUserId]
     );
 

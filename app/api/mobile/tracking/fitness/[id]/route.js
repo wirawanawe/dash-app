@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { jwtVerify } from "jose";
 
+export const dynamic = 'force-dynamic';
+
+
 // Function to get user from token
 async function getUserFromToken(request) {
   // Try to get token from Authorization header first

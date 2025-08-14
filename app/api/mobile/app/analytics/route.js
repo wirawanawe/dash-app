@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET - Get app analytics
 export async function GET(request) {
   try {
@@ -75,7 +78,7 @@ export async function GET(request) {
         'wellness_activities' as activity_type,
         COUNT(*) as total_entries,
         COUNT(DISTINCT user_id) as unique_users
-      FROM wellness_activities
+      FROM available_wellness_activities
       WHERE created_at BETWEEN ? AND ?
       UNION ALL
       SELECT 
@@ -109,7 +112,7 @@ export async function GET(request) {
         UNION ALL
         SELECT user_id, created_at FROM fitness_tracking WHERE created_at BETWEEN ? AND ?
         UNION ALL
-        SELECT user_id, created_at FROM wellness_activities WHERE created_at BETWEEN ? AND ?
+        SELECT user_id, created_at FROM available_wellness_activities WHERE created_at BETWEEN ? AND ?
         UNION ALL
         SELECT user_id, created_at FROM user_missions WHERE created_at BETWEEN ? AND ?
       ) all_activities

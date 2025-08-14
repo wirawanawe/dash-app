@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getMobileUserFromRequest } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
+
 // GET - Get today's fitness summary
 export async function GET(request) {
   try {
