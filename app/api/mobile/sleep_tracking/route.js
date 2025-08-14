@@ -3,74 +3,66 @@ import { query, rawQuery } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 10;
+    const limit = parseInt(searchParams.get('limit')) || 20;
     const search = searchParams.get('search') || '';
     const quality = searchParams.get('quality') || '';
-    const user_id = searchParams.get('user_id') || '';
-    const sleep_date = searchParams.get('sleep_date') || '';
-    
     const offset = (page - 1) * limit;
 
-    // Build WHERE clause
-    let whereConditions = [];
+    let whereClause = 'WHERE 1=1';
     let params = [];
 
-    if (user_id) {
-      whereConditions.push(`st.user_id = ?`);
-      params.push(user_id);
-    }
-
-    if (sleep_date) {
-      whereConditions.push(`st.sleep_date = ?`);
-      params.push(sleep_date);
-    }
-
     if (search) {
-      whereConditions.push(`(u.name LIKE ? OR u.email LIKE ? OR st.sleep_quality LIKE ?)`);
-      const searchParam = `%${search}%`;
-      params.push(searchParam, searchParam, searchParam);
+      whereClause += ' AND (st.notes LIKE ? OR mu.name LIKE ? OR mu.email LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
-
     if (quality) {
-      whereConditions.push(`st.sleep_quality = ?`);
+      whereClause += ' AND st.sleep_quality = ?';
       params.push(quality);
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
     // Get total count
-    const countQuery = `
-      SELECT COUNT(*) as total
+    const countSql = `
+      SELECT COUNT(*) as total 
       FROM sleep_tracking st
-      LEFT JOIN mobile_users u ON st.user_id = u.id
+      LEFT JOIN mobile_users mu ON st.user_id = mu.id
       ${whereClause}
     `;
+    const countResult = await query(countSql, params);
+    const total = countResult[0].total;
 
-    const countResult = await query(countQuery, params);
-    const total = countResult[0]?.total || 0;
-
-    // Get paginated data
-    const dataQuery = `
+    // Get sleep data with pagination
+    const sql = `
       SELECT 
-        st.*,
-        FLOOR(st.sleep_duration_minutes / 60) as sleep_hours,
-        MOD(st.sleep_duration_minutes, 60) as sleep_minutes,
-        u.name as user_name,
-        u.email as user_email
+        st.id,
+        st.user_id,
+        st.sleep_date,
+        st.bedtime,
+        st.wake_time,
+        st.sleep_hours,
+        st.sleep_duration_minutes,
+        st.sleep_quality,
+        st.deep_sleep_hours,
+        st.rem_sleep_hours,
+        st.light_sleep_hours,
+        st.sleep_efficiency,
+        st.notes,
+        st.created_at,
+        st.updated_at,
+        mu.name as user_name,
+        mu.email as user_email
       FROM sleep_tracking st
-      LEFT JOIN mobile_users u ON st.user_id = u.id
+      LEFT JOIN mobile_users mu ON st.user_id = mu.id
       ${whereClause}
-      ORDER BY st.sleep_date DESC, st.created_at DESC
+      ORDER BY st.sleep_date DESC 
       LIMIT ? OFFSET ?
     `;
 
     // Use raw query to avoid parameter binding issues with LIMIT/OFFSET
-    let finalQuery = dataQuery;
+    let finalQuery = sql;
     
     // Replace parameter placeholders with actual values
     params.forEach((param) => {
@@ -83,31 +75,24 @@ export async function GET(request) {
     
     const sleepData = await rawQuery(finalQuery);
 
-    const totalPages = Math.ceil(total / limit);
-
-    // If filtering by user_id and sleep_date, return just the sleep data array
-    if (user_id && sleep_date) {
-      return NextResponse.json({
-        sleepData
-      });
-    }
-
     return NextResponse.json({
-      sleepData,
+      success: true,
+      sleepData: sleepData,
       pagination: {
         page,
         limit,
         total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+        totalPages: Math.ceil(total / limit)
       }
     });
-
   } catch (error) {
     console.error('Error fetching sleep tracking data:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { 
+        success: false, 
+        message: 'Failed to fetch sleep tracking data',
+        error: error.message 
+      },
       { status: 500 }
     );
   }
@@ -116,137 +101,84 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log('Sleep tracking POST request body:', body);
-    const { user_id, sleep_date, sleep_hours, sleep_minutes, sleep_quality, bedtime, wake_time, notes } = body;
-
-    // Validate required fields
-    if (!user_id || !sleep_date || sleep_hours === undefined || sleep_minutes === undefined || !sleep_quality) {
-      return NextResponse.json(
-        { message: 'User ID, sleep date, sleep hours, sleep minutes, and sleep quality are required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if user exists
-    console.log('Checking if user exists with ID:', user_id);
-    const userExists = await query('SELECT id FROM mobile_users WHERE id = ?', [user_id]);
-    console.log('User exists result:', userExists);
-    if (userExists.length === 0) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if sleep tracking data already exists for this user and date
-    console.log('Checking for existing sleep data for user:', user_id, 'date:', sleep_date);
-    const existingSleepData = await query('SELECT id FROM sleep_tracking WHERE user_id = ? AND sleep_date = ?', [user_id, sleep_date]);
-    console.log('Existing sleep data result:', existingSleepData);
-    
-    if (existingSleepData.length > 0) {
-      return NextResponse.json(
-        { message: 'Sleep tracking data already exists for this date. Please update the existing entry instead.' },
-        { status: 409 }
-      );
-    }
-
-    // Validate sleep quality
-    const validSleepQualities = ['excellent', 'good', 'fair', 'poor', 'very_poor'];
-    if (!validSleepQualities.includes(sleep_quality)) {
-      return NextResponse.json(
-        { message: 'Invalid sleep quality' },
-        { status: 400 }
-      );
-    }
-
-    // Validate sleep hours and minutes
-    if (sleep_hours < 0 || sleep_hours > 24 || sleep_minutes < 0 || sleep_minutes > 59) {
-      return NextResponse.json(
-        { message: 'Invalid sleep duration' },
-        { status: 400 }
-      );
-    }
-
-    // Calculate total sleep duration in minutes
-    const sleepDurationMinutes = (sleep_hours * 60) + sleep_minutes;
-    
-    // Format bedtime and wake_time for MySQL TIME format
-    let formattedBedtime = null;
-    let formattedWakeTime = null;
-    
-    if (bedtime) {
-      // Remove seconds if present and ensure HH:MM format
-      const timeParts = bedtime.split(':');
-      if (timeParts.length >= 2) {
-        formattedBedtime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
-      }
-    }
-    
-    if (wake_time) {
-      // Remove seconds if present and ensure HH:MM format
-      const timeParts = wake_time.split(':');
-      if (timeParts.length >= 2) {
-        formattedWakeTime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}:00`;
-      }
-    }
-
-    // Insert new sleep tracking data
-    const insertQuery = `
-      INSERT INTO sleep_tracking (user_id, sleep_date, sleep_duration_minutes, sleep_quality, bedtime, wake_time, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `;
-
-    console.log('Insert query:', insertQuery);
-    console.log('Insert parameters:', [user_id, sleep_date, sleepDurationMinutes, sleep_quality, formattedBedtime, formattedWakeTime, notes || null]);
-
-    const result = await query(insertQuery, [
+    const {
       user_id,
       sleep_date,
-      sleepDurationMinutes,
+      bedtime,
+      wake_time,
+      sleep_hours,
+      sleep_duration_minutes,
       sleep_quality,
-      formattedBedtime,
-      formattedWakeTime,
+      deep_sleep_hours,
+      rem_sleep_hours,
+      light_sleep_hours,
+      sleep_efficiency,
+      notes
+    } = body;
+
+    // Validate required fields
+    if (!user_id || !sleep_date) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'User ID and sleep date are required' 
+        },
+        { status: 400 }
+      );
+    }
+
+    const sql = `
+      INSERT INTO sleep_tracking (
+        user_id, sleep_date, bedtime, wake_time, sleep_hours, sleep_duration_minutes,
+        sleep_quality, deep_sleep_hours, rem_sleep_hours, light_sleep_hours, 
+        sleep_efficiency, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE
+        bedtime = VALUES(bedtime),
+        wake_time = VALUES(wake_time),
+        sleep_hours = VALUES(sleep_hours),
+        sleep_duration_minutes = VALUES(sleep_duration_minutes),
+        sleep_quality = VALUES(sleep_quality),
+        deep_sleep_hours = VALUES(deep_sleep_hours),
+        rem_sleep_hours = VALUES(rem_sleep_hours),
+        light_sleep_hours = VALUES(light_sleep_hours),
+        sleep_efficiency = VALUES(sleep_efficiency),
+        notes = VALUES(notes),
+        updated_at = NOW()
+    `;
+
+    const result = await query(sql, [
+      user_id,
+      sleep_date,
+      bedtime || null,
+      wake_time || null,
+      sleep_hours || null,
+      sleep_duration_minutes || null,
+      sleep_quality || null,
+      deep_sleep_hours || null,
+      rem_sleep_hours || null,
+      light_sleep_hours || null,
+      sleep_efficiency || null,
       notes || null
     ]);
 
-    // Get the created sleep tracking data with joined data
-    const newSleepData = await query(`
-      SELECT 
-        st.*,
-        FLOOR(st.sleep_duration_minutes / 60) as sleep_hours,
-        MOD(st.sleep_duration_minutes, 60) as sleep_minutes,
-        u.name as user_name,
-        u.email as user_email
-      FROM sleep_tracking st
-      LEFT JOIN mobile_users u ON st.user_id = u.id
-      WHERE st.id = ?
-    `, [result.insertId]);
-
     return NextResponse.json({
+      success: true,
       message: 'Sleep tracking data created successfully',
-      sleepData: newSleepData[0]
-    }, { status: 201 });
-
+      data: {
+        id: result.insertId,
+        user_id,
+        sleep_date
+      }
+    });
   } catch (error) {
     console.error('Error creating sleep tracking data:', error);
-    
-    // Handle specific database errors
-    if (error.message && error.message.includes('Duplicate entry')) {
-      return NextResponse.json(
-        { message: 'Sleep tracking data already exists for this date. Please update the existing entry instead.' },
-        { status: 409 }
-      );
-    }
-    
-    if (error.message && error.message.includes('foreign key constraint')) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
-    }
-    
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { 
+        success: false, 
+        message: 'Failed to create sleep tracking data',
+        error: error.message 
+      },
       { status: 500 }
     );
   }

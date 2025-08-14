@@ -20,6 +20,12 @@ export default function MobileUsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    newUsersThisMonth: 0,
+    genderDistribution: {}
+  });
 
   const fetchUsers = async (page = 1, search = '') => {
     try {
@@ -47,8 +53,24 @@ export default function MobileUsersPage() {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/mobile/users/stats');
+      const data = await response.json();
+
+      if (response.ok) {
+        setStats(data.stats);
+      } else {
+        console.error('Failed to fetch stats:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchStats();
     setIsLoaded(true);
   }, []);
 
@@ -70,6 +92,7 @@ export default function MobileUsersPage() {
       if (data.success) {
         toast.success('User berhasil dihapus');
         fetchUsers();
+        fetchStats();
       } else {
         toast.error(data.error || 'Failed to delete user');
       }
@@ -95,6 +118,7 @@ export default function MobileUsersPage() {
     // Force refresh with a slight delay to ensure API has processed the update
     setTimeout(() => {
       fetchUsers(currentPage, searchTerm);
+      fetchStats();
     }, 100);
   };
 
@@ -114,34 +138,34 @@ export default function MobileUsersPage() {
     );
   };
 
-  const stats = [
+  const statsCards = [
     {
-      label: "Total Users",
-      value: users.length.toString(),
+      label: "Total User",
+      value: stats.totalUsers.toString(),
       icon: Users,
       gradient: "from-blue-500 to-blue-600",
       trend: "+12%",
       isPositive: true
     },
     {
-      label: "Active Users",
-                      value: users.filter(user => user.is_active).length.toString(),
+      label: "Male User",
+      value: (stats.genderDistribution.male || 0).toString(),
       icon: Activity,
       gradient: "from-green-500 to-green-600",
       trend: "Live",
       isPositive: true
     },
     {
-      label: "New This Month",
-      value: "23",
+      label: "Female User",
+      value: (stats.genderDistribution.female || 0).toString(),
       icon: TrendingUp,
       gradient: "from-purple-500 to-purple-600",
       trend: "+8%",
       isPositive: true
     },
     {
-      label: "Premium Users",
-      value: "156",
+      label: "New User this Month",
+      value: stats.newUsersThisMonth.toString(),
       icon: Zap,
       gradient: "from-orange-500 to-orange-600",
       trend: "+15%",
@@ -173,7 +197,10 @@ export default function MobileUsersPage() {
             </div>
             <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => fetchUsers()}
+                onClick={() => {
+                  fetchUsers();
+                  fetchStats();
+                }}
                 className="group flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl shadow-lg hover:bg-white/30 hover:scale-105 transition-all duration-300 font-semibold border border-white/30"
               >
                 <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-300" />
@@ -192,7 +219,7 @@ export default function MobileUsersPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
+          {statsCards.map((stat, index) => (
             <div 
               key={index}
               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${

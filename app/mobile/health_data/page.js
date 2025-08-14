@@ -27,6 +27,12 @@ export default function HealthDataPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchHealthData = async () => {
     try {
@@ -60,8 +66,9 @@ export default function HealthDataPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
     fetchHealthData();
-  }, [currentPage, searchTerm, typeFilter]);
+  }, [currentPage, searchTerm, typeFilter, mounted]);
 
   const handleCreate = () => {
     setEditingHealthData(null);

@@ -41,13 +41,19 @@ export default function WellnessProgressPage() {
   const [userProgress, setUserProgress] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/mobile/users?limit=1000');
+      const response = await fetch('/api/mobile/wellness-progress?limit=1000');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -55,14 +61,7 @@ export default function WellnessProgressPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Filter users yang memiliki wellness program atau data wellness
-        const wellnessUsers = data.users.filter(user => 
-          user.wellness_program_joined || 
-          user.wellness_join_date ||
-          user.wellness_activities_count > 0 ||
-          user.user_missions_count > 0
-        );
-        setUsers(wellnessUsers);
+        setUsers(data.users || []);
       } else {
         setError(data.message || 'Gagal memuat data pengguna');
       }
@@ -103,8 +102,9 @@ export default function WellnessProgressPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
     fetchUsers();
-  }, []);
+  }, [mounted]);
 
   useEffect(() => {
     if (selectedUser) {

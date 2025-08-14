@@ -14,6 +14,7 @@ export function useAuth() {
 export function Providers({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -21,7 +22,14 @@ export function Providers({ children }) {
   const [lastActivity, setLastActivity] = useState(Date.now());
   const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hora (60 minutos)
 
+  // Prevent hydration mismatch by only running client-side code after mount
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     // Always check auth on mount - no need to check cookies since they're httpOnly
     checkAuth();
 
@@ -52,7 +60,7 @@ export function Providers({ children }) {
       window.removeEventListener("scroll", resetTimer);
       clearInterval(interval);
     };
-  }, []); // Remove pathname dependency to prevent infinite loops
+  }, [mounted]); // Add mounted dependency
 
   const checkAuth = async () => {
     try {
@@ -124,7 +132,17 @@ export function Providers({ children }) {
     setUser,
     loading,
     logout,
+    mounted,
   };
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <AuthContext.Provider value={value}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>

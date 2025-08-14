@@ -3,6 +3,8 @@ import { query, rawQuery } from '@/lib/db';
 
 export async function GET(request) {
   try {
+    console.log('API endpoint called: /api/mobile/activities-api');
+    
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 20;
@@ -10,46 +12,42 @@ export async function GET(request) {
     const category = searchParams.get('category') || '';
     const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE 1=1';
+    let whereClause = 'WHERE is_active = 1';
     let params = [];
 
     if (search) {
-      whereClause += ' AND (activity_name LIKE ? OR activity_type LIKE ? OR activity_category LIKE ?)';
+      whereClause += ' AND (title LIKE ? OR description LIKE ? OR category LIKE ?)';
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     if (category) {
-      whereClause += ' AND activity_category = ?';
+      whereClause += ' AND category = ?';
       params.push(category);
     }
 
     // Get total count
-    const countSql = `SELECT COUNT(*) as total FROM wellness_activities ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as total FROM available_wellness_activities ${whereClause}`;
     const countResult = await query(countSql, params);
     const total = countResult[0].total;
+
+    console.log('Total activities found:', total);
 
     // Get activities with pagination
     const sql = `
       SELECT 
         id,
-        user_id,
-        activity_id,
-        activity_name,
-        activity_type,
-        activity_category,
-        duration,
-        points_earned,
-        notes,
-        completed_at,
-        mood_before,
-        mood_after,
-        stress_level_before,
-        stress_level_after,
+        title,
+        description,
+        category,
+        duration_minutes,
+        difficulty,
+        points,
+        is_active,
         created_at,
         updated_at
-      FROM wellness_activities 
+      FROM available_wellness_activities 
       ${whereClause}
-      ORDER BY completed_at DESC 
+      ORDER BY created_at DESC 
       LIMIT ? OFFSET ?
     `;
 
@@ -66,6 +64,8 @@ export async function GET(request) {
     finalQuery = finalQuery.replace('?', parseInt(limit, 10)).replace('?', parseInt(offset, 10));
     
     const activities = await rawQuery(finalQuery);
+
+    console.log('Activities fetched:', activities.length);
 
     // Return in the format expected by frontend
     return NextResponse.json({
@@ -95,32 +95,36 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const {
-      user_id,
-      activity_id,
-      activity_name,
-      activity_type,
-      activity_category,
-      duration,
-      points_earned,
-      notes,
-      mood_before,
-      mood_after,
-      stress_level_before,
-      stress_level_after
+      title,
+      description,
+      category,
+      duration_minutes,
+      difficulty,
+      points,
+      is_active = 1
     } = body;
 
+    // Validate required fields
+    if (!title || !description || !category) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Title, description, and category are required'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Insert into available_wellness_activities table
     const sql = `
-      INSERT INTO wellness_activities (
-        user_id, activity_id, activity_name, activity_type, activity_category,
-        duration, points_earned, notes, mood_before, mood_after,
-        stress_level_before, stress_level_after
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO available_wellness_activities (
+        title, description, category, duration_minutes, difficulty, points, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await query(sql, [
-      user_id, activity_id, activity_name, activity_type, activity_category,
-      duration, points_earned, notes, mood_before, mood_after,
-      stress_level_before, stress_level_after
+      title, description, category, duration_minutes || null, 
+      difficulty || null, points || 0, is_active
     ]);
 
     return NextResponse.json({
@@ -146,34 +150,35 @@ export async function PUT(request) {
     const body = await request.json();
     const {
       id,
-      user_id,
-      activity_id,
-      activity_name,
-      activity_type,
-      activity_category,
-      duration,
-      points_earned,
-      notes,
-      mood_before,
-      mood_after,
-      stress_level_before,
-      stress_level_after
+      title,
+      description,
+      category,
+      duration_minutes,
+      difficulty,
+      points,
+      is_active
     } = body;
 
+    if (!id) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Activity ID is required'
+        },
+        { status: 400 }
+      );
+    }
+
     const sql = `
-      UPDATE wellness_activities SET
-        user_id = ?, activity_id = ?, activity_name = ?, activity_type = ?,
-        activity_category = ?, duration = ?, points_earned = ?, notes = ?,
-        mood_before = ?, mood_after = ?, stress_level_before = ?, stress_level_after = ?,
-        updated_at = CURRENT_TIMESTAMP
+      UPDATE available_wellness_activities SET
+        title = ?, description = ?, category = ?, duration_minutes = ?,
+        difficulty = ?, points = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 
     await query(sql, [
-      user_id, activity_id, activity_name, activity_type,
-      activity_category, duration, points_earned, notes,
-      mood_before, mood_after, stress_level_before, stress_level_after,
-      id
+      title, description, category, duration_minutes, 
+      difficulty, points, is_active, id
     ]);
 
     return NextResponse.json({

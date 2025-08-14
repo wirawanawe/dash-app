@@ -27,6 +27,12 @@ export default function SleepTrackingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchSleepData = async () => {
     try {
@@ -60,8 +66,9 @@ export default function SleepTrackingPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
     fetchSleepData();
-  }, [currentPage, searchTerm, qualityFilter]);
+  }, [currentPage, searchTerm, qualityFilter, mounted]);
 
   const handleCreate = () => {
     setEditingSleepData(null);

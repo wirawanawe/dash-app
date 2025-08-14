@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 export default function ActivitiesPage() {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -20,10 +21,18 @@ export default function ActivitiesPage() {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchActivities = async (page = 1, search = '', category = '') => {
     try {
       setLoading(true);
+      setError(null);
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '20',
@@ -31,29 +40,33 @@ export default function ActivitiesPage() {
         ...(category && { category })
       });
 
-      const response = await fetch(`/api/mobile/activities?${params}`);
+      const response = await fetch(`/api/mobile/activities-api?${params}`);
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         setActivities(data.activities || []);
         setTotalPages(data.pagination?.totalPages || 1);
         setCurrentPage(data.pagination?.page || 1);
       } else {
-        console.error('Failed to fetch activities:', data.error);
+        console.error('Failed to fetch activities:', data.error || data.message);
         setActivities([]);
+        setError(data.error || data.message || 'Failed to fetch activities');
       }
     } catch (error) {
       console.error('Error fetching activities:', error);
       setActivities([]);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!mounted) return;
+    
     fetchActivities();
     setIsLoaded(true);
-  }, []);
+  }, [mounted]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -69,7 +82,7 @@ export default function ActivitiesPage() {
     if (!confirm('Are you sure you want to delete this activity?')) return;
 
     try {
-      const response = await fetch(`/api/mobile/activities/${id}`, {
+      const response = await fetch(`/api/mobile/activities-api/${id}`, {
         method: 'DELETE',
       });
       
@@ -144,6 +157,7 @@ export default function ActivitiesPage() {
   };
 
   const activitiesArray = activities || [];
+  console.log('Activities array length:', activitiesArray.length);
   const stats = [
     {
       label: "Total Activities",
@@ -157,7 +171,7 @@ export default function ActivitiesPage() {
       label: "Activities Today",
       value: activitiesArray.filter(activity => {
         const today = new Date().toISOString().split('T')[0];
-        return activity.completed_at?.startsWith(today);
+        return activity.created_at?.startsWith(today);
       }).length.toString(),
       icon: Clock,
       gradient: "from-green-500 to-green-600",
@@ -166,7 +180,7 @@ export default function ActivitiesPage() {
     },
     {
       label: "Total Points Earned",
-      value: activitiesArray.reduce((sum, activity) => sum + (parseInt(activity.points_earned) || 0), 0).toString(),
+      value: activitiesArray.reduce((sum, activity) => sum + (parseInt(activity.points) || 0), 0).toString(),
       icon: Award,
       gradient: "from-purple-500 to-purple-600",
       trend: "+8%",
@@ -175,7 +189,7 @@ export default function ActivitiesPage() {
     {
       label: "Avg Duration",
       value: activitiesArray.length > 0 
-        ? Math.round(activitiesArray.reduce((sum, activity) => sum + (parseInt(activity.duration) || 0), 0) / activitiesArray.length) + ' min'
+        ? Math.round(activitiesArray.reduce((sum, activity) => sum + (parseInt(activity.duration_minutes) || 0), 0) / activitiesArray.length) + ' min'
         : '0 min',
       icon: BarChart3,
       gradient: "from-orange-500 to-orange-600",
@@ -344,6 +358,28 @@ export default function ActivitiesPage() {
                 <p className="text-xl font-medium text-gray-700 mb-2">Memuat Data Aktivitas</p>
                 <p className="text-gray-500">Mengambil informasi terkini...</p>
               </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center h-64">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Activity className="w-8 h-8 text-red-400" />
+                </div>
+                <p className="text-xl font-medium text-gray-700 mb-2">Error Loading Data</p>
+                <p className="text-gray-500">{error}</p>
+                <button 
+                  onClick={() => fetchActivities()}
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : activitiesArray.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Activity className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-xl font-medium text-gray-700 mb-2">Tidak Ada Data Aktivitas</p>
+                <p className="text-gray-500">Belum ada aktivitas yang tersedia</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white rounded-lg">
@@ -378,24 +414,24 @@ export default function ActivitiesPage() {
                               <Activity className="h-5 w-5 text-blue-600" />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{activity.activity_name}</div>
-                              <div className="text-sm text-gray-500">{activity.activity_type}</div>
+                              <div className="text-sm font-medium text-gray-900">{activity.title}</div>
+                              <div className="text-sm text-gray-500">{activity.description}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getCategoryBadge(activity.activity_category)}
+                          {getCategoryBadge(activity.category)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {activity.duration} menit
+                          {activity.duration_minutes} menit
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            +{activity.points_earned} pts
+                            +{activity.points} pts
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDate(activity.completed_at)}
+                          {formatDate(activity.created_at)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">

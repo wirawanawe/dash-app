@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   FaCalendarCheck,
   FaStethoscope,
@@ -25,8 +26,20 @@ import { FaShield } from "react-icons/fa6";
 import { useAuth } from "./Providers";
 
 const Sidebar = ({ onClose }) => {
+  const pathname = usePathname();
   const { user } = useAuth();
   const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return null;
+  }
 
   // Role hierarchy: Superadmin > Admin > Doctor > Staff
   const roleHierarchy = {
@@ -92,12 +105,12 @@ const Sidebar = ({ onClose }) => {
           path: "/visits",
           roles: ["SUPERADMIN", "ADMIN", "DOCTOR", "STAFF"],
         },
-        {
-          title: "Pemeriksaan",
-          icon: <FaStethoscope />,
-          path: "/examinations",
-          roles: ["SUPERADMIN", "DOCTOR"],
-        },
+        // {
+        //   title: "Pemeriksaan",
+        //   icon: <FaStethoscope />,
+        //   path: "/examinations",
+        //   roles: ["SUPERADMIN", "DOCTOR"],
+        // },
         {
           title: "Chat Konsultasi",
           icon: <FaComments />,
@@ -134,6 +147,96 @@ const Sidebar = ({ onClose }) => {
       title: "Mobile App",
       icon: <FaMobile />,
       path: "/mobile",
+      submenu: [
+        {
+          title: "Dashboard Mobile",
+          path: "/mobile",
+          description: "Overview dan statistik utama",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Mobile Users",
+          path: "/mobile/users",
+          description: "Kelola pengguna aplikasi mobile",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Database Makanan",
+          path: "/mobile/food",
+          description: "Kelola database makanan dan nutrisi",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Sistem Misi",
+          path: "/mobile/missions",
+          description: "Kelola misi dan reward untuk user",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "User Missions",
+          path: "/mobile/user_missions",
+          description: "Misi yang diambil user",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Activities",
+          path: "/mobile/activities",
+          description: "Kelola aktivitas wellness",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Wellness Progress",
+          path: "/mobile/wellness-progress",
+          description: "Pantau progress program wellness",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Health Data",
+          path: "/mobile/health_data",
+          description: "Data kesehatan pengguna",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Sleep Tracking",
+          path: "/mobile/sleep_tracking",
+          description: "Tracking tidur pengguna",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Mood Tracking",
+          path: "/mobile/mood_tracking",
+          description: "Tracking mood pengguna",
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Chat & Support",
+          path: "/mobile/chat",
+          description: "Chat dan dukungan pengguna",
+          comingSoon: true,
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Education Center",
+          path: "/mobile/education",
+          description: "Pusat edukasi kesehatan",
+          comingSoon: true,
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "News & Updates",
+          path: "/mobile/news",
+          description: "Berita dan update terbaru",
+          comingSoon: true,
+          roles: ["SUPERADMIN", "ADMIN"],
+        },
+        {
+          title: "Health Calculator",
+          path: "/mobile/calculator",
+          description: "Kalkulator kesehatan",
+          comingSoon: true,
+          roles: ["SUPERADMIN", "ADMIN"],
+        }
+      ],
       roles: ["SUPERADMIN", "ADMIN"],
     },
     {
@@ -293,14 +396,30 @@ const Sidebar = ({ onClose }) => {
                     </button>
                     {openSubmenu === item.title && (
                       <ul className="ml-8 mt-2 space-y-1">
-                        {item.submenu.map((subItem, subIndex) => (
+                        {item.submenu
+                          .filter(subItem => subItem.roles && subItem.roles.includes(user?.role))
+                          .map((subItem, subIndex) => (
                           <li key={subIndex}>
                             <Link
                               href={subItem.path}
                               onClick={handleLinkClick}
-                              className="flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
+                              className={`flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px] ${
+                                subItem.comingSoon ? 'opacity-60 cursor-not-allowed' : ''
+                              }`}
                             >
-                              <span className="truncate">{subItem.title}</span>
+                              <div className="flex-1">
+                                <div className="flex items-center">
+                                  <span className="truncate">{subItem.title}</span>
+                                  {subItem.comingSoon && (
+                                    <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-200 rounded-full">
+                                      Soon
+                                    </span>
+                                  )}
+                                </div>
+                                {subItem.description && (
+                                  <p className="text-xs text-gray-300 mt-1 truncate">{subItem.description}</p>
+                                )}
+                              </div>
                             </Link>
                           </li>
                         ))}

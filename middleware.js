@@ -134,14 +134,23 @@ export function middleware(request) {
       pathname.startsWith('/mobile/') ||
       pathname.startsWith('/settings/')) {
     
-    // Check for authentication cookie
-    const authCookie = request.cookies.get('auth-token') || 
-                      request.cookies.get('token') ||
-                      request.headers.get('authorization');
-    
-    if (!authCookie && pathname !== '/login') {
-      // Redirect to login if not authenticated
-      return NextResponse.redirect(new URL('/login', request.url));
+    // Skip authentication for public mobile endpoints
+    if (pathname === '/mobile/activities' || 
+        pathname === '/mobile/wellness/activities/public' ||
+        pathname.startsWith('/mobile/wellness/activities/public/') ||
+        pathname === '/api/mobile/activities-api' ||
+        pathname.startsWith('/api/mobile/activities-api/')) {
+      // Allow public access to these endpoints
+    } else {
+      // Check for authentication cookie
+      const authCookie = request.cookies.get('auth-token') || 
+                        request.cookies.get('token') ||
+                        request.headers.get('authorization');
+      
+      if (!authCookie && pathname !== '/login') {
+        // Redirect to login if not authenticated
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
     }
   }
 

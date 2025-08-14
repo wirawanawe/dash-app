@@ -12,13 +12,15 @@ import {
 
 const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, mounted } = useAuth();
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const dropdownRef = useRef(null);
 
   // Update username whenever user data changes
   useEffect(() => {
+    if (!mounted) return;
+
     if (user && typeof user === "object") {
       // Try several possible fields for the name
       const name = user.name || user.FullName || user.fullName || user.username;
@@ -31,10 +33,12 @@ const Navbar = () => {
     } else {
       setUserName("User");
     }
-  }, [user]);
+  }, [user, mounted]);
 
   // Force refresh user data when component mounts
   useEffect(() => {
+    if (!mounted) return;
+
     const fetchUserData = async () => {
       try {
         const response = await fetch("/api/auth/me");
@@ -48,10 +52,12 @@ const Navbar = () => {
     };
 
     fetchUserData();
-  }, []);
+  }, [mounted]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
+    if (!mounted) return;
+
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
@@ -67,7 +73,23 @@ const Navbar = () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isDropdownOpen]);
+  }, [isDropdownOpen, mounted]);
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <nav className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl font-semibold text-gray-800">PHC Dashboard</h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);

@@ -27,6 +27,12 @@ export default function MoodTrackingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchMoodData = async () => {
     try {
@@ -60,8 +66,9 @@ export default function MoodTrackingPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
     fetchMoodData();
-  }, [currentPage, searchTerm, moodFilter]);
+  }, [currentPage, searchTerm, moodFilter, mounted]);
 
   const handleCreate = () => {
     setEditingMoodData(null);

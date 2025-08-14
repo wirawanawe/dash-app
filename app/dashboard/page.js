@@ -15,7 +15,8 @@ import {
   Zap,
   RefreshCw,
   ChevronRight,
-  Star
+  Star,
+  Clock
 } from 'lucide-react';
 
 
@@ -29,6 +30,16 @@ export default function Dashboard() {
   });
   const [doctorRooms, setDoctorRooms] = useState([]);
   const [upcomingQueue, setUpcomingQueue] = useState([]);
+  const [wellnessActivities, setWellnessActivities] = useState([]);
+  const [wellnessStats, setWellnessStats] = useState({
+    total_activities: 0,
+    active_activities: 0,
+    categories: 0,
+    avg_duration: 0,
+    avg_points: 0,
+    category_distribution: [],
+    difficulty_distribution: []
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -78,6 +89,24 @@ export default function Dashboard() {
       // Process upcoming queue from active visits
       const queue = processUpcomingQueue(activeVisits.data || []);
       setUpcomingQueue(queue);
+
+      // Fetch wellness activities data
+      console.log("Fetching wellness activities...");
+      const wellnessResponse = await fetch('/api/dashboard/wellness-activities?limit=8');
+      console.log("Wellness response status:", wellnessResponse.status);
+      
+      if (wellnessResponse.ok) {
+        const wellnessData = await wellnessResponse.json();
+        console.log("Wellness data:", wellnessData);
+        if (wellnessData.success) {
+          setWellnessActivities(wellnessData.data);
+          setWellnessStats(wellnessData.summary);
+        } else {
+          console.warn("Failed to fetch wellness activities:", wellnessData.message);
+        }
+      } else {
+        console.warn("Failed to fetch wellness activities:", wellnessResponse.status);
+      }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
       setError("Gagal memuat data dashboard: " + err.message);
@@ -694,6 +723,227 @@ export default function Dashboard() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+
+        {/* Wellness Activities Section */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
+                  <Heart className="w-6 h-6 text-white" />
+                </div>
+                Aktivitas Kesehatan & Wellness
+              </h2>
+              <p className="text-gray-600 mt-2">Kelola dan pantau aktivitas kesehatan yang tersedia untuk pengguna mobile</p>
+            </div>
+            <div className="hidden lg:flex items-center text-sm text-gray-500">
+              <Activity className="w-4 h-4 mr-2" />
+              Total: {wellnessStats.total_activities} aktivitas
+            </div>
+          </div>
+
+          {/* Wellness Statistics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg">
+                  <Activity className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-green-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Aktif
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {wellnessStats.total_activities}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Total Aktivitas</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {wellnessStats.active_activities} aktif saat ini
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-blue-600">
+                  <Star className="w-4 h-4 mr-1" />
+                  Kategori
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {wellnessStats.categories}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Kategori Aktivitas</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Berbagai jenis aktivitas
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                  <Timer className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-purple-600">
+                  <Clock className="w-4 h-4 mr-1" />
+                  Rata-rata
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {wellnessStats.avg_duration}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Durasi (Menit)</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Rata-rata per aktivitas
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg">
+                  <Star className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-orange-600">
+                  <Zap className="w-4 h-4 mr-1" />
+                  Poin
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {wellnessStats.avg_points}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Poin Rata-rata</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Per aktivitas selesai
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Wellness Activities List */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 border-b border-green-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                    <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
+                      <Heart className="w-5 h-5 text-white" />
+                    </div>
+                    Daftar Aktivitas Wellness
+                  </h3>
+                  <p className="text-gray-600 mt-1">
+                    Aktivitas kesehatan yang tersedia untuk pengguna mobile
+                  </p>
+                </div>
+                <button className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold text-sm">
+                  <ChevronRight className="w-4 h-4 mr-2" />
+                  Lihat Semua
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {wellnessActivities.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Heart className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">Belum Ada Aktivitas</h3>
+                  <p className="text-gray-500">Aktivitas wellness belum ditambahkan ke sistem</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {wellnessActivities.map((activity, index) => (
+                    <div
+                      key={activity.id}
+                      className={`group bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 ${
+                        isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+                      }`}
+                      style={{ animationDelay: `${(index + 8) * 100}ms` }}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h4 className="text-lg font-bold text-gray-900 group-hover:text-green-600 transition-colors mb-2">
+                            {activity.title}
+                          </h4>
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                            {activity.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Kategori
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                            {activity.category}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Durasi
+                          </span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {activity.duration_minutes} menit
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Kesulitan
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                            activity.difficulty === 'easy' || activity.difficulty === 'beginner'
+                              ? 'bg-green-100 text-green-800'
+                              : activity.difficulty === 'medium' || activity.difficulty === 'intermediate'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : activity.difficulty === 'hard' || activity.difficulty === 'advanced'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {activity.difficulty === 'easy' || activity.difficulty === 'beginner' ? 'Mudah' : 
+                             activity.difficulty === 'medium' || activity.difficulty === 'intermediate' ? 'Sedang' : 
+                             activity.difficulty === 'hard' || activity.difficulty === 'advanced' ? 'Sulit' : 
+                             'Tidak ditentukan'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Poin
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                            <Star className="w-3 h-3 mr-1" />
+                            {activity.points}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>ID: {activity.id}</span>
+                          <span>{new Date(activity.created_at).toLocaleDateString('id-ID')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

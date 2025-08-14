@@ -1,34 +1,10 @@
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 import { query, rawQuery } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
-    // Get authorization header
-    const authHeader = request.headers.get("authorization");
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Authorization header required",
-        },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-
-    // Verify JWT token
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(process.env.JWT_SECRET)
-    );
-
-    const userId = payload.userId;
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 20;
@@ -36,18 +12,16 @@ export async function GET(request) {
     const mood = searchParams.get('mood') || '';
     const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE mt.user_id = ?';
-    let params = [userId];
+    let whereClause = 'WHERE 1=1';
+    let params = [];
 
-    if (search || mood) {
-      if (search) {
-        whereClause += ' AND (mt.notes LIKE ? OR mu.name LIKE ?)';
-        params.push(`%${search}%`, `%${search}%`);
-      }
-      if (mood) {
-        whereClause += ' AND mt.mood_level = ?';
-        params.push(mood);
-      }
+    if (search) {
+      whereClause += ' AND (mt.notes LIKE ? OR mu.name LIKE ? OR mu.email LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (mood) {
+      whereClause += ' AND mt.mood_level = ?';
+      params.push(mood);
     }
 
     // Get total count
@@ -66,6 +40,7 @@ export async function GET(request) {
         mt.id,
         mt.user_id,
         mt.mood_level,
+        mt.mood_score,
         mt.stress_level,
         mt.energy_level,
         mt.sleep_quality,
@@ -76,7 +51,8 @@ export async function GET(request) {
         mt.location,
         mt.created_at,
         mt.updated_at,
-        mu.name as user_name
+        mu.name as user_name,
+        mu.email as user_email
       FROM mood_tracking mt
       LEFT JOIN mobile_users mu ON mt.user_id = mu.id
       ${whereClause}
@@ -100,7 +76,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
-      data: moodData,
+      moodData: moodData,
       pagination: {
         page,
         limit,
@@ -111,7 +87,11 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching mood tracking data:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch mood tracking data' },
+      { 
+        success: false, 
+        message: 'Failed to fetch mood tracking data',
+        error: error.message 
+      },
       { status: 500 }
     );
   }
@@ -119,31 +99,11 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    // Get authorization header
-    const authHeader = request.headers.get("authorization");
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Authorization header required",
-        },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-
-    // Verify JWT token
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(process.env.JWT_SECRET)
-    );
-
-    const userId = payload.userId;
     const body = await request.json();
     const {
+      user_id,
       mood_level,
+      mood_score,
       stress_level,
       energy_level,
       sleep_quality,
@@ -155,19 +115,24 @@ export async function POST(request) {
     } = body;
 
     // Validate required fields
-    if (!mood_level) {
+    if (!user_id || !mood_level) {
       return NextResponse.json(
-        { success: false, error: 'Mood level is required' },
+        { 
+          success: false, 
+          message: 'User ID and mood level are required' 
+        },
         { status: 400 }
       );
     }
 
     const sql = `
       INSERT INTO mood_tracking (
-        user_id, mood_level, stress_level, energy_level, sleep_quality, tracking_date, notes, activities, weather, location, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        user_id, mood_level, mood_score, stress_level, energy_level, sleep_quality, 
+        tracking_date, notes, activities, weather, location, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       ON DUPLICATE KEY UPDATE
         mood_level = VALUES(mood_level),
+        mood_score = VALUES(mood_score),
         stress_level = VALUES(stress_level),
         energy_level = VALUES(energy_level),
         sleep_quality = VALUES(sleep_quality),
@@ -179,8 +144,9 @@ export async function POST(request) {
     `;
 
     const result = await query(sql, [
-      userId,
+      user_id,
       mood_level,
+      mood_score || null,
       stress_level || null,
       energy_level || null,
       sleep_quality || null,
@@ -196,7 +162,7 @@ export async function POST(request) {
       message: 'Mood tracking data created successfully',
       data: {
         id: result.insertId,
-        user_id: userId,
+        user_id,
         mood_level,
         tracking_date: tracking_date || new Date().toISOString().split('T')[0]
       }
@@ -204,7 +170,11 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error creating mood tracking data:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to create mood tracking data' },
+      { 
+        success: false, 
+        message: 'Failed to create mood tracking data',
+        error: error.message 
+      },
       { status: 500 }
     );
   }
