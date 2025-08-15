@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { query, rawQuery } from "@/lib/db";
 import { getCachedCount, invalidateTableCache } from "@/lib/cache";
 
 export const dynamic = 'force-dynamic';
@@ -29,14 +29,16 @@ export async function GET(request) {
     let sql = `
       SELECT 
         u.id,
-        u.username,
+        u.name,
         u.email,
-        u.full_name,
         u.role,
+        u.clinic_id,
         u.is_active,
         u.created_at,
-        u.updated_at
+        u.updated_at,
+        c.name as clinic_name
       FROM users u
+      LEFT JOIN clinics c ON u.clinic_id = c.id
       WHERE 1=1
     `;
     
@@ -44,8 +46,8 @@ export async function GET(request) {
 
     // Add search filter
     if (search) {
-      sql += " AND (u.username LIKE ? OR u.email LIKE ? OR u.full_name LIKE ?)";
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      sql += " AND (u.name LIKE ? OR u.email LIKE ?)";
+      params.push(`%${search}%`, `%${search}%`);
     }
 
     // Add role filter
@@ -54,18 +56,17 @@ export async function GET(request) {
       params.push(role);
     }
 
-    sql += " ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
-    params.push(limit, offset);
+    sql += ` ORDER BY u.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
-    const users = await query(sql, params);
+    const users = await rawQuery(sql);
 
     // Get total count using cached COUNT
     let whereClause = "WHERE 1=1";
     let countParams = [];
     
     if (search) {
-      whereClause += " AND (username LIKE ? OR email LIKE ? OR full_name LIKE ?)";
-      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      whereClause += " AND (name LIKE ? OR email LIKE ?)";
+      countParams.push(`%${search}%`, `%${search}%`);
     }
     
     if (role) {
@@ -73,7 +74,7 @@ export async function GET(request) {
       countParams.push(role);
     }
 
-    const total = await getCachedCount('users', whereClause, countParams, query);
+    const total = await getCachedCount('users', whereClause, countParams, rawQuery);
 
     return NextResponse.json({
       success: true,
@@ -105,45 +106,84 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    // Validate required fields
-    if (!body.username || !body.email || !body.password) {
+    // Add detailed logging for debugging
+    console.log("🔍 POST /api/users - Request body:", JSON.stringify(body, null, 2));
+    
+    // Validate required fields - check for both null/undefined and empty strings
+    if (!body.name || !body.email || !body.password || 
+        body.name.trim() === '' || body.email.trim() === '' || body.password.trim() === '') {
+      console.log("❌ Validation failed - Missing required fields:", {
+        hasName: !!(body.name && body.name.trim()),
+        hasEmail: !!(body.email && body.email.trim()),
+        hasPassword: !!(body.password && body.password.trim())
+      });
       return NextResponse.json(
-        { success: false, message: "Username, email, dan password wajib diisi" },
+        { success: false, message: "Nama, email, dan password wajib diisi dan tidak boleh kosong" },
         { status: 400 }
       );
     }
 
-    // Check if username or email already exists
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(body.email.trim())) {
+      console.log("❌ Validation failed - Invalid email format:", body.email);
+      return NextResponse.json(
+        { success: false, message: "Format email tidak valid" },
+        { status: 400 }
+      );
+    }
+
+    // Validate password length
+    if (body.password.trim().length < 6) {
+      console.log("❌ Validation failed - Password too short:", body.password.length);
+      return NextResponse.json(
+        { success: false, message: "Password minimal 6 karakter" },
+        { status: 400 }
+      );
+    }
+
+    // Check if name or email already exists
     const existingUser = await query(
-      "SELECT id FROM users WHERE username = ? OR email = ?",
-      [body.username, body.email]
+      `SELECT id FROM users WHERE name = ? OR email = ?`,
+      [body.name.trim(), body.email.trim()]
     );
 
     if (existingUser.length > 0) {
+      console.log("❌ Validation failed - User already exists:", {
+        existingUsers: existingUser.length,
+        name: body.name.trim(),
+        email: body.email.trim()
+      });
       return NextResponse.json(
-        { success: false, message: "Username atau email sudah terdaftar" },
+        { success: false, message: "Nama atau email sudah terdaftar" },
         { status: 400 }
       );
     }
 
+    console.log("✅ Validation passed - Creating new user");
+
+    // Hash password before storing
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.default.hash(body.password.trim(), 10);
+
     const sql = `
-      INSERT INTO users (username, email, password, full_name, role, is_active)
+      INSERT INTO users (name, email, password, role, clinic_id, is_active)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    const params = [
-      body.username,
-      body.email,
-      body.password, // Note: Should be hashed in production
-      body.full_name || body.username,
-      body.role || 'USER',
+    const result = await query(sql, [
+      body.name.trim(),
+      body.email.trim(),
+      hashedPassword,
+      body.role ? body.role.toLowerCase() : 'staff',
+      body.clinic_id || null,
       body.is_active !== undefined ? body.is_active : true
-    ];
-
-    const result = await query(sql, params);
+    ]);
     
     // Invalidate cache after adding new user
     invalidateTableCache('users');
+
+    console.log("✅ User created successfully with ID:", result.insertId);
 
     return NextResponse.json({
       success: true,
@@ -151,7 +191,7 @@ export async function POST(request) {
       data: { id: result.insertId }
     });
   } catch (error) {
-    console.error("Error creating user:", error);
+    console.error("❌ Error creating user:", error);
     return NextResponse.json(
       { 
         success: false,

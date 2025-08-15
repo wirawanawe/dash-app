@@ -94,9 +94,8 @@ export async function POST(request) {
       );
     }
 
-    // Hash password (for now, store as plain text for testing)
-    // In production, use: const hashedPassword = await bcrypt.hash(password, 10);
-    const hashedPassword = password;
+    // Hash password menggunakan bcrypt
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Validate blood_type against ENUM values
     const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];

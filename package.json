@@ -25,7 +25,9 @@
     "seed-chat": "node scripts/seed-chat-data.js",
     "migrate-mobile": "node scripts/migrate-mobile-to-dashboard.js",
     "test-meal-tracking": "node scripts/test-meal-tracking.js",
-    "start-and-test": "node scripts/start-and-test.js"
+    "start-and-test": "node scripts/start-and-test.js",
+    "fix-passwords": "node scripts/fix-password-hashing.js",
+    "verify-passwords": "node scripts/verify-password-hashing.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

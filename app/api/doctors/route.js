@@ -7,6 +7,19 @@ export const dynamic = 'force-dynamic';
 // GET all doctors with polyclinic and clinic information
 export async function GET(request) {
   try {
+    // Get user information from token to check role and clinic_id
+    const token = request.cookies.get("token");
+    let userPayload = null;
+    
+    if (token) {
+      try {
+        const { verifyJwtToken } = await import("@/lib/auth");
+        userPayload = await verifyJwtToken(token.value);
+      } catch (error) {
+        console.error("Error verifying token:", error);
+      }
+    }
+
     const searchParams = new URL(request.url).searchParams;
     const search = searchParams.get("search") || "";
     const polyclinicId = searchParams.get("polyclinic_id");
@@ -35,6 +48,12 @@ export async function GET(request) {
     let params = [];
     let conditions = [];
 
+    // Add clinic filter if user is not superadmin and has clinic_id
+    if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+      conditions.push("d.clinic_id = ?");
+      params.push(userPayload.clinic_id);
+    }
+
     if (search) {
       conditions.push("(d.name LIKE ? OR d.specialist LIKE ? OR p.name LIKE ?)");
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
@@ -61,22 +80,13 @@ export async function GET(request) {
     return NextResponse.json(doctors);
   } catch (error) {
     console.error("Error fetching doctors:", error);
-
-    // Provide more specific error details
-    let errorMessage = "Gagal mengambil data dokter";
-    let errorCode = 500;
-
-    if (error.code === "ER_ACCESS_DENIED_ERROR") {
-      errorMessage = "Database connection failed: Access denied";
-    } else if (error.code === "ECONNREFUSED") {
-      errorMessage = "Database connection failed: Connection refused";
-    } else if (error.code === "ER_NO_SUCH_TABLE") {
-      errorMessage = "Database error: Table does not exist";
-    }
-
     return NextResponse.json(
-      { message: errorMessage, code: error.code, sqlMessage: error.sqlMessage },
-      { status: errorCode }
+      { 
+        success: false,
+        message: "Gagal mengambil data dokter",
+        error: error.message 
+      },
+      { status: 500 }
     );
   }
 }

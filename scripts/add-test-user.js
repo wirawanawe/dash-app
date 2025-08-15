@@ -1,4 +1,5 @@
 import { query } from '../lib/db.js';
+import bcrypt from 'bcryptjs';
 
 async function addTestUser() {
   try {
@@ -12,6 +13,9 @@ async function addTestUser() {
       return;
     }
     
+    // Hash password untuk test user
+    const hashedPassword = await bcrypt.hash('hashedpassword123', 10);
+    
     // Add test user
     const result = await query(`
       INSERT INTO mobile_users (id, name, email, phone, password, is_active) 
@@ -21,7 +25,7 @@ async function addTestUser() {
       'Test User', 
       'test@example.com', 
       '+1234567890', 
-      'hashedpassword123', 
+      hashedPassword, 
       true
     ]);
     

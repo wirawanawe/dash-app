@@ -127,9 +127,8 @@ export async function POST(request) {
         );
       }
 
-      // Verifikasi password (for now, assume plain text for testing)
-      // In production, you should use bcrypt.compare(password, user.password)
-      const isPasswordValid = password === user.password; // Temporary for testing
+      // Verifikasi password menggunakan bcrypt
+      const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
         return NextResponse.json(

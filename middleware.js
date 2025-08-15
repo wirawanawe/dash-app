@@ -77,7 +77,7 @@ function checkRateLimit(ip, endpointType) {
   };
 }
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
   // Development endpoint to clear rate limits
@@ -149,6 +149,39 @@ export function middleware(request) {
       
       if (!authCookie && pathname !== '/login') {
         // Redirect to login if not authenticated
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    }
+  }
+
+  // Role-based access control for mobile app routes
+  if (pathname.startsWith('/mobile') && !pathname.startsWith('/api/mobile/')) {
+    // Skip role check for public mobile endpoints
+    if (pathname === '/mobile/activities' || 
+        pathname === '/mobile/wellness/activities/public' ||
+        pathname.startsWith('/mobile/wellness/activities/public/')) {
+      // Allow public access to these endpoints
+    } else {
+      // Check user role for mobile app access
+      const token = request.cookies.get('token');
+      if (token) {
+        try {
+          // Import and verify JWT token
+          const { verifyJwtToken } = await import('./lib/auth.js');
+          const userPayload = await verifyJwtToken(token.value);
+          
+          // Only allow SUPERADMIN to access mobile app management
+          if (userPayload && userPayload.role !== 'SUPERADMIN') {
+            // Redirect non-superadmin users to dashboard
+            return NextResponse.redirect(new URL('/dashboard', request.url));
+          }
+        } catch (error) {
+          console.error('Error verifying token in middleware:', error);
+          // If token verification fails, redirect to login
+          return NextResponse.redirect(new URL('/login', request.url));
+        }
+      } else {
+        // No token found, redirect to login
         return NextResponse.redirect(new URL('/login', request.url));
       }
     }

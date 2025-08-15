@@ -56,6 +56,17 @@ export default function RoleManagementPage() {
 
   const handleCreateUser = async (userData) => {
     try {
+      // Validate data before sending
+      if (!userData.name || !userData.email || !userData.password || !userData.role) {
+        toast.error("Semua field harus diisi");
+        return;
+      }
+
+      if (userData.password.length < 6) {
+        toast.error("Password minimal 6 karakter");
+        return;
+      }
+
       const response = await fetch("/api/users", {
         method: "POST",
         headers: {
@@ -71,11 +82,12 @@ export default function RoleManagementPage() {
         setShowCreateModal(false);
         fetchUsers();
       } else {
-        toast.error(data.error || "Gagal membuat pengguna");
+        console.error("❌ API Error:", data);
+        toast.error(data.message || "Gagal membuat pengguna");
       }
     } catch (error) {
-      console.error("Error creating user:", error);
-      toast.error("Gagal membuat pengguna");
+      console.error("❌ Error creating user:", error);
+      toast.error("Gagal membuat pengguna - koneksi error");
     }
   };
 
@@ -326,6 +338,114 @@ export default function RoleManagementPage() {
           </div>
         </div>
       </div>
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Tambah User Baru
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Buat user baru untuk sistem PHC
+              </p>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const userData = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                role: formData.get('role')
+              };
+              handleCreateUser(userData);
+            }}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Nama Lengkap
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Masukkan nama lengkap"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Masukkan email"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    minLength={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Minimal 6 karakter"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                    Role
+                  </label>
+                  <select
+                    id="role"
+                    name="role"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  >
+                    <option value="">Pilih role</option>
+                    {roles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Tambah User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Role Modal */}
       {editingUser && (

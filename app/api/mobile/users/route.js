@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query, rawQuery } from '@/lib/db';
+import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,6 +124,9 @@ export async function POST(request) {
       );
     }
 
+    // Hash password sebelum disimpan
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Insert new user (without height and weight - these go to health_data table)
     const insertSql = `
       INSERT INTO mobile_users (
@@ -132,7 +136,7 @@ export async function POST(request) {
     `;
 
     const result = await query(insertSql, [
-      name, email, phone, password, date_of_birth, gender,
+      name, email, phone, hashedPassword, date_of_birth, gender,
       emergency_contact_name, emergency_contact_phone
     ]);
 

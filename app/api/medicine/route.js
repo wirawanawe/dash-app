@@ -9,6 +9,19 @@ export async function GET(request) {
   try {
     console.log('Medicine API called');
     
+    // Get user information from token to check role and clinic_id
+    const token = request.cookies.get("token");
+    let userPayload = null;
+    
+    if (token) {
+      try {
+        const { verifyJwtToken } = await import("@/lib/auth");
+        userPayload = await verifyJwtToken(token.value);
+      } catch (error) {
+        console.error("Error verifying token:", error);
+      }
+    }
+    
     // Parse search parameters
     const { searchParams } = new URL(request.url);
     const clinicId = searchParams.get('clinic_id');
@@ -18,6 +31,14 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     console.log('Search params:', { clinicId, search, page, limit, offset });
+
+    // Determine which clinic_id to use for filtering
+    let effectiveClinicId = clinicId;
+    
+    // If user is not superadmin and has clinic_id, use their clinic_id
+    if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+      effectiveClinicId = userPayload.clinic_id;
+    }
 
     // Build query with filters
     let medicinesQuery = `
@@ -56,10 +77,10 @@ export async function GET(request) {
       WHERE m.GCRecord = 0
     `;
 
-    // Add clinic filter if provided
-    if (clinicId && clinicId !== '') {
-      medicinesQuery += ` AND m.clinic_id = ${parseInt(clinicId)}`;
-      countQuery += ` AND m.clinic_id = ${parseInt(clinicId)}`;
+    // Add clinic filter if provided or if user has clinic_id
+    if (effectiveClinicId && effectiveClinicId !== '') {
+      medicinesQuery += ` AND m.clinic_id = ${parseInt(effectiveClinicId)}`;
+      countQuery += ` AND m.clinic_id = ${parseInt(effectiveClinicId)}`;
     }
 
     // Add search filter if provided
@@ -70,16 +91,20 @@ export async function GET(request) {
     }
 
     // Add ordering and pagination
-    medicinesQuery += ` ORDER BY m.ElementDetailKey DESC LIMIT ${limit} OFFSET ${offset}`;
+    medicinesQuery += ` ORDER BY m.Detail ASC LIMIT ${limit} OFFSET ${offset}`;
 
-    console.log('Medicines query:', medicinesQuery);
-    console.log('Count query:', countQuery);
+    console.log('Executing medicines query:', medicinesQuery);
+    console.log('Executing count query:', countQuery);
 
-    const medicines = await query(medicinesQuery);
-    console.log('Medicines result count:', medicines.length);
+    const [medicines, countResult] = await Promise.all([
+      query(medicinesQuery),
+      query(countQuery)
+    ]);
 
-    const totalCount = await query(countQuery);
-    const total = totalCount[0]?.total || 0;
+    const total = countResult[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    console.log(`Found ${medicines.length} medicines out of ${total} total`);
 
     return NextResponse.json({
       success: true,
@@ -88,21 +113,19 @@ export async function GET(request) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
       }
     });
 
   } catch (error) {
-    console.error('Error fetching medicines:', error);
-    console.error('Error stack:', error.stack);
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Failed to fetch medicines',
-        error: error.message
-      },
-      { status: 500 }
-    );
+    console.error('Error in medicine API:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Gagal mengambil data obat',
+      error: error.message
+    }, { status: 500 });
   }
 }
 

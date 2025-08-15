@@ -29,6 +29,19 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 // GET all visits from external API
 export async function GET(request) {
   try {
+    // Get user information from token to check role and clinic_id
+    const token = request.cookies.get("token");
+    let userPayload = null;
+    
+    if (token) {
+      try {
+        const { verifyJwtToken } = await import("@/lib/auth");
+        userPayload = await verifyJwtToken(token.value);
+      } catch (error) {
+        console.error("Error verifying token:", error);
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const searchDate = searchParams.get("searchDate") || "";
@@ -60,6 +73,11 @@ export async function GET(request) {
       apiUrl += `&tglakhir=${encodeURIComponent(endDate)}`;
     }
 
+    // Add clinic_id filter if user is not superadmin and has clinic_id
+    if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+      apiUrl += `&clinic_id=${encodeURIComponent(userPayload.clinic_id)}`;
+    }
+
     const response = await fetchWithRetry(apiUrl, {
       method: "GET",
       headers: {
@@ -86,179 +104,60 @@ export async function GET(request) {
 
     // Transform the external API data to match our expected format
     let visits = rawVisits.map((visit) => ({
-      id: visit.No_Kunjungan,
-      complaint: visit.Rekam_Medis?.[0]?.Subject || "-",
-      treatment: visit.Rekam_Medis?.[0]?.Planning || "-",
-      notes: visit.Rekam_Medis?.[0]?.Object || "-",
-      assessment: visit.Rekam_Medis?.[0]?.Assesment || "-",
-      status: visit.Keluar?.[0]?.Status ? "Selesai" : "Aktif",
-      room: visit.Unit_Rawat?.[0]?.Nama_Unit || "-",
-      visitDate: visit.Tgl_Kunjungan || null,
-      createdAt: visit.audittrail?.CreatedDate || null,
-      updatedAt: visit.audittrail?.LastModifiedDate || null,
-      patient: {
-        id: visit.Pasien?.[0]?.No_MR || "",
-        name: visit.Pasien?.[0]?.Nama_Pasien || "-",
-        mrNumber: visit.Pasien?.[0]?.No_MR || "",
-        nip: visit.Pasien?.[0]?.NIP || "",
-        employeeName: visit.Pasien?.[0]?.Nama_Karyawan || "",
-      },
-      doctor: {
-        id: visit.Dokter?.[0]?.id || "",
-        name: visit.Dokter?.[0]?.Nama_Dokter || "-",
-      },
-      insurance: {
-        id: visit.Penjamin?.[0]?.id || "",
-        name: visit.Penjamin?.[0]?.Nama_Penjamin || "-",
-      },
-      company: {
-        id: visit.Perusahaan?.[0]?.id || "",
-        name: visit.Perusahaan?.[0]?.Nama_Perusahaan || "-",
-      },
-      physicalExam: {
-        weight: visit.Pemeriksaan_Fisik?.[0]?.Berat_Badan || "0",
-        height: visit.Pemeriksaan_Fisik?.[0]?.Tinggi_Badan || "0",
-        waistCircumference:
-          visit.Pemeriksaan_Fisik?.[0]?.Lingkar_Pinggang || "0",
-        temperature: visit.Pemeriksaan_Fisik?.[0]?.Suhu || "0",
-        spO2: visit.Pemeriksaan_Fisik?.[0]?.SpO2 || "0",
-        bloodPressure: {
-          systolic:
-            visit.Pemeriksaan_Fisik?.[0]?.Tekanan_Darah?.[0]?.Sistolik || "0",
-          diastolic:
-            visit.Pemeriksaan_Fisik?.[0]?.Tekanan_Darah?.[0]?.Diastolik || "0",
-        },
-        pulse: visit.Pemeriksaan_Fisik?.[0]?.Nadi || "0",
-        respirationRate: visit.Pemeriksaan_Fisik?.[0]?.Respiration_Rate || "0",
-        eyes: visit.Pemeriksaan_Fisik?.[0]?.Mata || "",
-        ears: visit.Pemeriksaan_Fisik?.[0]?.Telinga || "",
-      },
-      referral: {
-        source: {
-          type: visit.Rujukan_Asal?.[0]?.Jenis || "",
-          referrer: visit.Rujukan_Asal?.[0]?.Nama_Perujuk || "",
-        },
-        destination: {
-          notes: visit.Rujukan_Tujuan?.[0]?.Catatan || "",
-        },
-      },
-      sickLeave: {
-        status: visit.Surat_Sakit?.[0]?.Status || false,
-        days: visit.Surat_Sakit?.[0]?.Jml_Hari || null,
-        startDate: visit.Surat_Sakit?.[0]?.Tgl_Awal || null,
-        endDate: visit.Surat_Sakit?.[0]?.Tgl_Akhir || null,
-      },
-      healthCertificate: visit.Surat_Sehat || false,
-      cancellation: {
-        userId: visit.Batal_Kunjungan?.[0]?.User_ID || null,
-        date: visit.Batal_Kunjungan?.[0]?.Tanggal || null,
-        reason: visit.Batal_Kunjungan?.[0]?.Alasan || null,
-      },
-      examinations: [], // Keep for compatibility
+      id: visit.id || visit.ID,
+      visitDate: visit.visitDate || visit.TANGGAL_KUNJUNGAN,
+      patientName: visit.patientName || visit.NAMA_PASIEN,
+      patientId: visit.patientId || visit.ID_PASIEN,
+      doctorName: visit.doctorName || visit.NAMA_DOKTER,
+      doctorId: visit.doctorId || visit.ID_DOKTER,
+      clinicName: visit.clinicName || visit.NAMA_KLINIK,
+      clinicId: visit.clinicId || visit.ID_KLINIK,
+      status: visit.status || visit.STATUS,
+      complaint: visit.complaint || visit.KELUHAN,
+      diagnosis: visit.diagnosis || visit.DIAGNOSIS,
+      treatment: visit.treatment || visit.PENGOBATAN,
+      notes: visit.notes || visit.CATATAN,
+      room: visit.room || visit.RUANGAN,
+      cost: visit.cost || visit.BIAYA,
+      paymentStatus: visit.paymentStatus || visit.STATUS_PEMBAYARAN,
+      created_at: visit.created_at || visit.CREATED_AT,
+      updated_at: visit.updated_at || visit.UPDATED_AT,
     }));
 
-    // Apply client-side date search filtering
-    if (searchDate) {
-      visits = visits.filter((visit) => {
-        const visitDateStr = visit.visitDate;
-        const searchDateObj = new Date(searchDate);
-
-        // Check if visitDate matches the searchDate
-        if (visitDateStr && visitDateStr !== "1900-01-01 00:00:00") {
-          const visitDate = new Date(visitDateStr);
-          if (!isNaN(visitDate.getTime()) && !isNaN(searchDateObj.getTime())) {
-            // Compare dates (ignore time)
-            const visitDateOnly = new Date(
-              visitDate.getFullYear(),
-              visitDate.getMonth(),
-              visitDate.getDate()
-            );
-            const searchDateOnly = new Date(
-              searchDateObj.getFullYear(),
-              searchDateObj.getMonth(),
-              searchDateObj.getDate()
-            );
-            return visitDateOnly.getTime() === searchDateOnly.getTime();
-          }
-        }
-
-        // If no valid visitDate, check createdAt
-        if (visit.createdAt) {
-          const createdDate = new Date(visit.createdAt);
-          if (
-            !isNaN(createdDate.getTime()) &&
-            !isNaN(searchDateObj.getTime())
-          ) {
-            const createdDateOnly = new Date(
-              createdDate.getFullYear(),
-              createdDate.getMonth(),
-              createdDate.getDate()
-            );
-            const searchDateOnly = new Date(
-              searchDateObj.getFullYear(),
-              searchDateObj.getMonth(),
-              searchDateObj.getDate()
-            );
-            return createdDateOnly.getTime() === searchDateOnly.getTime();
-          }
-        }
-
-        return false;
-      });
+    // Apply additional client-side filtering based on user role and clinic_id
+    if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+      visits = visits.filter(visit => 
+        visit.clinicId == userPayload.clinic_id
+      );
     }
 
-    // Apply client-side date filtering if the external API doesn't support it
+    // Apply date filtering
     if (startDate || endDate) {
       visits = visits.filter((visit) => {
         const visitDateStr = visit.visitDate;
-
-        // Skip empty, null, or default dates
-        if (!visitDateStr || visitDateStr === "1900-01-01 00:00:00") {
-          // If no specific date is available, use createdAt for filtering
-          if (visit.createdAt) {
-            const createdDate = new Date(visit.createdAt);
-            const startDateObj = startDate ? new Date(startDate) : null;
-            const endDateObj = endDate ? new Date(endDate) : null;
-
-            if (isNaN(createdDate.getTime())) return true;
-
-            let matchesStart = true;
-            let matchesEnd = true;
-
-            if (startDateObj && !isNaN(startDateObj.getTime())) {
-              matchesStart = createdDate >= startDateObj;
-            }
-
-            if (endDateObj && !isNaN(endDateObj.getTime())) {
-              const endDatePlusOne = new Date(endDateObj);
-              endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
-              matchesEnd = createdDate < endDatePlusOne;
-            }
-
-            return matchesStart && matchesEnd;
-          }
-          return true; // Include if no date information available
-        }
+        if (!visitDateStr) return false;
 
         const visitDate = new Date(visitDateStr);
-        const startDateObj = startDate ? new Date(startDate) : null;
-        const endDateObj = endDate ? new Date(endDate) : null;
-
-        // Skip invalid dates
-        if (isNaN(visitDate.getTime())) return true;
+        if (isNaN(visitDate.getTime())) return false;
 
         let matchesStart = true;
         let matchesEnd = true;
 
-        if (startDateObj && !isNaN(startDateObj.getTime())) {
-          matchesStart = visitDate >= startDateObj;
+        if (startDate) {
+          const startDateObj = new Date(startDate);
+          if (!isNaN(startDateObj.getTime())) {
+            matchesStart = visitDate >= startDateObj;
+          }
         }
 
-        if (endDateObj && !isNaN(endDateObj.getTime())) {
-          // Add one day to end date to include the entire end date
-          const endDatePlusOne = new Date(endDateObj);
-          endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
-          matchesEnd = visitDate < endDatePlusOne;
+        if (endDate) {
+          const endDateObj = new Date(endDate);
+          if (!isNaN(endDateObj.getTime())) {
+            // Add one day to end date to include the entire end date
+            const endDatePlusOne = new Date(endDateObj);
+            endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
+            matchesEnd = visitDate < endDatePlusOne;
+          }
         }
 
         return matchesStart && matchesEnd;
@@ -277,7 +176,7 @@ export async function GET(request) {
     const doctorId = searchParams.get("doctorId");
     if (doctorId) {
       visits = visits.filter((visit) => {
-        return visit.doctor.id === doctorId;
+        return visit.doctorId === doctorId;
       });
     }
 
@@ -286,164 +185,160 @@ export async function GET(request) {
       let comparison = 0;
 
       if (sortBy === "date") {
-        // Function to get the best date from visit object
-        const getBestDate = (visit) => {
-          // Priority: visitDate (if valid) > createdAt > id (as fallback)
-          if (visit.visitDate && visit.visitDate !== "1900-01-01 00:00:00") {
-            const visitDate = new Date(visit.visitDate);
-            if (!isNaN(visitDate.getTime())) {
-              return visitDate;
-            }
-          }
-
-          if (visit.createdAt) {
-            const createdDate = new Date(visit.createdAt);
-            if (!isNaN(createdDate.getTime())) {
-              return createdDate;
-            }
-          }
-
-          // Fallback to epoch time if no valid dates
-          return new Date(0);
-        };
-
-        const aDate = getBestDate(a);
-        const bDate = getBestDate(b);
-        comparison = bDate.getTime() - aDate.getTime(); // Default descending
-
-        // If dates are the same, use ID as secondary sort (higher ID = newer)
-        if (comparison === 0) {
-          const aId = parseInt(a.id) || 0;
-          const bId = parseInt(b.id) || 0;
-          comparison = bId - aId; // Descending by ID
-        }
+        const dateA = new Date(a.visitDate || 0);
+        const dateB = new Date(b.visitDate || 0);
+        comparison = dateA - dateB;
       } else if (sortBy === "id") {
-        const aId = parseInt(a.id) || 0;
-        const bId = parseInt(b.id) || 0;
-        comparison = bId - aId; // Default descending
+        comparison = (a.id || 0) - (b.id || 0);
       } else if (sortBy === "name") {
-        const aName = a.patient?.name || "";
-        const bName = b.patient?.name || "";
-        comparison = aName.localeCompare(bName); // Default ascending for names
+        comparison = (a.patientName || "").localeCompare(b.patientName || "");
       }
 
-      // Apply sort order (desc is default for date and id, asc for names)
-      if (sortOrder === "asc" && (sortBy === "date" || sortBy === "id")) {
-        comparison = -comparison;
-      } else if (sortOrder === "desc" && sortBy === "name") {
-        comparison = -comparison;
-      }
-
-      return comparison;
+      return sortOrder === "desc" ? -comparison : comparison;
     });
 
-    // Use the pagination info from the external API
-    const totalFromAPI =
-      externalData["total pasien"] || externalData.total || visits.length;
-    const totalPages = Math.ceil(totalFromAPI / limit);
+    // Calculate pagination
+    const totalVisits = visits.length;
+    const totalPages = Math.ceil(totalVisits / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedVisits = visits.slice(startIndex, endIndex);
 
     return NextResponse.json({
-      data: visits,
+      data: paginatedVisits,
       pagination: {
-        total: totalFromAPI,
         page,
         limit,
+        total: totalVisits,
         totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     });
   } catch (error) {
-    console.error("Error fetching visits from external API:", error);
-
+    console.error("Error fetching visits:", error);
+    
     // Fallback to local database if external API fails
     try {
-      // Build WHERE clause for date filtering and search
-      let whereClause = "";
-      let queryParams = [];
-      const conditions = [];
-
-      // Add date search condition
-      if (searchDate) {
-        conditions.push("DATE(v.created_at) = ?");
-        queryParams.push(searchDate);
+      const { query } = await import("@/lib/db");
+      
+      // Get user information from token to check role and clinic_id
+      const token = request.cookies.get("token");
+      let userPayload = null;
+      
+      if (token) {
+        try {
+          const { verifyJwtToken } = await import("@/lib/auth");
+          userPayload = await verifyJwtToken(token.value);
+        } catch (error) {
+          console.error("Error verifying token:", error);
+        }
       }
 
-      // Add date range filter conditions
-      if (startDate) {
-        conditions.push("DATE(v.created_at) >= ?");
-        queryParams.push(startDate);
-      }
-      if (endDate) {
-        conditions.push("DATE(v.created_at) <= ?");
-        queryParams.push(endDate);
-      }
-
-      if (conditions.length > 0) {
-        whereClause = "WHERE " + conditions.join(" AND ");
-      }
-
-      const visits = await query(
-        `
+      // Build local query with clinic filtering
+      let sql = `
         SELECT 
-          v.id, 
-          v.complaint, 
-          v.treatment, 
-          v.notes, 
-          v.status, 
-          v.room,
-          v.created_at as createdAt,
-          v.updated_at as updatedAt,
-          p.id as patientId, 
-          p.name as patientName, 
-          p.mrn as patientMRN,
-          d.id as doctorId, 
-          d.name as doctorName
+          v.id, v.visit_date, v.visit_time, v.status, v.complaint, 
+          v.treatment, v.notes, v.room, v.cost, v.payment_status,
+          v.created_at, v.updated_at,
+          p.name as patient_name, p.id as patient_id,
+          d.name as doctor_name, d.id as doctor_id,
+          c.name as clinic_name, c.id as clinic_id
         FROM visits v
         LEFT JOIN patients p ON v.patient_id = p.id
         LEFT JOIN doctors d ON v.doctor_id = d.id
-        ${whereClause}
-        ORDER BY v.created_at DESC, v.id DESC
-      `,
-        queryParams
-      );
+        LEFT JOIN clinics c ON v.clinic_id = c.id
+        WHERE 1=1
+      `;
+      let params = [];
+      let conditions = [];
 
-      // Transform the results to match the expected format
-      const formattedVisits = visits.map((visit) => ({
+      // Add clinic filter if user is not superadmin and has clinic_id
+      if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+        conditions.push("v.clinic_id = ?");
+        params.push(userPayload.clinic_id);
+      }
+
+      // Add search filter
+      if (search) {
+        conditions.push("(p.name LIKE ? OR d.name LIKE ? OR v.complaint LIKE ?)");
+        params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      }
+
+      // Add date filters
+      if (startDate) {
+        conditions.push("v.visit_date >= ?");
+        params.push(startDate);
+      }
+      if (endDate) {
+        conditions.push("v.visit_date <= ?");
+        params.push(endDate);
+      }
+
+      // Add status filter
+      const status = searchParams.get("status");
+      if (status) {
+        conditions.push("v.status = ?");
+        params.push(status);
+      }
+
+      if (conditions.length > 0) {
+        sql += " AND " + conditions.join(" AND ");
+      }
+
+      // Get total count
+      const countSql = sql.replace(/SELECT.*FROM/, "SELECT COUNT(*) as total FROM");
+      const countResult = await query(countSql, params);
+      const totalVisits = countResult[0]?.total || 0;
+
+      // Add ordering and pagination
+      sql += " ORDER BY v.visit_date DESC, v.visit_time DESC LIMIT ? OFFSET ?";
+      params.push(limit, (page - 1) * limit);
+
+      const localVisits = await query(sql, params);
+
+      // Transform local visits to match expected format
+      const transformedVisits = localVisits.map(visit => ({
         id: visit.id,
+        visitDate: visit.visit_date,
+        patientName: visit.patient_name,
+        patientId: visit.patient_id,
+        doctorName: visit.doctor_name,
+        doctorId: visit.doctor_id,
+        clinicName: visit.clinic_name,
+        clinicId: visit.clinic_id,
+        status: visit.status,
         complaint: visit.complaint,
+        diagnosis: null, // Not available in local schema
         treatment: visit.treatment,
         notes: visit.notes,
-        status: visit.status,
         room: visit.room,
-        createdAt: visit.createdAt,
-        updatedAt: visit.updatedAt,
-        patient: {
-          id: visit.patientId,
-          name: visit.patientName,
-          mrNumber: visit.patientMRN,
-        },
-        doctor: {
-          id: visit.doctorId,
-          name: visit.doctorName,
-        },
-        examinations: [],
+        cost: visit.cost,
+        paymentStatus: visit.payment_status,
+        created_at: visit.created_at,
+        updated_at: visit.updated_at,
       }));
 
+      const totalPages = Math.ceil(totalVisits / limit);
+
       return NextResponse.json({
-        data: formattedVisits,
+        data: transformedVisits,
         pagination: {
-          total: formattedVisits.length,
-          page: 1,
-          limit: formattedVisits.length,
-          totalPages: 1,
+          page,
+          limit,
+          total: totalVisits,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       });
-    } catch (fallbackError) {
-      console.error("Fallback to local database also failed:", fallbackError);
+    } catch (dbError) {
+      console.error("Local database error:", dbError);
       return NextResponse.json(
-        {
-          message:
-            "Failed to fetch visits from external API and local database",
-          error: error.message,
+        { 
+          success: false,
+          message: "Gagal mengambil data kunjungan",
+          error: error.message 
         },
         { status: 500 }
       );

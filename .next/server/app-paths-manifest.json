@@ -1,7 +1,8 @@
 {
-  "/mobile/users/page": "app/mobile/users/page.js",
-  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js",
-  "/api/mobile/my-missions/route": "app/api/mobile/my-missions/route.js",
-  "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js",
-  "/api/mobile/mission-stats/route": "app/api/mobile/mission-stats/route.js"
+  "/clinics/page": "app/clinics/page.js",
+  "/visits/page": "app/visits/page.js",
+  "/medicine/page": "app/medicine/page.js",
+  "/login/page": "app/login/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/api/mobile/auth/login/route": "app/api/mobile/auth/login/route.js"
 }

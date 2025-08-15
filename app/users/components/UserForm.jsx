@@ -20,13 +20,14 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
 
   useEffect(() => {
     if (user) {
+      console.log("🔍 Setting form data for user:", user);
       setFormData({
         name: user.name || "",
         email: user.email || "",
         password: "", // Don't show password in edit mode
-        role: user.role || "STAFF",
+        role: user.role ? user.role.toUpperCase() : "STAFF",
         is_active: user.is_active ?? true,
-        clinic_id: user.clinic?.id ? user.clinic.id.toString() : "",
+        clinic_id: user.clinic_id ? user.clinic_id.toString() : "",
       });
     }
   }, [user]);
@@ -62,6 +63,11 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
     if (!user && !formData.password) {
       newErrors.password = "Password harus diisi";
     }
+    
+    // For existing users, if password is provided, it should be at least 6 characters
+    if (user && formData.password && formData.password.length < 6) {
+      newErrors.password = "Password minimal 6 karakter";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -69,6 +75,13 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      console.log("❌ Form validation failed");
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -77,8 +90,21 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         email: formData.email.trim(),
         password: formData.password,
         role: formData.role,
-        clinic_id: formData.clinic_id || null,
+        is_active: formData.is_active,
+        clinic_id: formData.clinic_id && formData.clinic_id !== "" ? formData.clinic_id : null,
       };
+
+      // Remove password field for updates if it's empty
+      if (user && !submitData.password) {
+        delete submitData.password;
+      }
+
+      console.log("🔍 Submitting user data:", {
+        method: user ? "PUT" : "POST",
+        url: user ? `/api/users/${user.id}` : "/api/users",
+        data: submitData,
+        originalUser: user
+      });
 
       const url = user ? `/api/users/${user.id}` : "/api/users";
       const method = user ? "PUT" : "POST";
@@ -91,20 +117,39 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         body: JSON.stringify(submitData),
       });
 
+      console.log("📡 Response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("❌ API Error:", errorData);
         throw new Error(errorData.error || "Gagal menyimpan data");
       }
 
       const result = await response.json();
+      console.log("✅ Success response:", result);
 
       toast.success(
         user ? "User berhasil diupdate" : "User berhasil ditambahkan"
       );
+      
+      // Call onSubmit with the result and trigger data refresh
       onSubmit(result);
+      
+      // Reset form data
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "STAFF",
+        is_active: true,
+        clinic_id: "",
+      });
+      setErrors({});
+      
+      // Close the form
       onCancel();
     } catch (error) {
-      console.error("Error saving user:", error);
+      console.error("❌ Error saving user:", error);
       toast.error(error.message || "Gagal menyimpan data");
     } finally {
       setIsLoading(false);
@@ -292,9 +337,21 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-[#E22345] text-white rounded-md hover:bg-red-600"
+            disabled={isLoading}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              isLoading 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-[#E22345] hover:bg-red-600'
+            } text-white`}
           >
-            {user ? "Update" : "Simpan"}
+            {isLoading ? (
+              <span className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {user ? "Updating..." : "Saving..."}
+              </span>
+            ) : (
+              user ? "Update" : "Simpan"
+            )}
           </button>
         </div>
       </form>

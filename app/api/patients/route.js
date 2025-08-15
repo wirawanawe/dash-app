@@ -35,6 +35,19 @@ async function fetchWithRetry(url, options, maxRetries = 2) {
 // GET all patients from external API
 export async function GET(request) {
   try {
+    // Get user information from token to check role and clinic_id
+    const token = request.cookies.get("token");
+    let userPayload = null;
+    
+    if (token) {
+      try {
+        const { verifyJwtToken } = await import("@/lib/auth");
+        userPayload = await verifyJwtToken(token.value);
+      } catch (error) {
+        console.error("Error verifying token:", error);
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
@@ -46,6 +59,11 @@ export async function GET(request) {
     // Add keyword parameter if search is provided
     if (search) {
       apiUrl += `&keyword=${encodeURIComponent(search)}`;
+    }
+
+    // Add clinic_id filter if user is not superadmin and has clinic_id
+    if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+      apiUrl += `&clinic_id=${encodeURIComponent(userPayload.clinic_id)}`;
     }
 
     console.log(`🔍 Fetching patients from external API: ${apiUrl}`);
@@ -76,111 +94,141 @@ export async function GET(request) {
       }
 
       // Transform the external API data to match our expected format
-      const patients = rawPatients.map((patient) => ({
-        id: patient.No_MR,
-        mrn: patient.No_MR,
-        name: patient.Nama_Pasien,
-        gender: patient.Jenis_Kelamin?.[0]?.name || "-",
-        birthDate: patient.Tgl_Lahir ? patient.Tgl_Lahir.split(" ")[0] : null,
-        nik: patient.Identitas?.find((id) => id.type === "nik")?.id || "",
-        nip: patient.Identitas?.find((id) => id.type === "nip")?.id || "",
-        phone: "", // Not available in external API
-        address: patient.Alamat_Rumah?.[0]?.Alamat || "",
-        city: patient.Alamat_Rumah?.[0]?.Kota?.[0]?.name || "",
-        province: patient.Alamat_Rumah?.[0]?.Propinsi?.[0]?.name || "",
-        bloodType: patient.Golongan_Darah?.[0]?.name || "-",
-        religion: patient.Agama?.[0]?.name || "-",
-        maritalStatus: patient.Status_Marital?.[0]?.name || "-",
-        occupation: patient.Pekerjaan?.[0]?.name || "-",
-        education: patient.Pendidikan?.[0]?.name || "-",
-        created_at: patient.audittrail?.CreatedDate || null,
-        updated_at: patient.audittrail?.LastModifiedDate || null,
+      let patients = rawPatients.map((patient) => ({
+        id: patient.id || patient.ID,
+        mrn: patient.mrn || patient.MRN || patient.mr_number,
+        name: patient.name || patient.NAMA,
+        nik: patient.nik || patient.NIK,
+        birthDate: patient.birthDate || patient.TANGGAL_LAHIR,
+        gender: patient.gender || patient.JENIS_KELAMIN,
+        nip: patient.nip || patient.NIP,
+        status: patient.status || patient.STATUS,
+        address: patient.address || patient.ALAMAT,
+        phone: patient.phone || patient.TELEPON,
+        email: patient.email || patient.EMAIL,
+        bloodType: patient.bloodType || patient.GOLONGAN_DARAH,
+        religion: patient.religion || patient.AGAMA,
+        maritalStatus: patient.maritalStatus || patient.STATUS_PERKAWINAN,
+        occupation: patient.occupation || patient.PEKERJAAN,
+        insurance: patient.insurance || patient.ASURANSI,
+        emergencyContact: patient.emergencyContact || patient.KONTAK_DARURAT,
+        clinic_id: patient.clinic_id || patient.CLINIC_ID,
+        created_at: patient.created_at || patient.CREATED_AT,
+        updated_at: patient.updated_at || patient.UPDATED_AT,
       }));
 
-      // Use the pagination info from the external API
-      const totalFromAPI =
-        externalData["total pasien"] || externalData.total || patients.length;
-      const totalPages = Math.ceil(totalFromAPI / limit);
+      // Apply additional client-side filtering based on user role and clinic_id
+      if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+        patients = patients.filter(patient => 
+          patient.clinic_id == userPayload.clinic_id
+        );
+      }
 
-      console.log(`✅ Successfully fetched ${patients.length} patients from external API`);
+      // Apply client-side search if needed (fallback)
+      if (search && patients.length > 0) {
+        const searchLower = search.toLowerCase();
+        patients = patients.filter((patient) => {
+          return (
+            (patient.name && patient.name.toLowerCase().includes(searchLower)) ||
+            (patient.mrn && patient.mrn.toLowerCase().includes(searchLower)) ||
+            (patient.nik && patient.nik.includes(search))
+          );
+        });
+      }
+
+      // Calculate pagination
+      const totalPatients = patients.length;
+      const totalPages = Math.ceil(totalPatients / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedPatients = patients.slice(startIndex, endIndex);
 
       return NextResponse.json({
-        data: patients,
+        data: paginatedPatients,
         pagination: {
-          total: totalFromAPI,
           page,
           limit,
+          total: totalPatients,
           totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       });
-    } catch (externalApiError) {
-      console.error("External API failed, trying local database fallback:", externalApiError.message);
+    } catch (apiError) {
+      console.error("External API error:", apiError);
       
       // Fallback to local database if external API fails
+      console.log("🔄 Falling back to local database...");
+      
       try {
-        let sql = "SELECT * FROM patients WHERE 1=1";
-        const params = [];
+        const { query } = await import("@/lib/db");
         
-        if (search) {
-          sql += " AND (name LIKE ? OR mr_number LIKE ? OR nik LIKE ?)";
-          const searchTerm = `%${search}%`;
-          params.push(searchTerm, searchTerm, searchTerm);
+        // Build local query with clinic filtering
+        let sql = `
+          SELECT 
+            p.id, p.mrn, p.name, p.nik, p.birth_date, p.gender, 
+            p.nip, p.status, p.address, p.phone, p.email,
+            p.blood_type, p.religion, p.marital_status, p.occupation,
+            p.insurance, p.emergency_contact, p.clinic_id,
+            p.created_at, p.updated_at
+          FROM patients p
+          WHERE 1=1
+        `;
+        let params = [];
+        let conditions = [];
+
+        // Add clinic filter if user is not superadmin and has clinic_id
+        if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
+          conditions.push("p.clinic_id = ?");
+          params.push(userPayload.clinic_id);
         }
-        
-        sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        const offset = (page - 1) * limit;
-        params.push(limit, offset);
-        
+
+        // Add search filter
+        if (search) {
+          conditions.push("(p.name LIKE ? OR p.mrn LIKE ? OR p.nik LIKE ?)");
+          params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        if (conditions.length > 0) {
+          sql += " AND " + conditions.join(" AND ");
+        }
+
+        // Get total count
+        const countSql = sql.replace(/SELECT.*FROM/, "SELECT COUNT(*) as total FROM");
+        const countResult = await query(countSql, params);
+        const totalPatients = countResult[0]?.total || 0;
+
+        // Add pagination
+        sql += " ORDER BY p.name ASC LIMIT ? OFFSET ?";
+        params.push(limit, (page - 1) * limit);
+
         const localPatients = await query(sql, params);
-        
-        // Get total count for pagination
-        let countSql = "SELECT COUNT(*) as total FROM patients WHERE 1=1";
-        const countParams = [];
-        
-        if (search) {
-          countSql += " AND (name LIKE ? OR mr_number LIKE ? OR nik LIKE ?)";
-          const searchTerm = `%${search}%`;
-          countParams.push(searchTerm, searchTerm, searchTerm);
-        }
-        
-        const [{ total }] = await query(countSql, countParams);
-        const totalPages = Math.ceil(total / limit);
-        
-        console.log(`✅ Fallback: Found ${localPatients.length} patients in local database`);
-        
+
+        const totalPages = Math.ceil(totalPatients / limit);
+
         return NextResponse.json({
           data: localPatients,
           pagination: {
-            total,
             page,
             limit,
+            total: totalPatients,
             totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
           },
-          note: "Data from local database (external API unavailable)"
         });
-      } catch (localDbError) {
-        console.error("Local database fallback also failed:", localDbError);
-        
-        // Return empty result with error message
-        return NextResponse.json({
-          data: [],
-          pagination: {
-            total: 0,
-            page,
-            limit,
-            totalPages: 0,
-          },
-          error: "External API and local database both unavailable",
-          note: "Please try again later or contact support"
-        }, { status: 503 });
+      } catch (dbError) {
+        console.error("Local database error:", dbError);
+        throw new Error("Failed to fetch patients from both external API and local database");
       }
     }
   } catch (error) {
-    console.error("Error in patients API:", error);
+    console.error("Error fetching patients:", error);
     return NextResponse.json(
-      {
-        message: "Failed to fetch patients",
-        error: error.message,
+      { 
+        success: false,
+        message: "Gagal mengambil data pasien",
+        error: error.message 
       },
       { status: 500 }
     );

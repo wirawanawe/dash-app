@@ -80,6 +80,8 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      console.log("🔄 Fetching users data...");
+      
       const params = new URLSearchParams({
         search: search,
         page: page.toString(),
@@ -107,8 +109,13 @@ export default function UsersPage() {
       setUsers(result.data);
       setMetadata(result.pagination || {});
       setTotalPages(result.pagination?.totalPages || 0);
+      
+      console.log("✅ Users data fetched successfully:", {
+        total: result.data.length,
+        pagination: result.pagination
+      });
     } catch (error) {
-      console.error("Error:", error);
+      console.error("❌ Error fetching users:", error);
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setUsers([]);
       setMetadata({});
@@ -224,36 +231,26 @@ export default function UsersPage() {
   };
 
   // Handle form submit
-  const handleFormSubmit = async (formData) => {
+  const handleFormSubmit = async (result) => {
     try {
-      
-      const url = editingUser ? `/api/users/${editingUser.id}` : "/api/users";
-      const method = editingUser ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save user");
-      }
-
-      const result = await response.json();
-
-      toast.success(
-        editingUser ? "Pengguna berhasil diperbarui" : "Pengguna berhasil ditambahkan"
-      );
+      // Close the form modal
       setShowForm(false);
       setEditingUser(null);
-      fetchUsers();
+      
+      // If we're editing a user and the current page might be affected, 
+      // consider staying on the same page or going to page 1
+      if (editingUser && page > 1) {
+        // If we're on a page other than 1, refresh current page first
+        await fetchUsers();
+      } else {
+        // For new users or when on page 1, refresh normally
+        await fetchUsers();
+      }
+      
+      console.log("✅ Form submitted successfully, data refreshed");
     } catch (error) {
-      console.error("Error saving user:", error);
-      toast.error("Gagal menyimpan pengguna");
+      console.error("Error handling form submission:", error);
+      toast.error("Gagal memperbarui data");
     }
   };
 
@@ -262,6 +259,7 @@ export default function UsersPage() {
   };
 
   const getRoleBadge = (role) => {
+    const roleUpper = role ? role.toUpperCase() : 'STAFF';
     const colors = {
       SUPERADMIN: "bg-yellow-100 text-yellow-800",
       ADMIN: "bg-red-100 text-red-800",
@@ -270,8 +268,8 @@ export default function UsersPage() {
     };
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[role] || 'bg-gray-100 text-gray-800'}`}>
-        {role}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[roleUpper] || 'bg-gray-100 text-gray-800'}`}>
+        {roleUpper}
       </span>
     );
   };
