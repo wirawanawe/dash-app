@@ -8,6 +8,7 @@ import MobileUserDetailModal from './components/MobileUserDetailModal';
 import DashboardLayout from "@/components/DashboardLayout";
 import ApiDocumentation from "@/components/ApiDocumentation";
 import toast from "react-hot-toast";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function MobileUsersPage() {
   const [users, setUsers] = useState([]);
@@ -83,19 +84,18 @@ export default function MobileUsersPage() {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`/api/mobile/users/${id}`, {
-        method: 'DELETE',
-      });
+      await createCrudOperation(
+        "DELETE",
+        `/api/mobile/users/${id}`,
+        null,
+        async () => {
+          await fetchUsers();
+          await fetchStats();
+        },
+        { setLoading }
+      );
       
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success('User berhasil dihapus');
-        fetchUsers();
-        fetchStats();
-      } else {
-        toast.error(data.error || 'Failed to delete user');
-      }
+      toast.success('User berhasil dihapus');
     } catch (err) {
       console.error('Error deleting user:', err);
       toast.error('Failed to delete user');

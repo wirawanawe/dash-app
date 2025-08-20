@@ -45,10 +45,8 @@ export async function GET(request) {
         st.sleep_hours,
         st.sleep_duration_minutes,
         st.sleep_quality,
-        st.deep_sleep_hours,
-        st.rem_sleep_hours,
-        st.light_sleep_hours,
-        st.sleep_efficiency,
+        st.sleep_latency_minutes,
+        st.wake_up_count,
         st.notes,
         st.created_at,
         st.updated_at,
@@ -107,12 +105,11 @@ export async function POST(request) {
       bedtime,
       wake_time,
       sleep_hours,
+      sleep_minutes,
       sleep_duration_minutes,
       sleep_quality,
-      deep_sleep_hours,
-      rem_sleep_hours,
-      light_sleep_hours,
-      sleep_efficiency,
+      sleep_latency_minutes,
+      wake_up_count,
       notes
     } = body;
 
@@ -127,22 +124,25 @@ export async function POST(request) {
       );
     }
 
+    // Calculate sleep duration in minutes if not provided
+    let calculatedSleepDurationMinutes = sleep_duration_minutes;
+    if (sleep_hours !== undefined && sleep_minutes !== undefined) {
+      calculatedSleepDurationMinutes = (sleep_hours * 60) + sleep_minutes;
+    }
+
     const sql = `
       INSERT INTO sleep_tracking (
         user_id, sleep_date, bedtime, wake_time, sleep_hours, sleep_duration_minutes,
-        sleep_quality, deep_sleep_hours, rem_sleep_hours, light_sleep_hours, 
-        sleep_efficiency, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        sleep_quality, sleep_latency_minutes, wake_up_count, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       ON DUPLICATE KEY UPDATE
         bedtime = VALUES(bedtime),
         wake_time = VALUES(wake_time),
         sleep_hours = VALUES(sleep_hours),
         sleep_duration_minutes = VALUES(sleep_duration_minutes),
         sleep_quality = VALUES(sleep_quality),
-        deep_sleep_hours = VALUES(deep_sleep_hours),
-        rem_sleep_hours = VALUES(rem_sleep_hours),
-        light_sleep_hours = VALUES(light_sleep_hours),
-        sleep_efficiency = VALUES(sleep_efficiency),
+        sleep_latency_minutes = VALUES(sleep_latency_minutes),
+        wake_up_count = VALUES(wake_up_count),
         notes = VALUES(notes),
         updated_at = NOW()
     `;
@@ -153,12 +153,10 @@ export async function POST(request) {
       bedtime || null,
       wake_time || null,
       sleep_hours || null,
-      sleep_duration_minutes || null,
+      calculatedSleepDurationMinutes || null,
       sleep_quality || null,
-      deep_sleep_hours || null,
-      rem_sleep_hours || null,
-      light_sleep_hours || null,
-      sleep_efficiency || null,
+      sleep_latency_minutes || null,
+      wake_up_count || 0,
       notes || null
     ]);
 

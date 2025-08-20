@@ -223,7 +223,6 @@ INSERT IGNORE INTO sleep_tracking (user_id, sleep_hours, sleep_quality, sleep_da
 -- ========================================
 -- MEAL LOGGING
 -- ========================================
-INSERT IGNORE INTO meal_logging (user_id, meal_type, meal_date, total_calories, total_protein, total_carbs, total_fat) VALUES
 (1, 'breakfast', '2024-01-15', 350, 15, 45, 12),
 (1, 'lunch', '2024-01-15', 650, 25, 80, 20),
 (1, 'dinner', '2024-01-15', 500, 20, 60, 18),

@@ -7,6 +7,7 @@ import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import ClinicForm from "./components/ClinicForm";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import { withAutoRefresh, createCrudOperation } from "@/utils/refreshUtils";
 import {
   Plus,
   Search,
@@ -127,17 +128,15 @@ export default function ClinicsPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus klinik ini?")) return;
 
     try {
-      const response = await fetch(`/api/clinics/${clinicId}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Klinik berhasil dihapus");
-        fetchClinics(true);
-      } else {
-        const data = await response.json();
-        toast.error(data.error || "Gagal menghapus klinik");
-      }
+      await createCrudOperation(
+        "DELETE",
+        `/api/clinics/${clinicId}`,
+        null,
+        () => fetchClinics(true),
+        { setLoading }
+      );
+      
+      toast.success("Klinik berhasil dihapus");
     } catch (error) {
       console.error("Error deleting clinic:", error);
       toast.error("Gagal menghapus klinik");
@@ -154,40 +153,38 @@ export default function ClinicsPage() {
 
       const token = localStorage.getItem("token");
 
-      const response = await fetch(url, {
+      await createCrudOperation(
         method,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save clinic");
-      }
-
-      const result = await response.json();
-
-      // If creating new clinic and there are selected polyclinics, add them
-      if (!editingClinic && selectedPolyclinics.length > 0 && result.id) {
-        try {
-          for (const polyclinicId of selectedPolyclinics) {
-            await fetch(`/api/settings/clinics/${result.id}/polyclinics`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token && { Authorization: `Bearer ${token}` }),
-              },
-              body: JSON.stringify({ polyclinic_id: polyclinicId })
-            });
+        url,
+        formData,
+        async () => {
+          // If creating new clinic and there are selected polyclinics, add them
+          if (!editingClinic && selectedPolyclinics.length > 0) {
+            try {
+              for (const polyclinicId of selectedPolyclinics) {
+                await fetch(`/api/settings/clinics/${editingClinic?.id || 'new'}/polyclinics`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                  },
+                  body: JSON.stringify({ polyclinic_id: polyclinicId })
+                });
+              }
+            } catch (error) {
+              console.error("Error adding polyclinics to new clinic:", error);
+              // Don't fail the whole operation if polyclinic assignment fails
+            }
           }
-        } catch (error) {
-          console.error("Error adding polyclinics to new clinic:", error);
-          // Don't fail the whole operation if polyclinic assignment fails
+          
+          // Refresh clinics data
+          await fetchClinics(true);
+        },
+        { 
+          headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+          setLoading 
         }
-      }
+      );
 
       // Close form immediately
       setShowForm(false);
@@ -200,14 +197,6 @@ export default function ClinicsPage() {
           ? "Klinik berhasil diperbarui"
           : "Klinik berhasil ditambahkan"
       );
-      
-      // Show loading state briefly
-      setLoading(true);
-      
-      // Force refresh data with a small delay to ensure server has processed the update
-      setTimeout(() => {
-        fetchClinics(true);
-      }, 300);
     } catch (error) {
       console.error("Error saving clinic:", error);
       toast.error("Gagal menyimpan klinik");

@@ -51,6 +51,16 @@ export async function PUT(request, { params }) {
       );
     }
 
+    // Calculate mood_score based on mood_level
+    const moodScores = {
+      'very_happy': 10,
+      'happy': 8,
+      'neutral': 5,
+      'sad': 3,
+      'very_sad': 1
+    };
+    const calculatedMoodScore = moodScores[mood_level] || 5;
+
     // First check if the record belongs to the user
     const checkQuery = 'SELECT id FROM mood_tracking WHERE id = ? AND user_id = ?';
     const [checkResult] = await query(checkQuery, [id, userId]);
@@ -64,13 +74,14 @@ export async function PUT(request, { params }) {
 
     const sql = `
       UPDATE mood_tracking 
-      SET mood_level = ?, stress_level = ?, energy_level = ?, sleep_quality = ?, 
+      SET mood_level = ?, mood_score = ?, stress_level = ?, energy_level = ?, sleep_quality = ?, 
           tracking_date = ?, notes = ?, activities = ?, weather = ?, location = ?, updated_at = NOW()
       WHERE id = ? AND user_id = ?
     `;
 
     const result = await query(sql, [
       mood_level,
+      calculatedMoodScore,
       stress_level || null,
       energy_level || null,
       sleep_quality || null,

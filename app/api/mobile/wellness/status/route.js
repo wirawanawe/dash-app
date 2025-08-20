@@ -61,6 +61,7 @@ export async function GET(request) {
       SELECT 
         wellness_program_joined,
         wellness_join_date,
+        wellness_program_duration,
         fitness_goal,
         activity_level,
         date_of_birth,
@@ -118,6 +119,7 @@ export async function GET(request) {
       data: {
         has_joined: !!user?.wellness_program_joined,
         join_date: user?.wellness_join_date,
+        program_duration: user?.wellness_program_duration,
         fitness_goal: user?.fitness_goal,
         activity_level: user?.activity_level,
         has_missions: missionCount > 0,

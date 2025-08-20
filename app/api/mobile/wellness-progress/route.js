@@ -41,6 +41,7 @@ export async function GET(request) {
         mu.email,
         mu.wellness_program_joined,
         mu.wellness_join_date,
+        mu.wellness_program_duration,
         mu.date_of_birth,
         mu.gender,
         mu.activity_level,

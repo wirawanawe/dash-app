@@ -125,6 +125,19 @@ export async function POST(request) {
       );
     }
 
+    // Calculate mood_score based on mood_level if not provided
+    let calculatedMoodScore = mood_score;
+    if (!calculatedMoodScore) {
+      const moodScores = {
+        'very_happy': 10,
+        'happy': 8,
+        'neutral': 5,
+        'sad': 3,
+        'very_sad': 1
+      };
+      calculatedMoodScore = moodScores[mood_level] || 5;
+    }
+
     const sql = `
       INSERT INTO mood_tracking (
         user_id, mood_level, mood_score, stress_level, energy_level, sleep_quality, 
@@ -143,14 +156,18 @@ export async function POST(request) {
         updated_at = NOW()
     `;
 
+    // Ensure tracking_date is in the correct format
+    const finalTrackingDate = tracking_date || new Date().toISOString().split('T')[0];
+    console.log('🔍 Inserting mood with tracking_date:', finalTrackingDate);
+    
     const result = await query(sql, [
       user_id,
       mood_level,
-      mood_score || null,
+      calculatedMoodScore,
       stress_level || null,
       energy_level || null,
       sleep_quality || null,
-      tracking_date || new Date().toISOString().split('T')[0],
+      finalTrackingDate,
       notes || null,
       activities ? JSON.stringify(activities) : null,
       weather || null,

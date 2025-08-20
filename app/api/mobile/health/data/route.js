@@ -15,6 +15,10 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get("limit")) || 50;
     const offset = parseInt(searchParams.get("offset")) || 0;
 
+    // Ensure parameters are numbers and convert to integers
+    const limitNum = Number.isNaN(limit) ? 50 : Math.floor(limit);
+    const offsetNum = Number.isNaN(offset) ? 0 : Math.floor(offset);
+
     if (!user_id) {
       return NextResponse.json(
         {
@@ -25,9 +29,10 @@ export async function GET(request) {
       );
     }
 
+    // Build query with parameters
     let sql = `
       SELECT 
-        id, user_id, data_type, value, unit, recorded_at, notes, created_at, updated_at
+        id, user_id, data_type, value, unit, measured_at as recorded_at, notes, created_at, updated_at
       FROM health_data
       WHERE user_id = ?
     `;
@@ -39,17 +44,16 @@ export async function GET(request) {
     }
 
     if (start_date) {
-      sql += " AND DATE(recorded_at) >= ?";
+      sql += " AND DATE(measured_at) >= ?";
       params.push(start_date);
     }
 
     if (end_date) {
-      sql += " AND DATE(recorded_at) <= ?";
+      sql += " AND DATE(measured_at) <= ?";
       params.push(end_date);
     }
 
-    sql += " ORDER BY recorded_at DESC LIMIT ? OFFSET ?";
-    params.push(limit, offset);
+    sql += " ORDER BY measured_at DESC LIMIT " + limitNum;
 
     const healthData = await query(sql, params);
 
@@ -63,12 +67,12 @@ export async function GET(request) {
     }
 
     if (start_date) {
-      countSql += " AND DATE(recorded_at) >= ?";
+      countSql += " AND DATE(measured_at) >= ?";
       countParams.push(start_date);
     }
 
     if (end_date) {
-      countSql += " AND DATE(recorded_at) <= ?";
+      countSql += " AND DATE(measured_at) <= ?";
       countParams.push(end_date);
     }
 
@@ -110,7 +114,7 @@ export async function GET(request) {
         };
 
         // Get latest entry for this data type
-        const latestEntry = entries[0]; // Already sorted by recorded_at DESC
+        const latestEntry = entries[0]; // Already sorted by measured_at DESC
         summary.latest_entries[dataType] = {
           value: latestEntry.value,
           unit: latestEntry.unit,
@@ -167,7 +171,7 @@ export async function POST(request) {
 
     // Validate data type
     const validDataTypes = [
-      'blood_pressure', 'heart_rate', 'blood_sugar', 'weight', 
+      'blood_pressure', 'heart_rate', 'blood_sugar', 'weight', 'height',
       'temperature', 'oxygen_saturation', 'cholesterol', 'bmi'
     ];
     
@@ -182,8 +186,8 @@ export async function POST(request) {
     }
 
     const sql = `
-      INSERT INTO health_data (user_id, data_type, value, unit, recorded_at, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, NOW())
+      INSERT INTO health_data (user_id, data_type, value, unit, measured_at, notes, source, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'manual', NOW())
     `;
 
     const result = await query(sql, [
@@ -191,7 +195,7 @@ export async function POST(request) {
       data_type,
       value,
       unit || null,
-      recorded_at || new Date().toISOString(),
+      recorded_at || new Date().toISOString().slice(0, 19).replace('T', ' '),
       notes || null,
     ]);
 

@@ -1,8 +1,9 @@
 {
-  "/clinics/page": "app/clinics/page.js",
-  "/visits/page": "app/visits/page.js",
-  "/medicine/page": "app/medicine/page.js",
-  "/login/page": "app/login/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/api/mobile/auth/login/route": "app/api/mobile/auth/login/route.js"
+  "/api/health/route": "app/api/health/route.js",
+  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js",
+  "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js",
+  "/api/mobile/wellness-progress/[id]/route": "app/api/mobile/wellness-progress/[id]/route.js",
+  "/api/mobile/users/profile/route": "app/api/mobile/users/profile/route.js",
+  "/api/mobile/auth/me/route": "app/api/mobile/auth/me/route.js",
+  "/api/mobile/wellness/check-program-status/route": "app/api/mobile/wellness/check-program-status/route.js"
 }

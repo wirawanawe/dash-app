@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Utensils, Database, TrendingUp, Activity } from "lucide-react";
 import toast from "react-hot-toast";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function FoodForm({ food, categories, onSubmit, onClose }) {
   const [formData, setFormData] = useState({
@@ -103,23 +104,16 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
       const url = food ? `/api/mobile/food/${food.id}` : "/api/mobile/food";
       const method = food ? "PUT" : "POST";
 
-      const response = await fetch(url, {
+      await createCrudOperation(
         method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+        url,
+        formData,
+        () => Promise.resolve(), // Form handles refresh through onSubmit callback
+        { setLoading }
+      );
 
-      const data = await response.json();
-
-      if (data.success || response.ok) {
-        toast.success(data.message || `Makanan berhasil ${food ? 'diperbarui' : 'ditambahkan'}`);
-        onSubmit();
-      } else {
-        const errorMessage = data.message || data.error || `Gagal ${food ? 'memperbarui' : 'menambahkan'} makanan`;
-        toast.error(`Error: ${errorMessage}`);
-      }
+      toast.success(`Makanan berhasil ${food ? 'diperbarui' : 'ditambahkan'}`);
+      onSubmit();
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error(`Network error: Gagal ${food ? 'memperbarui' : 'menambahkan'} makanan. Please check your connection.`);

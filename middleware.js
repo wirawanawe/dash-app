@@ -41,7 +41,9 @@ function getClientIP(request) {
 
 function getEndpointType(pathname) {
   if (pathname.includes('/auth/')) return 'auth';
-  if (pathname.includes('/tracking/') || pathname.includes('/mobile/tracking/')) return 'tracking';
+  if (pathname.includes('/tracking/') || pathname.includes('/mobile/tracking/') || 
+      pathname.includes('/mood_tracking') || pathname.includes('/mobile/mood_tracking') ||
+      pathname.includes('/wellness/') || pathname.includes('/mobile/wellness/')) return 'tracking';
   if (pathname.includes('/missions/') || pathname.includes('/mobile/missions/') || 
       pathname.includes('/dashboard/') || pathname.includes('/mobile/dashboard/')) return 'dashboard';
   if (pathname.includes('/search/') || pathname.includes('/food/search/')) return 'search';
@@ -92,6 +94,9 @@ export async function middleware(request) {
   if (pathname.startsWith('/api/')) {
     const clientIP = getClientIP(request);
     const endpointType = getEndpointType(pathname);
+    
+
+    
     const rateLimitResult = checkRateLimit(clientIP, endpointType);
     
     if (!rateLimitResult.allowed) {

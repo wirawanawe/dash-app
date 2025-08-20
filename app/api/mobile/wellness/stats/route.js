@@ -57,10 +57,29 @@ export async function GET(request) {
 
     // Test each query individually
     console.log('🔍 Testing mood query...');
-    const moodQuery = 'SELECT COUNT(*) as mood_entries FROM mood_tracking WHERE user_id = ?';
-    const [moodResult] = await query(moodQuery, [userId]);
+    const daysAgo = parseInt(period);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysAgo);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    
+    const moodQuery = `
+      SELECT 
+        COUNT(*) as mood_entries,
+        AVG(CASE 
+          WHEN mood_level = 'very_happy' THEN 10
+          WHEN mood_level = 'happy' THEN 8
+          WHEN mood_level = 'neutral' THEN 5
+          WHEN mood_level = 'sad' THEN 3
+          WHEN mood_level = 'very_sad' THEN 1
+          ELSE 5
+        END) as avg_mood_score
+      FROM mood_tracking 
+      WHERE user_id = ? AND tracking_date >= ?
+    `;
+    const [moodResult] = await query(moodQuery, [userId, startDateStr]);
     const moodEntries = moodResult[0]?.mood_entries || 0;
-    console.log('✅ Mood entries:', moodEntries);
+    const avgMoodScore = moodResult[0]?.avg_mood_score || 0;
+    console.log('✅ Mood entries:', moodEntries, 'Avg mood score:', avgMoodScore);
 
     console.log('🔍 Testing water query...');
     const waterQuery = 'SELECT COUNT(*) as water_entries FROM water_tracking WHERE user_id = ?';
@@ -80,6 +99,39 @@ export async function GET(request) {
     const fitnessEntries = fitnessResult[0]?.fitness_entries || 0;
     console.log('✅ Fitness entries:', fitnessEntries);
 
+    // Get wellness activities stats
+    console.log('🔍 Testing wellness activities query...');
+    
+    // First, get total available wellness activities
+    const totalActivitiesQuery = `
+      SELECT COUNT(*) as total_available
+      FROM available_wellness_activities 
+      WHERE is_active = 1
+    `;
+    const [totalActivitiesResult] = await query(totalActivitiesQuery);
+    const totalAvailableActivities = totalActivitiesResult[0]?.total_available || 0;
+    
+    // Then, get user's completed activities and calculate points
+    const userActivitiesQuery = `
+      SELECT 
+        uwa.id,
+        uwa.activity_id,
+        uwa.completed_at,
+        uwa.duration_minutes,
+        awa.points as base_points
+      FROM user_wellness_activities uwa
+      LEFT JOIN available_wellness_activities awa ON uwa.activity_id = awa.id
+      WHERE uwa.user_id = ? AND uwa.completed_at IS NOT NULL
+    `;
+    const [userActivitiesResult] = await query(userActivitiesQuery, [userId]);
+    
+    const completedActivities = userActivitiesResult.length;
+    const totalPoints = userActivitiesResult.reduce((sum, activity) => {
+      return sum + (activity.base_points || 0);
+    }, 0);
+    
+    console.log('✅ Wellness activities - Available:', totalAvailableActivities, 'Completed:', completedActivities, 'Points:', totalPoints);
+
     const response = {
       success: true,
       data: {
@@ -89,13 +141,18 @@ export async function GET(request) {
         total_calories: 0,
         total_water_intake: 0,
         total_sleep_hours: 0,
-        avg_mood_score: 0,
+        average_mood_score: Math.round(avgMoodScore * 10) / 10, // Changed from avg_mood_score
         fitness_entries: fitnessEntries,
         nutrition_entries: 0,
         water_entries: waterEntries,
         sleep_entries: sleepEntries,
         mood_entries: moodEntries,
-        wellness_score: 0
+        wellness_score: 0,
+        // Wellness activities data - Fixed field names to match frontend expectations
+        total_activities: totalAvailableActivities,
+        total_activities_completed: completedActivities, // Changed from completed_activities
+        total_points_earned: totalPoints, // Changed from total_points
+        streak_days: 0 // Added missing field
       }
     };
 

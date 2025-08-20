@@ -31,7 +31,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '7';
 
-    // Get wellness activities for the specified period
+    // Get wellness activities for the specified period with today's completion status
+    const today = new Date().toISOString().split('T')[0];
     const activitiesQuery = `
       SELECT 
         wa.id,
@@ -44,14 +45,15 @@ export async function GET(request) {
         wa.is_active,
         wa.created_at,
         CASE WHEN uwa.id IS NOT NULL THEN 'completed' ELSE 'available' END as status,
-        uwa.completed_at
+        uwa.completed_at,
+        uwa.activity_date
       FROM available_wellness_activities wa
-      LEFT JOIN user_wellness_activities uwa ON wa.id = uwa.activity_id AND uwa.user_id = ?
+      LEFT JOIN user_wellness_activities uwa ON wa.id = uwa.activity_id AND uwa.user_id = ? AND uwa.activity_date = ?
       WHERE wa.is_active = 1
       ORDER BY wa.created_at DESC
     `;
     
-    const activitiesResult = await query(activitiesQuery, [userId]);
+    const activitiesResult = await query(activitiesQuery, [userId, today]);
 
     const response = {
       success: true,

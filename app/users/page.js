@@ -41,6 +41,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import UserForm from "./components/UserForm";
 import UserDetailModal from "./components/UserDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function UsersPage() {
   const router = useRouter();
@@ -213,17 +214,15 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete user");
-      }
-
+      await createCrudOperation(
+        "DELETE",
+        `/api/users/${id}`,
+        null,
+        () => fetchUsers(),
+        { setLoading }
+      );
+      
       toast.success("Pengguna berhasil dihapus");
-      fetchUsers();
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Gagal menghapus pengguna");

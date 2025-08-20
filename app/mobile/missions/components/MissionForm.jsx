@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function MissionForm({ mission, onSubmit, onClose }) {
   const [formData, setFormData] = useState({
@@ -49,23 +50,16 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
       const url = mission ? `/api/mobile/missions/${mission.id}` : '/api/mobile/missions';
       const method = mission ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      await createCrudOperation(
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+        url,
+        formData,
+        () => Promise.resolve(), // Form handles refresh through onSubmit callback
+        { setLoading }
+      );
 
-      const data = await response.json();
-
-      if (data.success || response.ok) {
-        toast.success('Mission saved successfully!');
-        onSubmit();
-      } else {
-        const errorMessage = data.message || data.error || 'Failed to save mission';
-        toast.error(`Error: ${errorMessage}`);
-      }
+      toast.success('Mission saved successfully!');
+      onSubmit();
     } catch (error) {
       console.error('Error submitting form:', error);
       toast.error('Network error: Failed to save mission. Please check your connection.');

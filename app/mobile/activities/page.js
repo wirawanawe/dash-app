@@ -7,6 +7,7 @@ import ActivityDetailModal from '../missions/components/ActivityDetailModal';
 import DashboardLayout from "@/components/DashboardLayout";
 import ApiDocumentation from "@/components/ApiDocumentation";
 import toast from "react-hot-toast";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function ActivitiesPage() {
   const [activities, setActivities] = useState([]);
@@ -82,18 +83,15 @@ export default function ActivitiesPage() {
     if (!confirm('Are you sure you want to delete this activity?')) return;
 
     try {
-      const response = await fetch(`/api/mobile/activities-api/${id}`, {
-        method: 'DELETE',
-      });
+      await createCrudOperation(
+        "DELETE",
+        `/api/mobile/activities-api/${id}`,
+        null,
+        () => fetchActivities(currentPage, searchTerm, categoryFilter),
+        { setLoading }
+      );
       
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success('Activity berhasil dihapus');
-        fetchActivities();
-      } else {
-        toast.error(data.error || 'Failed to delete activity');
-      }
+      toast.success('Activity berhasil dihapus');
     } catch (err) {
       console.error('Error deleting activity:', err);
       toast.error('Failed to delete activity');
@@ -113,6 +111,7 @@ export default function ActivitiesPage() {
   const handleFormSubmit = () => {
     setShowForm(false);
     setEditingActivity(null);
+    // Auto-refresh is handled by the form component through createCrudOperation
     fetchActivities(currentPage, searchTerm, categoryFilter);
   };
 

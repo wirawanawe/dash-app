@@ -71,22 +71,45 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log(`🔍 Setup wellness POST - User ID: ${user.id}`);
+
     const body = await request.json();
-    const { weight, height, gender, activity_level, fitness_goal } = body;
+    const { weight, height, gender, activity_level, fitness_goal, program_duration } = body;
+
+    console.log(`📊 Request body:`, { weight, height, gender, activity_level, fitness_goal, program_duration });
 
     // Validasi input
-    if (!weight || !height || !gender || !activity_level || !fitness_goal) {
+    if (!weight || !height || !gender || !activity_level || !fitness_goal || !program_duration) {
+      const missingFields = [];
+      if (!weight) missingFields.push('weight');
+      if (!height) missingFields.push('height');
+      if (!gender) missingFields.push('gender');
+      if (!activity_level) missingFields.push('activity_level');
+      if (!fitness_goal) missingFields.push('fitness_goal');
+      if (!program_duration) missingFields.push('program_duration');
+      
+      console.log(`❌ Missing required fields: ${missingFields.join(', ')}`);
       return NextResponse.json({ 
         success: false, 
-        message: 'Semua field harus diisi: weight, height, gender, activity_level, fitness_goal' 
+        message: `Semua field harus diisi: ${missingFields.join(', ')}` 
       }, { status: 400 });
     }
 
     // Validasi nilai
     if (weight <= 0 || height <= 0) {
+      console.log(`❌ Invalid values - weight: ${weight}, height: ${height}`);
       return NextResponse.json({ 
         success: false, 
         message: 'Berat badan dan tinggi badan harus lebih dari 0' 
+      }, { status: 400 });
+    }
+
+    // Validasi durasi program
+    if (program_duration < 7 || program_duration > 365) {
+      console.log(`❌ Invalid program duration: ${program_duration}`);
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Durasi program harus antara 7-365 hari' 
       }, { status: 400 });
     }
 
@@ -97,18 +120,24 @@ export async function POST(request) {
     );
 
     if (!userResult) {
+      console.log(`❌ User not found - ID: ${user.id}`);
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
+
+    console.log(`📅 User date_of_birth: ${userResult.date_of_birth}`);
 
     // Hitung usia otomatis dari tanggal lahir
     const age = calculateAge(userResult.date_of_birth);
     
     if (age === null) {
+      console.log(`❌ No date_of_birth found for user ID: ${user.id}`);
       return NextResponse.json({ 
         success: false, 
         message: 'Tanggal lahir tidak ditemukan. Silakan update profil terlebih dahulu.' 
       }, { status: 400 });
     }
+
+    console.log(`✅ Calculated age: ${age}`);
 
     try {
       // 1. Simpan data berat badan ke health_data
@@ -123,11 +152,22 @@ export async function POST(request) {
         [user.id, 'height', height, 'cm', 'manual']
       );
 
-      // 3. Update mobile_users dengan data wellness
+      // 3. Update mobile_users dengan data wellness (handle renew)
       await query(
-        'UPDATE mobile_users SET wellness_program_joined = ?, wellness_join_date = NOW(), fitness_goal = ?, activity_level = ? WHERE id = ?',
-        [true, fitness_goal, activity_level, user.id]
+        `UPDATE mobile_users 
+         SET wellness_program_joined = ?, 
+             wellness_join_date = NOW(), 
+             wellness_program_duration = ?, 
+             wellness_program_end_date = DATE_ADD(NOW(), INTERVAL ? DAY),
+             wellness_program_completed = FALSE,
+             wellness_program_completion_date = NULL,
+             fitness_goal = ?, 
+             activity_level = ? 
+         WHERE id = ?`,
+        [true, program_duration, program_duration, fitness_goal, activity_level, user.id]
       );
+
+      console.log(`✅ Wellness setup completed for user ID: ${user.id}`);
 
       return NextResponse.json({
         success: true,
@@ -139,6 +179,7 @@ export async function POST(request) {
           gender: gender,
           activity_level: activity_level,
           fitness_goal: fitness_goal,
+          program_duration: program_duration,
           wellness_program_joined: true,
           wellness_join_date: new Date().toISOString()
         }

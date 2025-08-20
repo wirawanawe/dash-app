@@ -39,20 +39,26 @@ export async function GET(request) {
         uwa.completed_at,
         uwa.created_at,
         uwa.duration_minutes,
+        uwa.activity_date,
+        uwa.activity_type,
         wa.id as activity_id,
         wa.title,
         wa.description,
         wa.category,
         wa.duration_minutes as activity_duration,
         wa.difficulty,
-        wa.points,
+        wa.points as base_points,
         wa.is_active,
-        wa.points as points_earned
+        CASE 
+          WHEN uwa.activity_type = 'intense' THEN ROUND(wa.points * 1.5)
+          WHEN uwa.activity_type = 'relaxed' THEN ROUND(wa.points * 0.8)
+          ELSE wa.points
+        END as points_earned
       FROM user_wellness_activities uwa
       JOIN available_wellness_activities wa ON uwa.activity_id = wa.id
       WHERE uwa.user_id = ? 
-        AND uwa.completed_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-      ORDER BY uwa.completed_at DESC
+        AND uwa.activity_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      ORDER BY uwa.activity_date DESC, uwa.completed_at DESC
     `;
     
     const historyResult = await query(historyQuery, [userId, parseInt(period)]);

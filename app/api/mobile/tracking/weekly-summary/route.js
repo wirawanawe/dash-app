@@ -61,12 +61,12 @@ export async function GET(request) {
     // Get water intake data for the week
     const waterSql = `
       SELECT 
-        tracking_date as date,
+        DATE(tracking_date) as date,
         SUM(amount_ml) as total_ml,
         COUNT(*) as entries
       FROM water_tracking
       WHERE user_id = ? AND tracking_date BETWEEN ? AND ?
-      GROUP BY tracking_date
+      GROUP BY DATE(tracking_date)
     `;
 
     // Determine fitness duration column
@@ -88,46 +88,46 @@ export async function GET(request) {
     // Get fitness data for the week using detected duration column
     const fitnessSql = `
       SELECT 
-        tracking_date as date,
+        DATE(tracking_date) as date,
         COALESCE(SUM(steps), 0) as total_steps,
         COALESCE(SUM(${fitnessDurationColumn}), 0) as total_exercise_minutes,
         COALESCE(SUM(distance_km), 0) as total_distance_km
       FROM fitness_tracking
       WHERE user_id = ? AND tracking_date BETWEEN ? AND ?
-      GROUP BY tracking_date
-      ORDER BY tracking_date ASC
+      GROUP BY DATE(tracking_date)
+      ORDER BY DATE(tracking_date) ASC
     `;
 
     // Get sleep data for the week (sum hours from sleep_duration_minutes, group by sleep_date)
     const sleepSql = `
       SELECT 
-        sleep_date as date,
+        DATE(sleep_date) as date,
         COALESCE(SUM(sleep_duration_minutes) / 60, 0) as total_hours,
         AVG(sleep_quality) as avg_quality
       FROM sleep_tracking
       WHERE user_id = ? AND sleep_date BETWEEN ? AND ?
-      GROUP BY sleep_date
-      ORDER BY sleep_date ASC
+      GROUP BY DATE(sleep_date)
+      ORDER BY DATE(sleep_date) ASC
     `;
 
     // Get mood data for the week (average mapped score per day)
     // Mapping to 1-10 scale: very_happy=10, happy=8, neutral=5, sad=3, very_sad=1
     const moodSql = `
       SELECT 
-        tracking_date as date,
+        DATE(tracking_date) as date,
         ROUND(AVG(CASE 
           WHEN mood_level = 'very_happy' THEN 10
           WHEN mood_level = 'happy' THEN 8
           WHEN mood_level = 'neutral' THEN 5
           WHEN mood_level = 'sad' THEN 3
           WHEN mood_level = 'very_sad' THEN 1
-          ELSE 0
+          ELSE 5
         END), 1) as avg_mood_score,
         COUNT(*) as entries
       FROM mood_tracking
       WHERE user_id = ? AND tracking_date BETWEEN ? AND ?
-      GROUP BY tracking_date
-      ORDER BY tracking_date ASC
+      GROUP BY DATE(tracking_date)
+      ORDER BY DATE(tracking_date) ASC
     `;
 
     // Execute all queries
@@ -153,25 +153,25 @@ export async function GET(request) {
 
     // Process nutrition data
     nutritionData.forEach(day => {
-      weeklyTotals.calories += day.total_calories || 0;
-      weeklyTotals.meal_count += day.meal_count || 0;
+      weeklyTotals.calories += Number(day.total_calories) || 0;
+      weeklyTotals.meal_count += Number(day.meal_count) || 0;
     });
 
     // Process water data
     waterData.forEach(day => {
-      weeklyTotals.water_ml += day.total_ml || 0;
+      weeklyTotals.water_ml += Number(day.total_ml) || 0;
     });
 
     // Process fitness data
     fitnessData.forEach(day => {
-      weeklyTotals.steps += day.total_steps || 0;
-      weeklyTotals.exercise_minutes += day.total_exercise_minutes || 0;
-      weeklyTotals.distance_km += day.total_distance_km || 0;
+      weeklyTotals.steps += Number(day.total_steps) || 0;
+      weeklyTotals.exercise_minutes += Number(day.total_exercise_minutes) || 0;
+      weeklyTotals.distance_km += Number(day.total_distance_km) || 0;
     });
 
     // Process sleep data
     sleepData.forEach(day => {
-      weeklyTotals.sleep_hours += day.total_hours || 0;
+      weeklyTotals.sleep_hours += Number(day.total_hours) || 0;
     });
 
     // Calculate days with activity (any data recorded)

@@ -365,6 +365,12 @@ export default function WellnessProgressPage() {
                           {selectedUser.wellness_program_joined ? 'Aktif' : 'Tidak Aktif'}
                         </div>
                       </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Durasi Program</div>
+                        <div className="font-semibold text-black">
+                          {selectedUser.wellness_program_duration ? `${selectedUser.wellness_program_duration} hari` : '-'}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

@@ -11,6 +11,7 @@ import HealthDataForm from "./components/HealthDataForm";
 import HealthDataDetailModal from "./components/HealthDataDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
 import toast from "react-hot-toast";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function HealthDataPage() {
   const [healthData, setHealthData] = useState([]);
@@ -86,18 +87,15 @@ export default function HealthDataPage() {
     }
 
     try {
-      const response = await fetch(`/api/mobile/health_data/${id}`, {
-        method: 'DELETE',
-      });
+      await createCrudOperation(
+        "DELETE",
+        `/api/mobile/health_data/${id}`,
+        null,
+        () => fetchHealthData(),
+        { setLoading }
+      );
       
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success('Data kesehatan berhasil dihapus');
-        fetchHealthData();
-      } else {
-        toast.error(data.message || 'Gagal menghapus data kesehatan');
-      }
+      toast.success('Data kesehatan berhasil dihapus');
     } catch (err) {
       console.error('Error deleting health data:', err);
       toast.error('Gagal menghapus data kesehatan');
@@ -117,25 +115,17 @@ export default function HealthDataPage() {
       
       const method = editingHealthData ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
+      await createCrudOperation(
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+        url,
+        formData,
+        () => fetchHealthData(),
+        { setLoading }
+      );
 
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success('Health data saved successfully!');
-        setShowForm(false);
-        setEditingHealthData(null);
-        fetchHealthData();
-      } else {
-        const errorMessage = data.message || data.error || 'Gagal menyimpan data kesehatan';
-        toast.error(`Error: ${errorMessage}`);
-      }
+      toast.success('Health data saved successfully!');
+      setShowForm(false);
+      setEditingHealthData(null);
     } catch (err) {
       console.error('Error saving health data:', err);
       toast.error('Network error: Gagal menyimpan data kesehatan. Please check your connection.');

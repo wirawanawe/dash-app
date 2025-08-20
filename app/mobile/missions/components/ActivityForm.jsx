@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Activity, Calculator, Clock, Award } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function ActivityForm({ activity, onSubmit, onClose }) {
   const [formData, setFormData] = useState({
@@ -134,21 +135,16 @@ export default function ActivityForm({ activity, onSubmit, onClose }) {
       
       const method = activity ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
+      await createCrudOperation(
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(finalData),
-      });
+        url,
+        finalData,
+        () => Promise.resolve(), // Form handles refresh through onSubmit callback
+        { setLoading }
+      );
 
-      if (response.ok) {
-        toast.success('Activity saved successfully!');
-        onSubmit();
-      } else {
-        const data = await response.json();
-        toast.error(data.error || 'Failed to save activity');
-      }
+      toast.success('Activity saved successfully!');
+      onSubmit();
     } catch (error) {
       console.error('Error saving activity:', error);
       toast.error('Failed to save activity');

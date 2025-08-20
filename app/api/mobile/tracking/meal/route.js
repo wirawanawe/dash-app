@@ -23,8 +23,12 @@ export async function GET(request) {
 
     let sql = `
       SELECT 
-        mt.id, mt.user_id, mt.meal_type, mt.recorded_at, mt.notes, mt.created_at
+        mt.id, mt.user_id, mt.meal_type, mt.recorded_at, mt.notes, mt.created_at,
+        mf.food_id, mf.quantity, mf.unit, mf.calories, mf.protein, mf.carbs, mf.fat,
+        fd.name as food_name, fd.name_indonesian as food_name_indonesian
       FROM meal_tracking mt
+      LEFT JOIN meal_foods mf ON mt.id = mf.meal_id
+      LEFT JOIN food_database fd ON mf.food_id = fd.id
       WHERE mt.user_id = ?
     `;
     let params = [user_id];
@@ -45,7 +49,7 @@ export async function GET(request) {
       params.push(meal_type);
     }
 
-    sql += " GROUP BY mt.id ORDER BY mt.recorded_at DESC";
+    sql += " ORDER BY mt.recorded_at DESC";
 
     // Add LIMIT if specified
     if (limit) {
@@ -54,43 +58,45 @@ export async function GET(request) {
 
     const mealData = await query(sql, params);
 
-    // Get foods for each meal
-    const parsedMealData = await Promise.all(mealData.map(async (meal) => {
-      try {
-        const foodsSql = `
-          SELECT 
-            mf.food_id,
-            fd.name as food_name,
-            fd.name_indonesian as food_name_indonesian,
-            mf.quantity,
-            mf.unit,
-            mf.calories,
-            mf.protein,
-            mf.carbs,
-            mf.fat
-          FROM meal_foods mf
-          LEFT JOIN food_database fd ON mf.food_id = fd.id
-          WHERE mf.meal_id = ?
-        `;
-        
-        const foods = await query(foodsSql, [meal.id]);
-        
-        return {
-          ...meal,
-          foods: foods || []
-        };
-      } catch (error) {
-        console.error("Error fetching foods for meal:", meal.id, error);
-        return {
-          ...meal,
+    // Group by meal (same user_id, meal_type, recorded_at, notes)
+    const groupedMeals = {};
+    
+    mealData.forEach(record => {
+      const mealKey = `${record.user_id}_${record.meal_type}_${record.recorded_at}_${record.notes || ''}`;
+      
+      if (!groupedMeals[mealKey]) {
+        groupedMeals[mealKey] = {
+          id: record.id,
+          user_id: record.user_id,
+          meal_type: record.meal_type,
+          recorded_at: record.recorded_at,
+          notes: record.notes,
+          created_at: record.created_at,
           foods: []
         };
       }
-    }));
+      
+      // Add food item if it exists
+      if (record.food_id) {
+        groupedMeals[mealKey].foods.push({
+          food_id: record.food_id,
+          food_name: record.food_name,
+          food_name_indonesian: record.food_name_indonesian,
+          quantity: record.quantity,
+          unit: record.unit,
+          calories: record.calories,
+          protein: record.protein,
+          carbs: record.carbs,
+          fat: record.fat
+        });
+      }
+    });
+
+    const result = Object.values(groupedMeals);
 
     return NextResponse.json({
       success: true,
-      data: parsedMealData,
+      data: result,
     });
   } catch (error) {
     console.error("Error fetching meal tracking:", error);
@@ -116,6 +122,16 @@ export async function POST(request) {
       recorded_at
     } = await request.json();
 
+    // Debug logging
+    console.log('🍽️ Received meal data:', {
+      user_id,
+      meal_type,
+      foods_count: foods?.length,
+      foods: foods,
+      notes,
+      recorded_at
+    });
+
     if (!user_id || !meal_type || !foods || !Array.isArray(foods)) {
       return NextResponse.json(
         {
@@ -127,49 +143,82 @@ export async function POST(request) {
     }
 
     try {
-      // Insert meal tracking
-      const mealSql = `
-        INSERT INTO meal_tracking (user_id, meal_type, notes, recorded_at, created_at)
-        VALUES (?, ?, ?, ?, NOW())
-      `;
-
       // Format datetime for MySQL
       const formattedDate = recorded_at ? 
         new Date(recorded_at).toISOString().slice(0, 19).replace('T', ' ') : 
         new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-      const mealResult = await query(mealSql, [
+      // First, create the meal entry
+      const mealInsertSQL = `
+        INSERT INTO meal_tracking (
+          user_id, meal_type, recorded_at, notes, created_at
+        ) VALUES (?, ?, ?, ?, NOW())
+      `;
+
+      const mealResult = await query(mealInsertSQL, [
         user_id,
         meal_type,
-        notes || null,
         formattedDate,
+        notes || null
       ]);
 
       const mealId = mealResult.insertId;
+      console.log('🍽️ Created meal entry with ID:', mealId);
 
-      // Insert meal foods
+      // Then, insert each food as a separate record in meal_foods
+      const insertedFoodIds = [];
+      
       for (const food of foods) {
-        const foodSql = `
-          INSERT INTO meal_foods (meal_id, food_id, quantity, unit, calories, protein, carbs, fat)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        // Validate and convert nutrition values
+        const quantity = parseFloat(food.quantity) || 1;
+        const calories = parseFloat(food.calories) || 0;
+        const protein = parseFloat(food.protein) || 0;
+        const carbs = parseFloat(food.carbs) || 0;
+        const fat = parseFloat(food.fat) || 0;
+        
+        // Ensure values are not negative
+        const validatedCalories = Math.max(0, calories);
+        const validatedProtein = Math.max(0, protein);
+        const validatedCarbs = Math.max(0, carbs);
+        const validatedFat = Math.max(0, fat);
+        
+        const foodInsertSQL = `
+          INSERT INTO meal_foods (
+            meal_id, food_id, quantity, unit, calories, protein, carbs, fat, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
-        await query(foodSql, [
+        const foodResult = await query(foodInsertSQL, [
           mealId,
-          food.food_id,
-          food.quantity || 1,
+          food.food_id || null,
+          quantity,
           food.unit || 'serving',
-          food.calories || 0,
-          food.protein || 0,
-          food.carbs || 0,
-          food.fat || 0,
+          validatedCalories,
+          validatedProtein,
+          validatedCarbs,
+          validatedFat
         ]);
+
+        insertedFoodIds.push(foodResult.insertId);
+
+        // Debug logging for each food
+        console.log('🍎 Saved food:', {
+          id: foodResult.insertId,
+          meal_id: mealId,
+          food_id: food.food_id,
+          quantity,
+          unit: food.unit || 'serving',
+          calories: validatedCalories,
+          protein: validatedProtein,
+          carbs: validatedCarbs,
+          fat: validatedFat
+        });
       }
 
       return NextResponse.json({
         success: true,
         message: "Meal tracking entry created successfully",
-        data: { id: mealId },
+        data: { meal_id: mealId, food_ids: insertedFoodIds },
       });
     } catch (error) {
       console.error("Error inserting meal data:", error);
@@ -186,4 +235,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-} 
+}

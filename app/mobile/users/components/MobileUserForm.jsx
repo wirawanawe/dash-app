@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Save, User, Mail, Phone, Calendar, MapPin, Shield, Activity } from 'lucide-react';
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function MobileUserForm({ user, onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -78,21 +79,15 @@ export default function MobileUserForm({ user, onSave, onCancel }) {
       const url = user ? `/api/mobile/users/${user.id}` : '/api/mobile/users';
       const method = user ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
+      const data = await createCrudOperation(
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+        url,
+        formData,
+        () => Promise.resolve(), // Form handles refresh through onSave callback
+        { setLoading }
+      );
 
-      const data = await response.json();
-
-      if (response.ok) {
-        onSave(data);
-      } else {
-        setErrors({ submit: data.error || 'Terjadi kesalahan' });
-      }
+      onSave(data);
     } catch (error) {
       setErrors({ submit: 'Terjadi kesalahan jaringan' });
     } finally {

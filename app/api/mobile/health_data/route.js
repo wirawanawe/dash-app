@@ -6,78 +6,128 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
-    const search = searchParams.get('search') || '';
-    const type = searchParams.get('type') || '';
-    const offset = (page - 1) * limit;
+    const user_id = searchParams.get('user_id');
+    const data_type = searchParams.get('data_type');
+    const start_date = searchParams.get('start_date');
+    const end_date = searchParams.get('end_date');
+    const limit = parseInt(searchParams.get('limit')) || 50;
+    const offset = parseInt(searchParams.get('offset')) || 0;
 
-    let whereClause = 'WHERE 1=1';
-    let params = [];
-
-    if (search) {
-      whereClause += ' AND (hd.notes LIKE ? OR mu.name LIKE ? OR mu.email LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    // For mobile app - require user_id
+    if (!user_id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User ID is required",
+        },
+        { status: 400 }
+      );
     }
-    if (type) {
-      whereClause += ' AND hd.data_type = ?';
-      params.push(type);
-    }
 
-    // Get total count
-    const countSql = `
-      SELECT COUNT(*) as total 
-      FROM health_data hd
-      LEFT JOIN mobile_users mu ON hd.user_id = mu.id
-      ${whereClause}
-    `;
-    const countResult = await query(countSql, params);
-    const total = countResult[0].total;
-
-    // Get health data with pagination
-    const sql = `
+    // Build query
+    let sql = `
       SELECT 
-        hd.id,
-        hd.user_id,
-        hd.data_type,
-        hd.value,
-        hd.unit,
-        hd.recorded_date,
-        hd.notes,
-        hd.created_at,
-        hd.updated_at,
-        mu.name as user_name,
-        mu.email as user_email
-      FROM health_data hd
-      LEFT JOIN mobile_users mu ON hd.user_id = mu.id
-      ${whereClause}
-      ORDER BY hd.recorded_date DESC 
-      LIMIT ? OFFSET ?
+        id, user_id, data_type, value, unit, measured_at as recorded_at, notes, created_at, updated_at
+      FROM health_data
+      WHERE user_id = ?
     `;
+    let params = [user_id];
 
-    // Use raw query to avoid parameter binding issues with LIMIT/OFFSET
-    let finalQuery = sql;
-    
-    // Replace parameter placeholders with actual values
-    params.forEach((param) => {
-      const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
-      finalQuery = finalQuery.replace('?', value);
+    if (data_type) {
+      sql += " AND data_type = ?";
+      params.push(data_type);
+    }
+
+    if (start_date) {
+      sql += " AND DATE(measured_at) >= ?";
+      params.push(start_date);
+    }
+
+    if (end_date) {
+      sql += " AND DATE(measured_at) <= ?";
+      params.push(end_date);
+    }
+
+    sql += " ORDER BY measured_at DESC LIMIT " + limit;
+
+    const healthData = await query(sql, params);
+
+    // Get total count for pagination
+    let countSql = "SELECT COUNT(*) as total FROM health_data WHERE user_id = ?";
+    let countParams = [user_id];
+
+    if (data_type) {
+      countSql += " AND data_type = ?";
+      countParams.push(data_type);
+    }
+
+    if (start_date) {
+      countSql += " AND DATE(measured_at) >= ?";
+      countParams.push(start_date);
+    }
+
+    if (end_date) {
+      countSql += " AND DATE(measured_at) <= ?";
+      countParams.push(end_date);
+    }
+
+    const countResult = await query(countSql, countParams);
+    const total = countResult[0]?.total || 0;
+
+    // Calculate summary statistics
+    const summary = {
+      total_entries: total,
+      data_types: {},
+      latest_entries: {},
+    };
+
+    // Group by data type
+    const dataTypeGroups = {};
+    healthData.forEach(entry => {
+      if (!dataTypeGroups[entry.data_type]) {
+        dataTypeGroups[entry.data_type] = [];
+      }
+      dataTypeGroups[entry.data_type].push(entry);
     });
-    
-    // Replace LIMIT and OFFSET placeholders
-    finalQuery = finalQuery.replace('?', parseInt(limit, 10)).replace('?', parseInt(offset, 10));
-    
-    const healthData = await rawQuery(finalQuery);
+
+    // Calculate statistics for each data type
+    Object.keys(dataTypeGroups).forEach(dataType => {
+      const entries = dataTypeGroups[dataType];
+      const values = entries.map(e => parseFloat(e.value)).filter(v => !isNaN(v));
+      
+      if (values.length > 0) {
+        const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        
+        summary.data_types[dataType] = {
+          count: entries.length,
+          average: avg,
+          min: min,
+          max: max,
+          unit: entries[0]?.unit || null,
+        };
+
+        // Get latest entry for this data type
+        const latestEntry = entries[0]; // Already sorted by measured_at DESC
+        summary.latest_entries[dataType] = {
+          value: latestEntry.value,
+          unit: latestEntry.unit,
+          recorded_at: latestEntry.recorded_at,
+        };
+      }
+    });
 
     return NextResponse.json({
       success: true,
-      healthData: healthData,
+      data: healthData,
+      summary,
       pagination: {
-        page,
-        limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
     });
   } catch (error) {
     console.error('Error fetching health data:', error);
@@ -94,36 +144,44 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
     const {
       user_id,
       data_type,
       value,
       unit,
-      recorded_date,
+      recorded_at,
       notes
-    } = body;
+    } = await request.json();
 
-    // Validate required fields
-    if (!user_id || !data_type || value === undefined || value === null) {
+    if (!user_id || !data_type || value === undefined) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: 'User ID, data type, and value are required' 
+        {
+          success: false,
+          message: "User ID, data type, dan value wajib diisi",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate data type
+    const validDataTypes = [
+      'blood_pressure', 'heart_rate', 'blood_sugar', 'weight', 'height',
+      'temperature', 'oxygen_saturation', 'cholesterol', 'bmi'
+    ];
+    
+    if (!validDataTypes.includes(data_type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Data type tidak valid",
         },
         { status: 400 }
       );
     }
 
     const sql = `
-      INSERT INTO health_data (
-        user_id, data_type, value, unit, recorded_date, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-      ON DUPLICATE KEY UPDATE
-        value = VALUES(value),
-        unit = VALUES(unit),
-        notes = VALUES(notes),
-        updated_at = NOW()
+      INSERT INTO health_data (user_id, data_type, value, unit, measured_at, notes, source, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'manual', NOW())
     `;
 
     const result = await query(sql, [
@@ -131,28 +189,22 @@ export async function POST(request) {
       data_type,
       value,
       unit || null,
-      recorded_date || new Date().toISOString().split('T')[0],
-      notes || null
+      recorded_at || new Date().toISOString().slice(0, 19).replace('T', ' '),
+      notes || null,
     ]);
 
     return NextResponse.json({
       success: true,
-      message: 'Health data created successfully',
-      data: {
-        id: result.insertId,
-        user_id,
-        data_type,
-        value,
-        recorded_date: recorded_date || new Date().toISOString().split('T')[0]
-      }
+      message: "Health data berhasil ditambahkan",
+      data: { id: result.insertId },
     });
   } catch (error) {
-    console.error('Error creating health data:', error);
+    console.error("Error creating health data:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Failed to create health data',
-        error: error.message 
+      {
+        success: false,
+        message: "Gagal menambahkan health data",
+        error: error.message,
       },
       { status: 500 }
     );

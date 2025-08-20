@@ -30,6 +30,7 @@ import {
   Star,
   Shield
 } from 'lucide-react';
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function DoctorsPage() {
   const [doctors, setDoctors] = useState([]);
@@ -138,19 +139,16 @@ export default function DoctorsPage() {
 
   const handleSubmit = async (formData) => {
     try {
-      const response = await fetch(
-        "/api/doctors" + (selectedDoctor ? `/${selectedDoctor.id}` : ""),
-        {
-          method: selectedDoctor ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }
-      );
+      const url = "/api/doctors" + (selectedDoctor ? `/${selectedDoctor.id}` : "");
+      const method = selectedDoctor ? "PUT" : "POST";
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save");
-      }
+      await createCrudOperation(
+        method,
+        url,
+        formData,
+        () => fetchDoctors(),
+        { setLoading: setIsLoading }
+      );
 
       toast.success(
         selectedDoctor
@@ -158,7 +156,6 @@ export default function DoctorsPage() {
           : "Dokter berhasil ditambahkan"
       );
       setShowForm(false);
-      fetchDoctors();
     } catch (error) {
       console.error("Error:", error);
       toast.error(error.message || "Gagal menyimpan dokter");
@@ -168,12 +165,15 @@ export default function DoctorsPage() {
   const handleDelete = async (id) => {
     if (confirm("Apakah Anda yakin ingin menghapus dokter ini?")) {
       try {
-        const response = await fetch(`/api/doctors/${id}`, {
-          method: "DELETE",
-        });
-        if (!response.ok) throw new Error("Failed to delete");
+        await createCrudOperation(
+          "DELETE",
+          `/api/doctors/${id}`,
+          null,
+          () => fetchDoctors(),
+          { setLoading: setIsLoading }
+        );
+        
         toast.success("Dokter berhasil dihapus");
-        fetchDoctors();
       } catch (error) {
         console.error("Error:", error);
         toast.error("Gagal menghapus dokter");

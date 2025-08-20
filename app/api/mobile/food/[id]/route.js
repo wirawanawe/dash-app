@@ -168,7 +168,7 @@ export async function DELETE(request, { params }) {
     // Check if food exists and is not referenced by other tables
     const checkSql = `
       SELECT COUNT(*) as meal_count 
-      FROM meal_logging 
+      FROM meal_tracking 
       WHERE food_id = ?
     `;
     

@@ -53,9 +53,12 @@ export async function GET(request) {
     const dateParam = searchParams.get("date");
     const date = dateParam || new Date().toISOString().split('T')[0];
 
+
+
     // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
+
       return NextResponse.json(
         {
           success: false,
@@ -176,6 +179,8 @@ export async function GET(request) {
       activities_completed: 0, // Placeholder
       points_earned: 0, // Placeholder
     };
+
+
 
     return NextResponse.json({
       success: true,

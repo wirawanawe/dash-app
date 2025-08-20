@@ -11,6 +11,7 @@ import SleepTrackingForm from "./components/SleepTrackingForm";
 import SleepTrackingDetailModal from "./components/SleepTrackingDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
 import toast from "react-hot-toast";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function SleepTrackingPage() {
   const [sleepData, setSleepData] = useState([]);
@@ -86,17 +87,15 @@ export default function SleepTrackingPage() {
     }
 
     try {
-      const response = await fetch(`/api/mobile/sleep_tracking/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        toast.success('Data tidur berhasil dihapus');
-        fetchSleepData();
-      } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Gagal menghapus data tidur');
-      }
+      await createCrudOperation(
+        "DELETE",
+        `/api/mobile/sleep_tracking/${id}`,
+        null,
+        () => fetchSleepData(),
+        { setLoading }
+      );
+      
+      toast.success('Data tidur berhasil dihapus');
     } catch (err) {
       console.error('Error deleting sleep data:', err);
       toast.error(err.message);
@@ -116,23 +115,17 @@ export default function SleepTrackingPage() {
       
       const method = editingSleepData ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
+      await createCrudOperation(
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+        url,
+        formData,
+        () => fetchSleepData(),
+        { setLoading }
+      );
 
-      if (response.ok) {
-        toast.success(editingSleepData ? 'Data tidur berhasil diperbarui' : 'Data tidur berhasil ditambahkan');
-        setShowForm(false);
-        setEditingSleepData(null);
-        fetchSleepData();
-      } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Gagal menyimpan data tidur');
-      }
+      toast.success(editingSleepData ? 'Data tidur berhasil diperbarui' : 'Data tidur berhasil ditambahkan');
+      setShowForm(false);
+      setEditingSleepData(null);
     } catch (err) {
       console.error('Error saving sleep data:', err);
       toast.error(err.message);

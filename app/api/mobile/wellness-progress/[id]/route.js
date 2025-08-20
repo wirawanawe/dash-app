@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
     let userResult = [];
     try {
       const userQuery = `
-        SELECT id, name, email, wellness_program_joined, wellness_join_date, 
+        SELECT id, name, email, wellness_program_joined, wellness_join_date, wellness_program_duration,
                date_of_birth, gender, activity_level, fitness_goal
         FROM mobile_users 
         WHERE id = ?
@@ -324,6 +324,7 @@ export async function GET(request, { params }) {
         email: user.email || 'Email tidak tersedia',
         wellness_program_joined: user.wellness_program_joined || false,
         wellness_join_date: user.wellness_join_date,
+        wellness_program_duration: user.wellness_program_duration,
         age: age,
         gender: user.gender,
         activity_level: user.activity_level,

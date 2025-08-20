@@ -5,6 +5,7 @@ import ExaminationForm from "./components/ExaminationForm";
 import ApiDocumentation from "@/components/ApiDocumentation";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function ExaminationsPage() {
   const [examinations, setExaminations] = useState([]);
@@ -77,17 +78,16 @@ export default function ExaminationsPage() {
 
   const handleSubmit = async (formData) => {
     try {
-      const response = await fetch(
-        "/api/examinations" +
-          (selectedExamination ? `/${selectedExamination.id}` : ""),
-        {
-          method: selectedExamination ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        }
-      );
+      const url = "/api/examinations" + (selectedExamination ? `/${selectedExamination.id}` : "");
+      const method = selectedExamination ? "PUT" : "POST";
 
-      if (!response.ok) throw new Error("Failed to save");
+      await createCrudOperation(
+        method,
+        url,
+        formData,
+        () => fetchExaminations(),
+        { setLoading: setIsLoading }
+      );
 
       toast.success(
         selectedExamination
@@ -95,7 +95,6 @@ export default function ExaminationsPage() {
           : "Pemeriksaan berhasil ditambahkan"
       );
       setShowForm(false);
-      fetchExaminations();
     } catch (error) {
       console.error("Error:", error);
       toast.error("Gagal menyimpan pemeriksaan");
@@ -105,12 +104,15 @@ export default function ExaminationsPage() {
   const handleDelete = async (id) => {
     if (confirm("Apakah Anda yakin ingin menghapus pemeriksaan ini?")) {
       try {
-        const response = await fetch(`/api/examinations/${id}`, {
-          method: "DELETE",
-        });
-        if (!response.ok) throw new Error("Failed to delete");
+        await createCrudOperation(
+          "DELETE",
+          `/api/examinations/${id}`,
+          null,
+          () => fetchExaminations(),
+          { setLoading: setIsLoading }
+        );
+        
         toast.success("Pemeriksaan berhasil dihapus");
-        fetchExaminations();
       } catch (error) {
         console.error("Error:", error);
         toast.error("Gagal menghapus pemeriksaan");

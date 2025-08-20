@@ -26,7 +26,7 @@ export async function GET(request) {
     let params = [user_id];
 
     if (date) {
-      sql += " AND tracking_date = ?";
+      sql += " AND DATE(tracking_date) = ?";
       params.push(date);
     }
 
