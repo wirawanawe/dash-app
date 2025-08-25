@@ -87,23 +87,45 @@ export async function POST(request) {
       // Check if habit is completed
       isCompleted = newFrequency >= habit.target_frequency;
       
-      const updateQuery = `
-        UPDATE user_habit_activities 
-        SET current_frequency = ?, 
-            points_earned = ?,
-            notes = ?,
-            completed_at = CASE WHEN ? >= target_frequency THEN NOW() ELSE completed_at END,
-            updated_at = NOW()
-        WHERE id = ?
-      `;
+      const currentDateTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
       
-      await query(updateQuery, [
-        newFrequency, 
-        pointsEarned, 
-        notes, 
-        newFrequency, 
-        existing.id
-      ]);
+      if (isCompleted) {
+        const updateQuery = `
+          UPDATE user_habit_activities 
+          SET current_frequency = ?, 
+              points_earned = ?,
+              notes = ?,
+              completed_at = ?,
+              updated_at = ?
+          WHERE id = ?
+        `;
+        
+        await query(updateQuery, [
+          newFrequency, 
+          pointsEarned, 
+          notes, 
+          currentDateTime,
+          currentDateTime,
+          existing.id
+        ]);
+      } else {
+        const updateQuery = `
+          UPDATE user_habit_activities 
+          SET current_frequency = ?, 
+              points_earned = ?,
+              notes = ?,
+              updated_at = ?
+          WHERE id = ?
+        `;
+        
+        await query(updateQuery, [
+          newFrequency, 
+          pointsEarned, 
+          notes, 
+          currentDateTime,
+          existing.id
+        ]);
+      }
 
       console.log(`✅ Updated habit completion: ${habit.title}, frequency: ${newFrequency}/${habit.target_frequency}`);
     } else {
@@ -112,26 +134,54 @@ export async function POST(request) {
       pointsEarned = Math.round(habit.points * frequencyMultiplier);
       isCompleted = frequency >= habit.target_frequency;
       
-      const insertQuery = `
-        INSERT INTO user_habit_activities (
-          user_id, activity_id, activity_date, habit_type, 
-          target_frequency, current_frequency, unit, 
-          points_earned, notes, completed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-      `;
+      const currentDateTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
       
-      await query(insertQuery, [
-        userId, 
-        activity_id, 
-        today, 
-        habit.habit_type,
-        habit.target_frequency, 
-        frequency, 
-        habit.unit,
-        pointsEarned, 
-        notes, 
-        isCompleted ? new Date().toISOString() : null
-      ]);
+      if (isCompleted) {
+        const insertQuery = `
+          INSERT INTO user_habit_activities (
+            user_id, activity_id, activity_date, habit_type, 
+            target_frequency, current_frequency, unit, 
+            points_earned, notes, completed_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        await query(insertQuery, [
+          userId, 
+          activity_id, 
+          today, 
+          habit.habit_type,
+          habit.target_frequency, 
+          frequency, 
+          habit.unit,
+          pointsEarned, 
+          notes,
+          currentDateTime,
+          currentDateTime,
+          currentDateTime
+        ]);
+      } else {
+        const insertQuery = `
+          INSERT INTO user_habit_activities (
+            user_id, activity_id, activity_date, habit_type, 
+            target_frequency, current_frequency, unit, 
+            points_earned, notes, completed_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        `;
+        
+        await query(insertQuery, [
+          userId, 
+          activity_id, 
+          today, 
+          habit.habit_type,
+          habit.target_frequency, 
+          frequency, 
+          habit.unit,
+          pointsEarned, 
+          notes,
+          currentDateTime,
+          currentDateTime
+        ]);
+      }
 
       console.log(`✅ Created new habit completion: ${habit.title}, frequency: ${frequency}/${habit.target_frequency}`);
     }

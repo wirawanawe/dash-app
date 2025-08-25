@@ -1,10 +1,11 @@
 {
-  "/mobile/wellness-progress/page": "app/mobile/wellness-progress/page.js",
-  "/api/mobile/users/profile/route": "app/api/mobile/users/profile/route.js",
+  "/api/mobile/health/route": "app/api/mobile/health/route.js",
   "/api/mobile/my-missions/route": "app/api/mobile/my-missions/route.js",
-  "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js",
-  "/api/mobile/wellness-progress/[id]/route": "app/api/mobile/wellness-progress/[id]/route.js",
-  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js",
-  "/api/mobile/app/quick-actions/route": "app/api/mobile/app/quick-actions/route.js",
-  "/api/mobile/habit/stats/route": "app/api/mobile/habit/stats/route.js"
+  "/api/mobile/mission-stats/route": "app/api/mobile/mission-stats/route.js",
+  "/api/mobile/users/profile/route": "app/api/mobile/users/profile/route.js",
+  "/api/mobile/auth/login/route": "app/api/mobile/auth/login/route.js",
+  "/api/mobile/habit/stats/route": "app/api/mobile/habit/stats/route.js",
+  "/api/mobile/habit/activities/route": "app/api/mobile/habit/activities/route.js",
+  "/api/mobile/habit/activities/complete/route": "app/api/mobile/habit/activities/complete/route.js",
+  "/api/mobile/app/quick-actions/route": "app/api/mobile/app/quick-actions/route.js"
 }

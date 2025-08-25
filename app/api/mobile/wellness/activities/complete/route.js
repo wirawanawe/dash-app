@@ -137,13 +137,14 @@ export async function POST(request) {
     }
 
     // Insert new activity completion into user_habit_activities table
+    const currentDateTime = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const insertQuery = `
       INSERT INTO user_habit_activities (
         user_id, activity_id, activity_date, notes, points_earned, completed_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
     
-    await query(insertQuery, [userId, activity_id, today, notes || '', finalPoints]);
+    await query(insertQuery, [userId, activity_id, today, notes || '', finalPoints, currentDateTime, currentDateTime]);
 
     const response = {
       success: true,
