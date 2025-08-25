@@ -13,7 +13,7 @@ export async function GET(request) {
     console.log('🔍 Processing public request for period:', period);
 
     // Get total available wellness activities
-    const totalActivitiesQuery = `SELECT COUNT(*) as total FROM available_wellness_activities WHERE is_active = 1`;
+    const totalActivitiesQuery = `SELECT COUNT(*) as total FROM available_habit_activities WHERE is_active = 1`;
     console.log('🔍 Executing total activities query:', totalActivitiesQuery);
     
     const totalResult = await query(totalActivitiesQuery);
@@ -27,17 +27,17 @@ export async function GET(request) {
         uwa.id,
         uwa.activity_id,
         uwa.completed_at,
-        uwa.duration_minutes,
+        uwa.points_earned,
         awa.points as base_points
-      FROM user_wellness_activities uwa
-      LEFT JOIN available_wellness_activities awa ON uwa.activity_id = awa.id
+      FROM user_habit_activities uwa
+      LEFT JOIN available_habit_activities awa ON uwa.activity_id = awa.id
       WHERE uwa.completed_at IS NOT NULL
     `;
     const userActivitiesResult = await query(userActivitiesQuery);
     
     const completedActivities = userActivitiesResult.length;
     const totalPoints = userActivitiesResult.reduce((sum, activity) => {
-      return sum + (activity.base_points || 0);
+      return sum + (activity.points_earned || activity.base_points || 0);
     }, 0);
     
     console.log('✅ Public wellness stats - Available:', totalAvailableActivities, 'Completed:', completedActivities, 'Points:', totalPoints);

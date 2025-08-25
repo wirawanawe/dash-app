@@ -22,7 +22,7 @@ export async function GET(request) {
         wa.created_at,
         'available' as status,
         NULL as activity_date
-      FROM available_wellness_activities wa
+      FROM available_habit_activities wa
       WHERE wa.is_active = 1
       ORDER BY wa.created_at DESC
     `;

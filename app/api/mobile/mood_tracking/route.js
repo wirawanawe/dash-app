@@ -10,10 +10,24 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 20;
     const search = searchParams.get('search') || '';
     const mood = searchParams.get('mood') || '';
+    const date = searchParams.get('date') || ''; // Add date parameter support
+    const user_id = searchParams.get('user_id') || '';
     const offset = (page - 1) * limit;
 
     let whereClause = 'WHERE 1=1';
     let params = [];
+
+    // Add user_id filter if provided
+    if (user_id) {
+      whereClause += ' AND mt.user_id = ?';
+      params.push(user_id);
+    }
+
+    // Add date filter if provided
+    if (date) {
+      whereClause += " AND DATE(CONVERT_TZ(mt.tracking_date, '+00:00', '+07:00')) = ?";
+      params.push(date);
+    }
 
     if (search) {
       whereClause += ' AND (mt.notes LIKE ? OR mu.name LIKE ? OR mu.email LIKE ?)';
@@ -76,12 +90,15 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
-      moodData: moodData,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
+      data: {
+        entries: moodData,
+        total_entries: total,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
       }
     });
   } catch (error) {

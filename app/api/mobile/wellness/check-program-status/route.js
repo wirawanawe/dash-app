@@ -98,8 +98,11 @@ export async function GET(request) {
         programStatus = 'expired';
         shouldRenew = true;
         
-        // Mark as completed and save to history
+        // Mark as completed and save to history, then reset program
         await markProgramAsCompleted(userId, user);
+        
+        // Reset wellness_program_joined to 0 and clear program data
+        await resetExpiredProgram(userId);
       } else if (endDate) {
         programStatus = 'active';
         const timeDiff = endDate.getTime() - now.getTime();
@@ -258,6 +261,32 @@ async function markProgramAsCompleted(userId, userData) {
     
   } catch (error) {
     console.error(`❌ Error marking program as completed for user ${userId}:`, error);
+    throw error;
+  }
+}
+
+// Helper function to reset expired program
+async function resetExpiredProgram(userId) {
+  try {
+    console.log(`🔄 Resetting expired program for user ID: ${userId}`);
+    
+    // Reset wellness_program_joined to 0 and clear program data
+    const resetQuery = `
+      UPDATE mobile_users 
+      SET wellness_program_joined = FALSE,
+          wellness_join_date = NULL,
+          wellness_program_duration = NULL,
+          wellness_program_end_date = NULL,
+          wellness_program_completion_date = NULL
+      WHERE id = ?
+    `;
+    
+    await query(resetQuery, [userId]);
+    
+    console.log(`✅ Successfully reset program for user ID: ${userId}`);
+    
+  } catch (error) {
+    console.error(`❌ Error resetting program for user ${userId}:`, error);
     throw error;
   }
 }

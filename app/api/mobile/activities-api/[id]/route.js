@@ -6,7 +6,7 @@ export async function DELETE(request, { params }) {
     const { id } = params;
 
     // Soft delete by setting is_active to 0
-    const sql = 'UPDATE available_wellness_activities SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    const sql = 'UPDATE available_habit_activities SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     const result = await query(sql, [id]);
 
     if (result.affectedRows === 0) {
@@ -61,7 +61,7 @@ export async function PUT(request, { params }) {
     }
 
     const sql = `
-      UPDATE available_wellness_activities SET
+      UPDATE available_habit_activities SET
         title = ?, description = ?, category = ?, duration_minutes = ?,
         difficulty = ?, points = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -115,7 +115,7 @@ export async function GET(request, { params }) {
         is_active,
         created_at,
         updated_at
-      FROM available_wellness_activities 
+      FROM available_habit_activities 
       WHERE id = ? AND is_active = 1
     `;
     const result = await query(sql, [id]);

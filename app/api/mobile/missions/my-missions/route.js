@@ -3,11 +3,10 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
-// GET - Get user's missions (v2)
+// GET - Get user's missions (v2) - Optimized for Performance
 export async function GET(request) {
   try {
-    console.log("=== MY-MISSIONS V2 ===");
+    console.log("=== MY-MISSIONS V2 (OPTIMIZED) ===");
     
     // Get parameters from URL
     const url = new URL(request.url);
@@ -39,40 +38,8 @@ export async function GET(request) {
 
     console.log("Parsed user ID:", userId);
 
-    // Simple query first to check if user has any missions
-    const simpleQuery = "SELECT COUNT(*) as count FROM user_missions WHERE user_id = ?";
-    console.log("Simple query:", simpleQuery);
-    console.log("Params:", [userId]);
-    
-    const simpleResult = await query(simpleQuery, [userId]);
-    console.log("Simple result:", simpleResult);
-
-    // If user has no missions, return empty response
-    if (simpleResult[0]?.count === 0) {
-      console.log("User has no missions, returning empty response");
-      return NextResponse.json({
-        success: true,
-        data: [],
-        summary: {
-          total_missions: 0,
-          active_missions: 0,
-          completed_missions: 0,
-          expired_missions: 0,
-          cancelled_missions: 0,
-          total_points_earned: 0,
-          completion_rate: 0,
-        },
-        pagination: {
-          total: 0,
-          limit: 20,
-          offset: 0,
-          hasMore: false,
-        },
-      });
-    }
-
-    // If simple query works, try the complex query
-    const complexQuery = `
+    // Single optimized query with all data and summary calculation
+    const optimizedQuery = `
       SELECT 
         um.id as user_mission_id,
         um.status,
@@ -91,17 +58,45 @@ export async function GET(request) {
         m.is_active,
         m.icon,
         m.color,
-        m.difficulty
+        m.difficulty,
+        -- Summary calculations in the same query
+        COUNT(*) OVER() as total_missions,
+        SUM(CASE WHEN um.status = 'active' THEN 1 ELSE 0 END) OVER() as active_missions,
+        SUM(CASE WHEN um.status = 'completed' THEN 1 ELSE 0 END) OVER() as completed_missions,
+        SUM(CASE WHEN um.status = 'expired' THEN 1 ELSE 0 END) OVER() as expired_missions,
+        SUM(CASE WHEN um.status = 'cancelled' THEN 1 ELSE 0 END) OVER() as cancelled_missions,
+        SUM(CASE WHEN um.status = 'completed' THEN m.points ELSE 0 END) OVER() as total_points_earned
       FROM user_missions um
-      JOIN missions m ON um.mission_id = m.id
+      INNER JOIN missions m ON um.mission_id = m.id
       WHERE um.user_id = ?
+      ORDER BY um.created_at DESC
     `;
     
-    console.log("Complex query:", complexQuery);
-    console.log("Complex params:", [userId]);
+    console.log("Optimized query executed for user:", userId);
     
-    const userMissions = await query(complexQuery, [userId]);
-    console.log("Complex result count:", userMissions.length);
+    const userMissions = await query(optimizedQuery, [userId]);
+    console.log("Query result count:", userMissions.length);
+
+    // Extract summary from first row (all rows have same summary values)
+    const summary = userMissions.length > 0 ? {
+      total_missions: userMissions[0].total_missions || 0,
+      active_missions: userMissions[0].active_missions || 0,
+      completed_missions: userMissions[0].completed_missions || 0,
+      expired_missions: userMissions[0].expired_missions || 0,
+      cancelled_missions: userMissions[0].cancelled_missions || 0,
+      total_points_earned: userMissions[0].total_points_earned || 0,
+      completion_rate: userMissions[0].total_missions > 0 
+        ? Math.round((userMissions[0].completed_missions / userMissions[0].total_missions) * 100)
+        : 0,
+    } : {
+      total_missions: 0,
+      active_missions: 0,
+      completed_missions: 0,
+      expired_missions: 0,
+      cancelled_missions: 0,
+      total_points_earned: 0,
+      completion_rate: 0,
+    };
 
     // Process user missions to ensure correct progress calculation
     const processedUserMissions = userMissions.map(mission => {
@@ -112,9 +107,13 @@ export async function GET(request) {
       }
       
       return {
-        ...mission,
+        user_mission_id: mission.user_mission_id,
+        status: mission.status,
         progress: progress,
         current_value: mission.current_value || 0,
+        completed_at: mission.completed_at,
+        created_at: mission.created_at,
+        updated_at: mission.updated_at,
         notes: mission.notes || "",
         // Add mission object for frontend compatibility
         mission: {
@@ -132,73 +131,22 @@ export async function GET(request) {
       };
     });
 
-    console.log("Processed user missions:", processedUserMissions.map(m => ({
-      id: m.user_mission_id,
-      title: m.title,
-      current_value: m.current_value,
-      target_value: m.target_value,
-      progress: m.progress,
-      status: m.status
-    })));
+    console.log("Processed user missions:", processedUserMissions.length, "missions");
+    console.log("Summary:", summary);
 
-    // Get total count
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM user_missions um
-      JOIN missions m ON um.mission_id = m.id
-      WHERE um.user_id = ?
-    `;
-    
-    const countResult = await query(countQuery, [userId]);
-    const total = countResult[0]?.total || 0;
-
-    // Calculate summary
-    const summary = {
-      total_missions: total,
-      active_missions: 0,
-      completed_missions: 0,
-      expired_missions: 0,
-      cancelled_missions: 0,
-      total_points_earned: 0,
-      completion_rate: 0,
-    };
-
-    processedUserMissions.forEach(mission => {
-      switch (mission.status) {
-        case "active":
-          summary.active_missions++;
-          break;
-        case "completed":
-          summary.completed_missions++;
-          summary.total_points_earned += mission.points || 0;
-          break;
-        case "expired":
-          summary.expired_missions++;
-          break;
-        case "cancelled":
-          summary.cancelled_missions++;
-          break;
-      }
-    });
-
-    if (summary.total_missions > 0) {
-      summary.completion_rate = (summary.completed_missions / summary.total_missions) * 100;
-    }
-
-    console.log("Returning successful response with data");
     return NextResponse.json({
       success: true,
       data: processedUserMissions,
       summary,
       pagination: {
-        total,
+        total: summary.total_missions,
         limit: 20,
         offset: 0,
         hasMore: false,
       },
     });
   } catch (error) {
-    console.error("Error in my-missions v2:", error);
+    console.error("Error in my-missions v2 (optimized):", error);
     return NextResponse.json(
       {
         success: false,

@@ -45,16 +45,15 @@ export async function GET(request) {
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Get nutrition data for the week (sum from meal_foods, group by DATE(recorded_at))
+    // Get nutrition data for the week (sum from meal_logging, group by DATE(recorded_at))
     const nutritionSql = `
       SELECT 
-        DATE(mt.recorded_at) as date,
-        COALESCE(SUM(mf.calories), 0) as total_calories,
-        COUNT(DISTINCT mt.id) as meal_count
-      FROM meal_tracking mt
-      LEFT JOIN meal_foods mf ON mf.meal_id = mt.id
-      WHERE mt.user_id = ? AND DATE(mt.recorded_at) BETWEEN ? AND ?
-      GROUP BY DATE(mt.recorded_at)
+        DATE(recorded_at) as date,
+        COALESCE(SUM(calories), 0) as total_calories,
+        COUNT(DISTINCT id) as meal_count
+      FROM meal_logging
+      WHERE user_id = ? AND DATE(recorded_at) BETWEEN ? AND ?
+      GROUP BY DATE(recorded_at)
       ORDER BY date ASC
     `;
 

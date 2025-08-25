@@ -114,12 +114,33 @@ export async function GET(request) {
     // Determine if user needs onboarding
     const needsOnboarding = !user?.wellness_program_joined && missionCount === 0;
 
+    // Calculate actual days since joining wellness program
+    let daysSinceJoining = 0;
+    if (user?.wellness_join_date) {
+      try {
+        const joinDate = new Date(user.wellness_join_date);
+        const today = new Date();
+        const diffTime = Math.abs(today.getTime() - joinDate.getTime());
+        daysSinceJoining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      } catch (error) {
+        console.error('Error calculating days since joining wellness program:', error);
+      }
+    }
+
+    // Calculate remaining days in program
+    let daysRemaining = 0;
+    if (user?.wellness_program_duration && daysSinceJoining > 0) {
+      daysRemaining = Math.max(0, user.wellness_program_duration - daysSinceJoining);
+    }
+
     const response = {
       success: true,
       data: {
         has_joined: !!user?.wellness_program_joined,
         join_date: user?.wellness_join_date,
         program_duration: user?.wellness_program_duration,
+        days_since_joining: daysSinceJoining,
+        days_remaining: daysRemaining,
         fitness_goal: user?.fitness_goal,
         activity_level: user?.activity_level,
         has_missions: missionCount > 0,

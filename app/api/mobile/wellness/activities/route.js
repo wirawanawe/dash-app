@@ -47,8 +47,8 @@ export async function GET(request) {
         CASE WHEN uwa.id IS NOT NULL THEN 'completed' ELSE 'available' END as status,
         uwa.completed_at,
         uwa.activity_date
-      FROM available_wellness_activities wa
-      LEFT JOIN user_wellness_activities uwa ON wa.id = uwa.activity_id AND uwa.user_id = ? AND uwa.activity_date = ?
+      FROM available_habit_activities wa
+      LEFT JOIN user_habit_activities uwa ON wa.id = uwa.activity_id AND uwa.user_id = ? AND uwa.activity_date = ?
       WHERE wa.is_active = 1
       ORDER BY wa.created_at DESC
     `;

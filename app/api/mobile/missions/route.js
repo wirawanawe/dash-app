@@ -1,79 +1,78 @@
 import { NextResponse } from 'next/server';
-import { query, rawQuery } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
-    const offset = (page - 1) * limit;
 
-    let whereClause = 'WHERE is_active = 1'; // Only return active missions
+    // Build WHERE clause
+    let whereConditions = ['is_active = 1'];
     let params = [];
 
     if (search) {
-      whereClause += ' AND (title LIKE ? OR description LIKE ?)';
+      whereConditions.push('(title LIKE ? OR description LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (category) {
-      whereClause += ' AND category = ?';
+      whereConditions.push('category = ?');
       params.push(category);
     }
 
-    // Get total count
-    const countSql = `SELECT COUNT(*) as total FROM missions ${whereClause}`;
-    const countResult = await query(countSql, params);
-    const total = countResult[0].total;
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Get missions with pagination
+    // Get missions
     const sql = `
       SELECT 
         id,
         title,
         description,
         category,
+        sub_category,
         points,
         target_value,
         unit,
+        CONCAT(target_value, ' ', unit) as duration,
         is_active,
         type,
         difficulty,
         icon,
         color,
+        tracking_mapping,
         created_at,
         updated_at
       FROM missions 
       ${whereClause}
-      ORDER BY created_at DESC 
-      LIMIT ? OFFSET ?
+      ORDER BY created_at DESC
     `;
 
-    // Use raw query to avoid parameter binding issues with LIMIT/OFFSET
-    let finalQuery = sql;
-    
-    // Replace parameter placeholders with actual values
-    params.forEach((param) => {
-      const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
-      finalQuery = finalQuery.replace('?', value);
-    });
-    
-    // Replace LIMIT and OFFSET placeholders
-    finalQuery = finalQuery.replace('?', parseInt(limit, 10)).replace('?', parseInt(offset, 10));
-    
-    const missions = await rawQuery(finalQuery);
+    const missions = await query(sql, params);
+
+    // Get total count for pagination
+    const countSql = `
+      SELECT COUNT(*) as total 
+      FROM missions 
+      ${whereClause}
+    `;
+    const countResult = await query(countSql, params);
+    const total = countResult[0].total;
+
+    // Get pagination parameters
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 20;
+    const totalPages = Math.ceil(total / limit);
 
     // Return in the format expected by frontend
     return NextResponse.json({
       success: true,
-      missions: missions,
+      data: missions,
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages
       }
     });
   } catch (error) {
@@ -92,6 +91,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    
     const {
       title,
       description,
@@ -123,10 +123,11 @@ export async function POST(request) {
 
     const result = await query(sql, [
       title, description, category, points, target_value,
-      unit, type, difficulty, icon, color, is_active
+      unit || null, type || 'daily', difficulty || 'easy', icon || null, color || null, is_active
     ]);
 
     return NextResponse.json({
+      success: true,
       message: 'Mission created successfully',
       missionId: result.insertId
     });

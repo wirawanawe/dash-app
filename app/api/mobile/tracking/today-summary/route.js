@@ -21,7 +21,7 @@ export async function GET(request) {
           token,
           new TextEncoder().encode(process.env.JWT_SECRET)
         );
-        userId = payload.userId;
+        userId = payload.id || payload.userId;
       } catch (jwtError) {
         console.error("JWT verification error:", jwtError);
         return NextResponse.json(
@@ -46,6 +46,20 @@ export async function GET(request) {
           { status: 401 }
         );
       }
+    }
+
+    // Ensure userId is a number
+    console.log("🔍 Today Summary - userId before parsing:", userId);
+    userId = parseInt(userId);
+    console.log("🔍 Today Summary - userId after parsing:", userId);
+    if (isNaN(userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid user_id parameter",
+        },
+        { status: 400 }
+      );
     }
 
     // Get date parameter from query string, default to today if not provided
@@ -111,17 +125,16 @@ export async function GET(request) {
     `;
     const healthResult = await query(healthSql, [userId, date]);
 
-    // Get meal data for the specified date
+    // Get meal data for the specified date using meal_logging table
     const mealSql = `
       SELECT 
-        COALESCE(SUM(mf.calories), 0) as total_calories,
-        COALESCE(SUM(mf.protein), 0) as total_protein,
-        COALESCE(SUM(mf.carbs), 0) as total_carbs,
-        COALESCE(SUM(mf.fat), 0) as total_fat,
-        COUNT(DISTINCT mt.id) as meal_count
-      FROM meal_tracking mt
-      LEFT JOIN meal_foods mf ON mt.id = mf.meal_id
-      WHERE mt.user_id = ? AND DATE(mt.recorded_at) = ?
+        COALESCE(SUM(calories), 0) as total_calories,
+        COALESCE(SUM(protein), 0) as total_protein,
+        COALESCE(SUM(carbs), 0) as total_carbs,
+        COALESCE(SUM(fat), 0) as total_fat,
+        COUNT(DISTINCT CONCAT(user_id, meal_type, recorded_at, notes)) as meal_count
+      FROM meal_logging
+      WHERE user_id = ? AND DATE(recorded_at) = ?
     `;
     const mealResult = await query(mealSql, [userId, date]);
     const mealData = mealResult[0] || {};

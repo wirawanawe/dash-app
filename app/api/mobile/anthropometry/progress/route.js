@@ -10,6 +10,7 @@ export async function GET(request) {
     const user_id = searchParams.get('user_id');
     const start_date = searchParams.get('start_date');
     const end_date = searchParams.get('end_date');
+    const measured_date = searchParams.get('measured_date');
     const limit = parseInt(searchParams.get('limit')) || 30;
     const offset = parseInt(searchParams.get('offset')) || 0;
 
@@ -61,12 +62,15 @@ export async function GET(request) {
     `;
     let params = [user_id];
 
-    if (start_date) {
+    if (measured_date) {
+      sql += " AND ap.measured_date = ?";
+      params.push(measured_date);
+    } else if (start_date) {
       sql += " AND ap.measured_date >= ?";
       params.push(start_date);
     }
 
-    if (end_date) {
+    if (end_date && !measured_date) {
       sql += " AND ap.measured_date <= ?";
       params.push(end_date);
     }

@@ -123,11 +123,9 @@ export default function MissionsPage() {
     const categoryMap = {
       'fitness': 'Fitness',
       'nutrition': 'Nutrition',
+      'wellness': 'Wellness',
       'mental_health': 'Mindfulness',
-      'daily_habit': 'Wellness',
-      'health_tracking': 'Health',
-      'education': 'Health',
-      'consultation': 'Health'
+      'sleep': 'Sleep',
     };
     return categoryMap[dbCategory] || dbCategory;
   };
@@ -210,7 +208,7 @@ export default function MissionsPage() {
                 Mission Management
               </div>
               <h1 className="text-4xl lg:text-5xl font-bold mb-4">
-                Health <span className="text-yellow-300">Missions</span>
+                Wellness <span className="text-yellow-300">Missions</span>
               </h1>
               <p className="text-xl text-orange-100 max-w-2xl">
                 Kelola misi kesehatan dan tantangan kesehatan untuk pengguna mobile PHC

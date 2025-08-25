@@ -71,7 +71,7 @@ export async function POST(request) {
     // Get activity details to calculate proper points
     const activityQuery = `
       SELECT id, title, description, category, duration_minutes, difficulty, points
-      FROM available_wellness_activities 
+      FROM available_habit_activities 
       WHERE id = ?
     `;
     
@@ -120,7 +120,7 @@ export async function POST(request) {
     // Check if user already has this activity completed today using activity_date
     const today = new Date().toISOString().split('T')[0];
     const checkQuery = `
-      SELECT id FROM user_wellness_activities 
+      SELECT id FROM user_habit_activities 
       WHERE user_id = ? AND activity_id = ? AND activity_date = ?
     `;
     
@@ -136,15 +136,14 @@ export async function POST(request) {
       );
     }
 
-    // Insert new activity completion into user_wellness_activities table with activity_date and activity_type
+    // Insert new activity completion into user_habit_activities table
     const insertQuery = `
-      INSERT INTO user_wellness_activities (
-        user_id, activity_id, activity_date, duration_minutes, notes, activity_type, completed_at, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO user_habit_activities (
+        user_id, activity_id, activity_date, notes, points_earned, completed_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
     `;
     
-    const actualDuration = duration_minutes || duration || 0;
-    await query(insertQuery, [userId, activity_id, today, actualDuration, notes || '', activity_type || 'normal']);
+    await query(insertQuery, [userId, activity_id, today, notes || '', finalPoints]);
 
     const response = {
       success: true,
@@ -152,7 +151,6 @@ export async function POST(request) {
         message: 'Activity completed successfully',
         activity_id,
         activity_name: activity_name || activity.title,
-        duration: actualDuration,
         points_earned: finalPoints,
         completed_at: new Date().toISOString(),
         is_completed: true

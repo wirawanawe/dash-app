@@ -152,7 +152,7 @@ export async function POST(request) {
         [user.id, 'height', height, 'cm', 'manual']
       );
 
-      // 3. Update mobile_users dengan data wellness (handle renew)
+      // 3. Update mobile_users dengan data wellness (handle renew) dan increment cycle
       await query(
         `UPDATE mobile_users 
          SET wellness_program_joined = ?, 
@@ -161,6 +161,7 @@ export async function POST(request) {
              wellness_program_end_date = DATE_ADD(NOW(), INTERVAL ? DAY),
              wellness_program_completed = FALSE,
              wellness_program_completion_date = NULL,
+             wellness_program_cycles = wellness_program_cycles + 1,
              fitness_goal = ?, 
              activity_level = ? 
          WHERE id = ?`,

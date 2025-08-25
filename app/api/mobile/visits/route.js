@@ -33,6 +33,7 @@ export async function GET(request) {
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 20;
     const status = searchParams.get("status");
+    const date = searchParams.get("date"); // Add date parameter support
     const offset = (page - 1) * limit;
 
     // Build WHERE clause
@@ -42,6 +43,12 @@ export async function GET(request) {
     if (status) {
       whereClause += " AND v.status = ?";
       params.push(status);
+    }
+
+    // Add date filter if provided
+    if (date) {
+      whereClause += " AND DATE(v.visit_date) = ?";
+      params.push(date);
     }
 
     // Get total count

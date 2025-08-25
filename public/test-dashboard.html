@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Mobile Stats Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .gender-chart {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .gender-bar {
+            flex: 1;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            display: flex;
+        }
+        .male-bar {
+            background: #3b82f6;
+            height: 100%;
+        }
+        .female-bar {
+            background: #ec4899;
+            height: 100%;
+        }
+        .gender-label {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Dashboard Mobile Stats Test</h1>
+        <p>Testing the mobile user statistics API endpoints</p>
+        
+        <div id="loading" class="loading">
+            Loading mobile statistics...
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="stats" style="display: none;">
+            <h2>📊 Mobile User Statistics</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsers">-</div>
+                    <div class="stat-label">Total Pengguna Mobile</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="activeUsers">-</div>
+                    <div class="stat-label">Pengguna Aktif</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="habitUsers">-</div>
+                    <div class="stat-label">Program Habit</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="newUsers">-</div>
+                    <div class="stat-label">Pengguna Baru (Bulan Ini)</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="healthDataUsers">-</div>
+                    <div class="stat-label">Data Kesehatan</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="activePercentage">-</div>
+                    <div class="stat-label">Persentase Aktif</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="habitActivities">-</div>
+                    <div class="stat-label">Aktivitas Habit (30 hari)</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="fitnessSessions">-</div>
+                    <div class="stat-label">Sesi Fitness (30 hari)</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="totalMissions">-</div>
+                    <div class="stat-label">Total Misi</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-number" id="completedMissions">-</div>
+                    <div class="stat-label">Misi Selesai</div>
+                </div>
+            </div>
+            
+            <div class="container">
+                <h3>👥 Distribusi Gender</h3>
+                <div class="gender-chart">
+                    <div style="flex: 1;">
+                        <div class="gender-bar">
+                            <div class="male-bar" id="maleBar"></div>
+                            <div class="female-bar" id="femaleBar"></div>
+                        </div>
+                        <div class="gender-label">
+                            <strong>Laki-laki:</strong> <span id="maleCount">-</span> | 
+                            <strong>Perempuan:</strong> <span id="femaleCount">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="container">
+                <h3>📈 Activity Level Distribution</h3>
+                <div id="activityLevels"></div>
+            </div>
+            
+            <div class="container">
+                <h3>🎯 Fitness Goals Distribution</h3>
+                <div id="fitnessGoals"></div>
+            </div>
+            
+            <div class="container">
+                <h3>🏃‍♂️ Fitness Tracking (30 Hari)</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalCalories">-</div>
+                        <div class="stat-label">Total Kalori</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalMinutes">-</div>
+                        <div class="stat-label">Total Menit</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalSteps">-</div>
+                        <div class="stat-label">Total Langkah</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchMobileStats() {
+            try {
+                const response = await fetch('/api/dashboard/mobile-stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayStats(data.data);
+                } else {
+                    throw new Error(data.message || 'Failed to fetch data');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function displayStats(stats) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('stats').style.display = 'block';
+            
+            // Update main statistics
+            document.getElementById('totalUsers').textContent = stats.totalMobileUsers;
+            document.getElementById('activeUsers').textContent = stats.activeMobileUsers;
+            document.getElementById('habitUsers').textContent = stats.habitUsers;
+            document.getElementById('newUsers').textContent = stats.newUsersThisMonth;
+            document.getElementById('healthDataUsers').textContent = stats.usersWithHealthData;
+            document.getElementById('activePercentage').textContent = stats.activePercentage + '%';
+            document.getElementById('habitActivities').textContent = stats.habitActivities?.total_activities || 0;
+            document.getElementById('fitnessSessions').textContent = stats.fitnessTracking?.total_sessions || 0;
+            document.getElementById('totalMissions').textContent = stats.missions?.total_missions || 0;
+            document.getElementById('completedMissions').textContent = stats.userMissions?.completed_missions || 0;
+            
+            // Update fitness tracking data
+            document.getElementById('totalCalories').textContent = stats.fitnessTracking?.total_calories || 0;
+            document.getElementById('totalMinutes').textContent = stats.fitnessTracking?.total_minutes || 0;
+            document.getElementById('totalSteps').textContent = stats.fitnessTracking?.total_steps || 0;
+            
+            // Update gender distribution
+            const maleCount = stats.genderDistribution?.male || 0;
+            const femaleCount = stats.genderDistribution?.female || 0;
+            const total = stats.totalMobileUsers;
+            
+            document.getElementById('maleCount').textContent = maleCount;
+            document.getElementById('femaleCount').textContent = femaleCount;
+            
+            const malePercentage = total > 0 ? (maleCount / total) * 100 : 0;
+            const femalePercentage = total > 0 ? (femaleCount / total) * 100 : 0;
+            
+            document.getElementById('maleBar').style.width = malePercentage + '%';
+            document.getElementById('femaleBar').style.width = femalePercentage + '%';
+            
+            // Display activity levels
+            const activityLevelsDiv = document.getElementById('activityLevels');
+            activityLevelsDiv.innerHTML = '';
+            
+            if (Object.keys(stats.activityLevelDistribution || {}).length > 0) {
+                Object.entries(stats.activityLevelDistribution).forEach(([level, count]) => {
+                    const percentage = total > 0 ? (count / total) * 100 : 0;
+                    activityLevelsDiv.innerHTML += `
+                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <strong>${level.replace('_', ' ')}</strong>
+                                <span>${count} (${percentage.toFixed(1)}%)</span>
+                            </div>
+                            <div style="background: #e9ecef; height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div style="background: #007bff; height: 100%; width: ${percentage}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                activityLevelsDiv.innerHTML = '<p style="color: #666;">Belum ada data level aktivitas</p>';
+            }
+            
+            // Display fitness goals
+            const fitnessGoalsDiv = document.getElementById('fitnessGoals');
+            fitnessGoalsDiv.innerHTML = '';
+            
+            if (Object.keys(stats.fitnessGoalDistribution || {}).length > 0) {
+                Object.entries(stats.fitnessGoalDistribution).forEach(([goal, count]) => {
+                    const percentage = total > 0 ? (count / total) * 100 : 0;
+                    fitnessGoalsDiv.innerHTML += `
+                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <strong>${goal.replace('_', ' ')}</strong>
+                                <span>${count} (${percentage.toFixed(1)}%)</span>
+                            </div>
+                            <div style="background: #e9ecef; height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div style="background: #dc3545; height: 100%; width: ${percentage}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                fitnessGoalsDiv.innerHTML = '<p style="color: #666;">Belum ada data tujuan fitness</p>';
+            }
+        }
+        
+        // Load data when page loads
+        fetchMobileStats();
+    </script>
+</body>
+</html>

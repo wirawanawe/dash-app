@@ -69,10 +69,10 @@ export async function GET(request) {
       SELECT 
         mood_level,
         stress_level,
-        DATE(tracking_date) as tracking_date,
+        DATE(CONVERT_TZ(tracking_date, '+00:00', '+07:00')) as tracking_date,
         notes
       FROM mood_tracking 
-      WHERE user_id = ? AND DATE(tracking_date) >= ?
+      WHERE user_id = ? AND DATE(CONVERT_TZ(tracking_date, '+00:00', '+07:00')) >= ?
       ORDER BY tracking_date DESC
     `;
     const moodResults = await query(moodQuery, [userId, startDateStr]);

@@ -279,6 +279,13 @@ export default function WellnessProgressPage() {
                                 {user.wellness_program_joined ? 'Aktif Wellness' : 'Tidak Aktif'}
                               </span>
                             </div>
+                            {user.wellness_program_joined && user.days_since_joining && (
+                              <div className="mt-1">
+                                <span className="text-xs text-blue-600">
+                                  {user.days_since_joining} hari berpartisipasi
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <ChevronRight className="w-5 h-5 text-gray-400" />
                         </div>
@@ -369,6 +376,18 @@ export default function WellnessProgressPage() {
                         <div className="text-sm text-gray-600">Durasi Program</div>
                         <div className="font-semibold text-black">
                           {selectedUser.wellness_program_duration ? `${selectedUser.wellness_program_duration} hari` : '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Hari Berpartisipasi</div>
+                        <div className="font-semibold text-black">
+                          {selectedUser.days_since_joining ? `${selectedUser.days_since_joining} hari` : '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-600">Sisa Hari</div>
+                        <div className="font-semibold text-black">
+                          {selectedUser.days_remaining !== undefined ? `${selectedUser.days_remaining} hari` : '-'}
                         </div>
                       </div>
                     </div>

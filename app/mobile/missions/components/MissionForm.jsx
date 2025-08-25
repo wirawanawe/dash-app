@@ -11,9 +11,8 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
     description: '',
     category: '',
     points: '',
-    duration_days: '',
     target_value: '',
-    target_unit: '',
+    unit: '',
     is_active: true
   });
   const [loading, setLoading] = useState(false);
@@ -26,9 +25,8 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
         description: mission.description || '',
         category: mission.category || '',
         points: mission.points || '',
-        duration_days: mission.duration_days || '',
         target_value: mission.target_value || '',
-        target_unit: mission.target_unit || '',
+        unit: mission.unit || '',
         is_active: mission.is_active
       });
     }
@@ -170,22 +168,7 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
           </div>
 
           {/* Mission Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Duration (days)
-              </label>
-              <input
-                type="number"
-                name="duration_days"
-                value={formData.duration_days}
-                onChange={handleChange}
-                min="1"
-                className="w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Durasi dalam hari"
-              />
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Target Value
@@ -206,8 +189,8 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
               </label>
               <input
                 type="text"
-                name="target_unit"
-                value={formData.target_unit}
+                name="unit"
+                value={formData.unit}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Contoh: langkah, kalori, jam"

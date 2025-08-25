@@ -1,9 +1,10 @@
 {
-  "/api/health/route": "app/api/health/route.js",
-  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js",
+  "/mobile/wellness-progress/page": "app/mobile/wellness-progress/page.js",
+  "/api/mobile/users/profile/route": "app/api/mobile/users/profile/route.js",
+  "/api/mobile/my-missions/route": "app/api/mobile/my-missions/route.js",
   "/api/mobile/tracking/today-summary/route": "app/api/mobile/tracking/today-summary/route.js",
   "/api/mobile/wellness-progress/[id]/route": "app/api/mobile/wellness-progress/[id]/route.js",
-  "/api/mobile/users/profile/route": "app/api/mobile/users/profile/route.js",
-  "/api/mobile/auth/me/route": "app/api/mobile/auth/me/route.js",
-  "/api/mobile/wellness/check-program-status/route": "app/api/mobile/wellness/check-program-status/route.js"
+  "/api/mobile/wellness/status/route": "app/api/mobile/wellness/status/route.js",
+  "/api/mobile/app/quick-actions/route": "app/api/mobile/app/quick-actions/route.js",
+  "/api/mobile/habit/stats/route": "app/api/mobile/habit/stats/route.js"
 }

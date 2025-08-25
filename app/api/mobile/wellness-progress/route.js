@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query, rawQuery } from '@/lib/db';
 
 export async function GET(request) {
   try {
@@ -11,11 +11,11 @@ export async function GET(request) {
     const offset = (page - 1) * limit;
 
     let whereClause = 'WHERE 1=1';
-    let params = [];
+    let whereParams = [];
 
     if (search) {
       whereClause += ' AND (mu.name LIKE ? OR mu.email LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
+      whereParams.push(`%${search}%`, `%${search}%`);
     }
 
     if (status === 'active') {
@@ -30,7 +30,7 @@ export async function GET(request) {
       FROM mobile_users mu
       ${whereClause}
     `;
-    const countResult = await query(countSql, params);
+    const countResult = await query(countSql, whereParams);
     const total = countResult[0].total;
 
     // Get users with wellness progress summary
@@ -49,130 +49,54 @@ export async function GET(request) {
         mu.weight,
         mu.height,
         mu.created_at,
-        COALESCE(activity_stats.total_activities, 0) as wellness_activities_count,
-        COALESCE(mission_stats.total_missions, 0) as user_missions_count,
-        COALESCE(mission_stats.completed_missions, 0) as completed_missions_count,
-        COALESCE(mission_stats.total_points, 0) as total_points,
-        COALESCE(tracking_stats.avg_water_intake, 0) as avg_water_intake,
-        COALESCE(tracking_stats.avg_sleep_hours, 0) as avg_sleep_hours,
-        COALESCE(tracking_stats.avg_mood_score, 0) as avg_mood_score
+        0 as wellness_activities_count,
+        0 as user_missions_count,
+        0 as completed_missions_count,
+        0 as total_points,
+        0 as avg_water_intake,
+        0 as avg_sleep_hours,
+        0 as avg_mood_score
       FROM mobile_users mu
-      LEFT JOIN (
-        SELECT 
-          user_id,
-          COUNT(*) as total_activities
-        FROM user_wellness_activities
-        WHERE completed_at IS NOT NULL
-        GROUP BY user_id
-      ) activity_stats ON mu.id = activity_stats.user_id
-      LEFT JOIN (
-        SELECT 
-          user_id,
-          COUNT(*) as total_missions,
-          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_missions,
-          SUM(points_earned) as total_points
-        FROM user_missions
-        GROUP BY user_id
-      ) mission_stats ON mu.id = mission_stats.user_id
-      LEFT JOIN (
-        SELECT 
-          user_id,
-          AVG(COALESCE(water_intake, amount_ml)) as avg_water_intake
-        FROM water_tracking
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        GROUP BY user_id
-      ) water_stats ON mu.id = water_stats.user_id
-      LEFT JOIN (
-        SELECT 
-          user_id,
-          AVG(COALESCE(sleep_hours, 
-            CASE 
-              WHEN sleep_duration_minutes IS NOT NULL THEN sleep_duration_minutes / 60.0
-              WHEN bedtime IS NOT NULL AND wake_time IS NOT NULL THEN 
-                (TIME_TO_SEC(wake_time) - TIME_TO_SEC(bedtime)) / 3600.0
-              ELSE 0
-            END
-          )) as avg_sleep_hours
-        FROM sleep_tracking
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        GROUP BY user_id
-      ) sleep_stats ON mu.id = sleep_stats.user_id
-      LEFT JOIN (
-        SELECT 
-          user_id,
-          AVG(COALESCE(mood_score, 
-            CASE mood_level
-              WHEN 'very_happy' THEN 10
-              WHEN 'happy' THEN 8
-              WHEN 'neutral' THEN 5
-              WHEN 'sad' THEN 3
-              WHEN 'very_sad' THEN 1
-              ELSE 5
-            END
-          )) as avg_mood_score
-        FROM mood_tracking
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        GROUP BY user_id
-      ) mood_stats ON mu.id = mood_stats.user_id
-      LEFT JOIN (
-        SELECT 
-          water_stats.user_id,
-          water_stats.avg_water_intake,
-          sleep_stats.avg_sleep_hours,
-          mood_stats.avg_mood_score
-        FROM (
-          SELECT 
-            user_id,
-            AVG(COALESCE(water_intake, amount_ml)) as avg_water_intake
-          FROM water_tracking
-          WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-          GROUP BY user_id
-        ) water_stats
-        LEFT JOIN (
-          SELECT 
-            user_id,
-            AVG(COALESCE(sleep_hours, 
-              CASE 
-                WHEN sleep_duration_minutes IS NOT NULL THEN sleep_duration_minutes / 60.0
-                WHEN bedtime IS NOT NULL AND wake_time IS NOT NULL THEN 
-                  (TIME_TO_SEC(wake_time) - TIME_TO_SEC(bedtime)) / 3600.0
-                ELSE 0
-              END
-            )) as avg_sleep_hours
-          FROM sleep_tracking
-          WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-          GROUP BY user_id
-        ) sleep_stats ON water_stats.user_id = sleep_stats.user_id
-        LEFT JOIN (
-          SELECT 
-            user_id,
-            AVG(COALESCE(mood_score, 
-              CASE mood_level
-                WHEN 'very_happy' THEN 10
-                WHEN 'happy' THEN 8
-                WHEN 'neutral' THEN 5
-                WHEN 'sad' THEN 3
-                WHEN 'very_sad' THEN 1
-                ELSE 5
-              END
-            )) as avg_mood_score
-          FROM mood_tracking
-          WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-          GROUP BY user_id
-        ) mood_stats ON water_stats.user_id = mood_stats.user_id
-      ) tracking_stats ON mu.id = tracking_stats.user_id
       ${whereClause}
       ORDER BY mu.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
     // Add pagination parameters
-    params.push(limit, offset);
+    const queryParams = [...whereParams, limit, offset];
 
-    const users = await query(sql, params);
+    // Use raw query to avoid parameter binding issues
+    const finalSql = sql.replace(/\?/g, (match, index) => {
+      const param = queryParams.shift();
+      if (typeof param === 'string') {
+        return `'${param}'`;
+      }
+      return param;
+    });
+
+    const users = await rawQuery(finalSql);
 
     // Calculate wellness score for each user
     const usersWithScore = users.map(user => {
+      // Calculate actual days since joining wellness program
+      let daysSinceJoining = 0;
+      if (user.wellness_join_date) {
+        try {
+          const joinDate = new Date(user.wellness_join_date);
+          const today = new Date();
+          const diffTime = Math.abs(today.getTime() - joinDate.getTime());
+          daysSinceJoining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        } catch (error) {
+          console.error('Error calculating days since joining wellness program:', error);
+        }
+      }
+
+      // Calculate remaining days in program
+      let daysRemaining = 0;
+      if (user.wellness_program_duration && daysSinceJoining > 0) {
+        daysRemaining = Math.max(0, user.wellness_program_duration - daysSinceJoining);
+      }
+
       let wellnessScore = 0;
       let scoreFactors = 0;
 
@@ -214,6 +138,8 @@ export async function GET(request) {
 
       return {
         ...user,
+        days_since_joining: daysSinceJoining,
+        days_remaining: daysRemaining,
         wellness_score: finalWellnessScore
       };
     });

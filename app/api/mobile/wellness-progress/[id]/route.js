@@ -60,6 +60,25 @@ export async function GET(request, { params }) {
       }
     }
 
+    // Calculate actual days since joining wellness program
+    let daysSinceJoining = 0;
+    if (user.wellness_join_date) {
+      try {
+        const joinDate = new Date(user.wellness_join_date);
+        const today = new Date();
+        const diffTime = Math.abs(today.getTime() - joinDate.getTime());
+        daysSinceJoining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      } catch (error) {
+        console.error('Error calculating days since joining wellness program:', error);
+      }
+    }
+
+    // Calculate remaining days in program
+    let daysRemaining = 0;
+    if (user.wellness_program_duration && daysSinceJoining > 0) {
+      daysRemaining = Math.max(0, user.wellness_program_duration - daysSinceJoining);
+    }
+
     // Get wellness activities with better error handling
     let activities = [];
     try {
@@ -68,7 +87,7 @@ export async function GET(request, { params }) {
           id, activity_name as title, activity_type, activity_category as category,
           duration as duration_minutes, points_earned as points, notes,
           completed_at, created_at
-        FROM available_wellness_activities 
+        FROM wellness_activities 
         WHERE user_id = ?
         ORDER BY completed_at DESC
         LIMIT 100
@@ -325,6 +344,8 @@ export async function GET(request, { params }) {
         wellness_program_joined: user.wellness_program_joined || false,
         wellness_join_date: user.wellness_join_date,
         wellness_program_duration: user.wellness_program_duration,
+        days_since_joining: daysSinceJoining,
+        days_remaining: daysRemaining,
         age: age,
         gender: user.gender,
         activity_level: user.activity_level,

@@ -26,7 +26,7 @@ export async function GET(request) {
     }
 
     // Get total count
-    const countSql = `SELECT COUNT(*) as total FROM available_wellness_activities ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as total FROM available_habit_activities ${whereClause}`;
     const countResult = await query(countSql, params);
     const total = countResult[0].total;
 
@@ -45,7 +45,7 @@ export async function GET(request) {
         is_active,
         created_at,
         updated_at
-      FROM available_wellness_activities 
+      FROM available_habit_activities 
       ${whereClause}
       ORDER BY created_at DESC 
       LIMIT ? OFFSET ?
@@ -115,9 +115,9 @@ export async function POST(request) {
       );
     }
 
-    // Insert into available_wellness_activities table
+    // Insert into available_habit_activities table
     const sql = `
-      INSERT INTO available_wellness_activities (
+      INSERT INTO available_habit_activities (
         title, description, category, duration_minutes, difficulty, points, is_active
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
@@ -170,7 +170,7 @@ export async function PUT(request) {
     }
 
     const sql = `
-      UPDATE available_wellness_activities SET
+      UPDATE available_habit_activities SET
         title = ?, description = ?, category = ?, duration_minutes = ?,
         difficulty = ?, points = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?

@@ -30,6 +30,21 @@ export async function GET(request) {
     const userId = payload.userId;
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '30';
+    const date = searchParams.get('date');
+
+    // Build the WHERE clause based on whether date filter is provided
+    let whereClause = 'uwa.user_id = ?';
+    let queryParams = [userId];
+
+    if (date) {
+      // If specific date is provided, filter by that date
+      whereClause += ' AND DATE(uwa.activity_date) = ?';
+      queryParams.push(date);
+    } else {
+      // Otherwise, use the period filter
+      whereClause += ' AND uwa.activity_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)';
+      queryParams.push(parseInt(period));
+    }
 
     // Get user's wellness activity history from user_wellness_activities table only
     const historyQuery = `
@@ -56,12 +71,11 @@ export async function GET(request) {
         END as points_earned
       FROM user_wellness_activities uwa
       JOIN available_wellness_activities wa ON uwa.activity_id = wa.id
-      WHERE uwa.user_id = ? 
-        AND uwa.activity_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+      WHERE ${whereClause}
       ORDER BY uwa.activity_date DESC, uwa.completed_at DESC
     `;
     
-    const historyResult = await query(historyQuery, [userId, parseInt(period)]);
+    const historyResult = await query(historyQuery, queryParams);
 
     const response = {
       success: true,

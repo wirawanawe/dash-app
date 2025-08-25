@@ -27,11 +27,14 @@
     "test-meal-tracking": "node scripts/test-meal-tracking.js",
     "start-and-test": "node scripts/start-and-test.js",
     "fix-passwords": "node scripts/fix-password-hashing.js",
-    "verify-passwords": "node scripts/verify-password-hashing.js"
+    "verify-passwords": "node scripts/verify-password-hashing.js",
+    "create-dummy-mobile": "node scripts/create-dummy-mobile-data.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^5.1.0",
     "google-auth-library": "^10.2.0",
     "jose": "^5.9.6",
     "jsonwebtoken": "^9.0.2",
@@ -46,7 +49,8 @@
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^5.3.0",
-    "url": "^0.11.4"
+    "url": "^0.11.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "postcss": "^8",

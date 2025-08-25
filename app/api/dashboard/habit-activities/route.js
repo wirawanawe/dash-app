@@ -3,13 +3,44 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-// GET - Get wellness activities for dashboard
+// GET - Get habit activities for dashboard
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit')) || 10;
     const category = searchParams.get('category') || '';
     const search = searchParams.get('search') || '';
+
+    // Check if the table exists first
+    const tableExistsQuery = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'phc_dashboard' 
+      AND table_name = 'available_habit_activities'
+    `;
+    const tableExistsResult = await query(tableExistsQuery);
+    
+    if (tableExistsResult[0].count === 0) {
+      // Table doesn't exist, return empty data
+      return NextResponse.json({
+        success: true,
+        data: [],
+        summary: {
+          total_activities: 0,
+          active_activities: 0,
+          categories: 0,
+          avg_duration: 0,
+          avg_points: 0,
+          category_distribution: [],
+          difficulty_distribution: []
+        },
+        pagination: {
+          total: 0,
+          limit,
+          hasMore: false,
+        },
+      });
+    }
 
     let whereClause = 'WHERE is_active = 1';
     let params = [];
@@ -25,11 +56,11 @@ export async function GET(request) {
     }
 
     // Get total count
-    const countSql = `SELECT COUNT(*) as total FROM available_wellness_activities ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as total FROM available_habit_activities ${whereClause}`;
     const countResult = await query(countSql, params);
     const total = countResult[0]?.total || 0;
 
-    // Get wellness activities with pagination
+    // Get habit activities with pagination
     const sql = `
       SELECT 
         id,
@@ -42,7 +73,7 @@ export async function GET(request) {
         is_active,
         created_at,
         updated_at
-      FROM available_wellness_activities 
+      FROM available_habit_activities 
       ${whereClause}
       ORDER BY created_at DESC 
       LIMIT ${limit}
@@ -57,7 +88,7 @@ export async function GET(request) {
         COUNT(*) as count,
         AVG(duration_minutes) as avg_duration,
         AVG(points) as avg_points
-      FROM available_wellness_activities 
+      FROM available_habit_activities 
       WHERE is_active = 1
       GROUP BY category
       ORDER BY count DESC
@@ -69,7 +100,7 @@ export async function GET(request) {
       SELECT 
         difficulty,
         COUNT(*) as count
-      FROM available_wellness_activities 
+      FROM available_habit_activities 
       WHERE is_active = 1
       GROUP BY difficulty
       ORDER BY difficulty
@@ -106,7 +137,7 @@ export async function GET(request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Gagal mengambil data wellness activities",
+        message: "Gagal mengambil data habit activities",
         error: error.message,
       },
       { status: 500 }

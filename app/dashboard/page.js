@@ -16,7 +16,8 @@ import {
   RefreshCw,
   ChevronRight,
   Star,
-  Clock
+  Clock,
+  Target
 } from 'lucide-react';
 
 
@@ -28,10 +29,27 @@ export default function Dashboard() {
     totalVisitsToday: 0,
     avgWaitTime: 0,
   });
+  const [mobileStats, setMobileStats] = useState({
+    totalMobileUsers: 0,
+    activeMobileUsers: 0,
+    activePercentage: 0,
+    genderDistribution: {},
+    habitUsers: 0,
+    habitPercentage: 0,
+    newUsersThisMonth: 0,
+    usersWithHealthData: 0,
+    healthDataPercentage: 0,
+    activityLevelDistribution: {},
+    fitnessGoalDistribution: {},
+    habitActivities: {},
+    fitnessTracking: {},
+    missions: {},
+    userMissions: {}
+  });
   const [doctorRooms, setDoctorRooms] = useState([]);
   const [upcomingQueue, setUpcomingQueue] = useState([]);
-  const [wellnessActivities, setWellnessActivities] = useState([]);
-  const [wellnessStats, setWellnessStats] = useState({
+  const [habitActivities, setHabitActivities] = useState([]);
+  const [habitStats, setHabitStats] = useState({
     total_activities: 0,
     active_activities: 0,
     categories: 0,
@@ -90,22 +108,39 @@ export default function Dashboard() {
       const queue = processUpcomingQueue(activeVisits.data || []);
       setUpcomingQueue(queue);
 
-      // Fetch wellness activities data
-      console.log("Fetching wellness activities...");
-      const wellnessResponse = await fetch('/api/dashboard/wellness-activities?limit=8');
-      console.log("Wellness response status:", wellnessResponse.status);
+      // Fetch mobile user statistics
+      console.log("Fetching mobile user statistics...");
+      const mobileStatsResponse = await fetch('/api/dashboard/mobile-stats');
+      console.log("Mobile stats response status:", mobileStatsResponse.status);
       
-      if (wellnessResponse.ok) {
-        const wellnessData = await wellnessResponse.json();
-        console.log("Wellness data:", wellnessData);
-        if (wellnessData.success) {
-          setWellnessActivities(wellnessData.data);
-          setWellnessStats(wellnessData.summary);
+      if (mobileStatsResponse.ok) {
+        const mobileStatsData = await mobileStatsResponse.json();
+        console.log("Mobile stats data:", mobileStatsData);
+        if (mobileStatsData.success) {
+          setMobileStats(mobileStatsData.data);
         } else {
-          console.warn("Failed to fetch wellness activities:", wellnessData.message);
+          console.warn("Failed to fetch mobile stats:", mobileStatsData.message);
         }
       } else {
-        console.warn("Failed to fetch wellness activities:", wellnessResponse.status);
+        console.warn("Failed to fetch mobile stats:", mobileStatsResponse.status);
+      }
+
+      // Fetch habit activities data
+      console.log("Fetching habit activities...");
+      const habitResponse = await fetch('/api/dashboard/habit-activities?limit=8');
+      console.log("Habit response status:", habitResponse.status);
+      
+      if (habitResponse.ok) {
+        const habitData = await habitResponse.json();
+        console.log("Habit data:", habitData);
+        if (habitData.success) {
+          setHabitActivities(habitData.data);
+          setHabitStats(habitData.summary);
+        } else {
+          console.warn("Failed to fetch habit activities:", habitData.message);
+        }
+      } else {
+        console.warn("Failed to fetch habit activities:", habitResponse.status);
       }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
@@ -327,7 +362,7 @@ export default function Dashboard() {
         </div>
 
         {/* Enhanced Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <div 
             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
@@ -428,10 +463,460 @@ export default function Dashboard() {
               <p className="text-xs text-gray-500 mt-1">menit (estimasi)</p>
             </div>
           </div>
-        </div>
+        </div> */}
+
+        {/* Mobile User Statistics Section */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
+                  <FaUsers className="w-6 h-6 text-white" />
+                </div>
+                Statistik Pengguna Mobile
+              </h2>
+              <p className="text-gray-600 mt-2">Data pengguna aplikasi mobile dan aktivitas terkait</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {/* Total Mobile Users */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '400ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                  <FaUsers className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-blue-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Total
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.totalMobileUsers}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Total Pengguna Mobile</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Terdaftar di aplikasi
+                </p>
+              </div>
+            </div>
+
+            {/* Active Mobile Users */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '500ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
+                  <Activity className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-emerald-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  {mobileStats.activePercentage}%
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.activeMobileUsers}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Pengguna Aktif</p>
+                <p className="text-xs text-emerald-600 mt-1 font-medium">
+                  {mobileStats.activePercentage}% dari total
+                </p>
+              </div>
+            </div>
+
+            {/* Male Users */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '600ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-blue-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Laki-laki
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.genderDistribution?.male || 0}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Pengguna Laki-laki</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {mobileStats.totalMobileUsers > 0 ? Math.round(((mobileStats.genderDistribution?.male || 0) / mobileStats.totalMobileUsers) * 100) : 0}% dari total
+                </p>
+              </div>
+            </div>
+
+            {/* Female Users */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '700ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl shadow-lg">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-pink-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Perempuan
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.genderDistribution?.female || 0}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Pengguna Perempuan</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {mobileStats.totalMobileUsers > 0 ? Math.round(((mobileStats.genderDistribution?.female || 0) / mobileStats.totalMobileUsers) * 100) : 0}% dari total
+                </p>
+              </div>
+            </div>
+          </div>
+
+                     {/* Gender Distribution Chart */}
+           <div 
+             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+             }`}
+             style={{ animationDelay: '800ms' }}
+           >
+             <div className="flex items-center justify-between mb-6">
+               <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                 <BarChart3 className="w-6 h-6 text-white" />
+               </div>
+               <h3 className="text-lg font-bold text-gray-900">Distribusi Gender</h3>
+             </div>
+             <div className="space-y-4">
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center space-x-3">
+                   <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                   <span className="text-sm font-medium text-gray-700">Laki-laki</span>
+                 </div>
+                                   <span className="text-sm font-bold text-gray-900">
+                    {mobileStats.genderDistribution?.male || 0}
+                  </span>
+               </div>
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center space-x-3">
+                   <div className="w-4 h-4 bg-pink-500 rounded-full"></div>
+                   <span className="text-sm font-medium text-gray-700">Perempuan</span>
+                 </div>
+                                   <span className="text-sm font-bold text-gray-900">
+                    {mobileStats.genderDistribution?.female || 0}
+                  </span>
+               </div>
+               <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+                 <div className="flex h-2 rounded-full overflow-hidden">
+                   <div 
+                     className="bg-blue-500" 
+                     style={{ 
+                       width: `${mobileStats.totalMobileUsers > 0 ? ((mobileStats.genderDistribution?.male || 0) / mobileStats.totalMobileUsers) * 100 : 0}%` 
+                     }}
+                   ></div>
+                   <div 
+                     className="bg-pink-500" 
+                     style={{ 
+                       width: `${mobileStats.totalMobileUsers > 0 ? ((mobileStats.genderDistribution?.female || 0) / mobileStats.totalMobileUsers) * 100 : 0}%` 
+                     }}
+                   ></div>
+                 </div>
+               </div>
+             </div>
+           </div>
+
+           {/* Additional Mobile App Statistics */}
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            {/* Habit Program Users */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '800ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                  <Heart className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-purple-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  {mobileStats.habitPercentage}%
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.habitUsers}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Program Habit</p>
+                <p className="text-xs text-purple-600 mt-1 font-medium">
+                  Bergabung dengan program
+                </p>
+              </div>
+            </div>
+
+            {/* New Users This Month */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '900ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg">
+                  <Star className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-orange-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Baru
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.newUsersThisMonth}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Pengguna Baru</p>
+                <p className="text-xs text-orange-600 mt-1 font-medium">
+                  Bulan ini
+                </p>
+              </div>
+            </div>
+
+            {/* Users with Health Data */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '1000ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl shadow-lg">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-teal-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  {mobileStats.healthDataPercentage}%
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.usersWithHealthData}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Data Kesehatan</p>
+                <p className="text-xs text-teal-600 mt-1 font-medium">
+                  Tinggi & berat badan
+                </p>
+              </div>
+            </div>
+                     </div>
+
+           {/* Mobile App Activity Statistics */}
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {/* Activity Level Distribution */}
+             <div 
+               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+               }`}
+               style={{ animationDelay: '1100ms' }}
+             >
+               <div className="flex items-center justify-between mb-6">
+                 <div className="p-3 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg">
+                   <Activity className="w-6 h-6 text-white" />
+                 </div>
+                 <h3 className="text-lg font-bold text-gray-900">Level Aktivitas</h3>
+               </div>
+               <div className="space-y-3">
+                 {Object.entries(mobileStats.activityLevelDistribution || {}).map(([level, count], index) => (
+                   <div key={level} className="flex items-center justify-between">
+                     <span className="text-sm font-medium text-gray-700 capitalize">
+                       {level.replace('_', ' ')}
+                     </span>
+                     <div className="flex items-center space-x-2">
+                       <div className="w-20 bg-gray-200 rounded-full h-2">
+                         <div 
+                           className="bg-indigo-500 h-2 rounded-full" 
+                           style={{ width: `${mobileStats.totalMobileUsers > 0 ? (count / mobileStats.totalMobileUsers) * 100 : 0}%` }}
+                         ></div>
+                       </div>
+                       <span className="text-sm font-bold text-gray-900 min-w-[2rem] text-right">
+                         {count}
+                       </span>
+                     </div>
+                   </div>
+                 ))}
+                 {Object.keys(mobileStats.activityLevelDistribution || {}).length === 0 && (
+                   <p className="text-sm text-gray-500 text-center py-4">Belum ada data level aktivitas</p>
+                 )}
+               </div>
+             </div>
+
+             {/* Fitness Goals Distribution */}
+             <div 
+               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+               }`}
+               style={{ animationDelay: '1200ms' }}
+             >
+               <div className="flex items-center justify-between mb-6">
+                 <div className="p-3 bg-gradient-to-r from-rose-500 to-rose-600 rounded-xl shadow-lg">
+                   <Target className="w-6 h-6 text-white" />
+                 </div>
+                 <h3 className="text-lg font-bold text-gray-900">Tujuan Fitness</h3>
+               </div>
+               <div className="space-y-3">
+                 {Object.entries(mobileStats.fitnessGoalDistribution || {}).map(([goal, count], index) => (
+                   <div key={goal} className="flex items-center justify-between">
+                     <span className="text-sm font-medium text-gray-700 capitalize">
+                       {goal.replace('_', ' ')}
+                     </span>
+                     <div className="flex items-center space-x-2">
+                       <div className="w-20 bg-gray-200 rounded-full h-2">
+                         <div 
+                           className="bg-rose-500 h-2 rounded-full" 
+                           style={{ width: `${mobileStats.totalMobileUsers > 0 ? (count / mobileStats.totalMobileUsers) * 100 : 0}%` }}
+                         ></div>
+                       </div>
+                       <span className="text-sm font-bold text-gray-900 min-w-[2rem] text-right">
+                         {count}
+                       </span>
+                     </div>
+                   </div>
+                 ))}
+                 {Object.keys(mobileStats.fitnessGoalDistribution || {}).length === 0 && (
+                   <p className="text-sm text-gray-500 text-center py-4">Belum ada data tujuan fitness</p>
+                 )}
+               </div>
+             </div>
+           </div>
+
+           {/* Enhanced Mobile App Statistics */}
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                         {/* Habit Activities */}
+            <div 
+              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+              }`}
+              style={{ animationDelay: '1300ms' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                  <Activity className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex items-center text-sm font-medium text-emerald-600">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  30 Hari
+                </div>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900 mb-1">
+                  {mobileStats.habitActivities?.total_activities || 0}
+                </p>
+                <p className="text-sm text-gray-600 font-medium">Aktivitas Habit</p>
+                <p className="text-xs text-emerald-600 mt-1 font-medium">
+                  {mobileStats.habitActivities?.active_users || 0} pengguna aktif
+                </p>
+              </div>
+            </div>
+
+             {/* Fitness Tracking */}
+             <div 
+               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+               }`}
+               style={{ animationDelay: '1400ms' }}
+             >
+               <div className="flex items-center justify-between mb-4">
+                 <div className="p-3 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl shadow-lg">
+                   <Heart className="w-6 h-6 text-white" />
+                 </div>
+                 <div className="flex items-center text-sm font-medium text-orange-600">
+                   <TrendingUp className="w-4 h-4 mr-1" />
+                   {mobileStats.fitnessTracking?.total_calories || 0}
+                 </div>
+               </div>
+               <div>
+                 <p className="text-3xl font-bold text-gray-900 mb-1">
+                   {mobileStats.fitnessTracking?.total_sessions || 0}
+                 </p>
+                 <p className="text-sm text-gray-600 font-medium">Sesi Fitness</p>
+                 <p className="text-xs text-orange-600 mt-1 font-medium">
+                   {mobileStats.fitnessTracking?.total_steps || 0} langkah
+                 </p>
+               </div>
+             </div>
+
+             {/* Missions */}
+             <div 
+               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+               }`}
+               style={{ animationDelay: '1500ms' }}
+             >
+               <div className="flex items-center justify-between mb-4">
+                 <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl shadow-lg">
+                   <Target className="w-6 h-6 text-white" />
+                 </div>
+                 <div className="flex items-center text-sm font-medium text-purple-600">
+                   <TrendingUp className="w-4 h-4 mr-1" />
+                   {mobileStats.missions?.active_missions || 0}
+                 </div>
+               </div>
+               <div>
+                 <p className="text-3xl font-bold text-gray-900 mb-1">
+                   {mobileStats.missions?.total_missions || 0}
+                 </p>
+                 <p className="text-sm text-gray-600 font-medium">Total Misi</p>
+                 <p className="text-xs text-purple-600 mt-1 font-medium">
+                   {mobileStats.missions?.mission_categories || 0} kategori
+                 </p>
+               </div>
+             </div>
+
+             {/* User Missions */}
+             <div 
+               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+               }`}
+               style={{ animationDelay: '1600ms' }}
+             >
+               <div className="flex items-center justify-between mb-4">
+                 <div className="p-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl shadow-lg">
+                   <Star className="w-6 h-6 text-white" />
+                 </div>
+                 <div className="flex items-center text-sm font-medium text-cyan-600">
+                   <TrendingUp className="w-4 h-4 mr-1" />
+                   {mobileStats.userMissions?.completed_missions || 0}
+                 </div>
+               </div>
+               <div>
+                 <p className="text-3xl font-bold text-gray-900 mb-1">
+                   {mobileStats.userMissions?.total_user_missions || 0}
+                 </p>
+                 <p className="text-sm text-gray-600 font-medium">Misi Pengguna</p>
+                 <p className="text-xs text-cyan-600 mt-1 font-medium">
+                   {mobileStats.userMissions?.users_with_missions || 0} pengguna
+                 </p>
+               </div>
+             </div>
+           </div>
+         </div>
 
         {/* Modern Doctor Rooms Section */}
-        <div className="space-y-6">
+        {/* <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -524,209 +1009,11 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
-        {/* Enhanced Queue Section */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-blue-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-3">
-                    <BarChart3 className="w-6 h-6 text-white" />
-                  </div>
-                  Antrian Kunjungan Aktif
-                </h2>
-                <p className="text-gray-600 mt-2">
-                  Daftar pasien yang sedang menunggu atau sedang dilayani
-                </p>
-              </div>
-              <div className="hidden lg:flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Sedang Dilayani</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Menunggu</span>
-                </div>
-              </div>
-            </div>
-          </div>
+       
 
-          <div className="p-6">
-            {upcomingQueue.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <Users className="w-10 h-10 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">Tidak Ada Antrian Aktif</h3>
-                <p className="text-gray-500">Saat ini tidak ada pasien dalam antrian kunjungan</p>
-              </div>
-            ) : (
-              <>
-                {/* Desktop Table View - Large screens only */}
-                <div className="hidden xl:block">
-                  <div className="overflow-hidden rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
-                        <tr>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Antrian</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pasien</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimasi Waktu</th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {upcomingQueue.map((item, index) => (
-                          <tr key={item.id} className="hover:bg-blue-50 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${
-                                item.status === "Sedang Dilayani" 
-                                  ? "bg-gradient-to-r from-blue-500 to-blue-600" 
-                                  : "bg-gradient-to-r from-gray-400 to-gray-500"
-                              }`}>
-                                <span className="text-sm font-bold text-white">{item.queueNumber}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-semibold text-gray-900">{item.patientName}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-600 font-medium">{item.estimatedTime}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                  item.status === "Sedang Dilayani"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
-                              >
-                                {item.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Tablet Table View - Medium to Large screens */}
-                <div className="hidden md:block xl:hidden">
-                  <div className="overflow-hidden rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasien</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {upcomingQueue.map((item, index) => (
-                          <tr key={item.id} className="hover:bg-blue-50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
-                                item.status === "Sedang Dilayani" 
-                                  ? "bg-gradient-to-r from-blue-500 to-blue-600" 
-                                  : "bg-gradient-to-r from-gray-400 to-gray-500"
-                              }`}>
-                                <span className="text-xs font-bold text-white">{item.queueNumber}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900 text-sm">
-                                {item.patientName}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="text-gray-600 text-xs font-medium">
-                                {item.estimatedTime}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  item.status === "Sedang Dilayani"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
-                              >
-                                {item.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile Card View - Small screens */}
-                <div className="md:hidden space-y-4">
-                  {upcomingQueue.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center space-x-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
-                            item.status === "Sedang Dilayani" 
-                              ? "bg-gradient-to-r from-blue-500 to-blue-600" 
-                              : "bg-gradient-to-r from-gray-400 to-gray-500"
-                          }`}>
-                            <span className="text-sm font-bold text-white">{item.queueNumber}</span>
-                          </div>
-                          <div>
-                            <h4 className="text-gray-900 font-semibold">
-                              {item.patientName}
-                            </h4>
-                            <p className="text-gray-500 text-sm mt-1">
-                              {item.estimatedTime}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                            item.status === "Sedang Dilayani"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-gray-100 text-gray-600"
-                          }`}
-                        >
-                          {item.status}
-                        </span>
-                      </div>
-
-                      {/* Progress indicator for mobile */}
-                      <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-500 ${
-                              item.status === "Sedang Dilayani"
-                                ? "bg-gradient-to-r from-blue-500 to-blue-600 w-full"
-                                : "bg-gray-400 w-1/3"
-                            }`}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500 font-medium">
-                          {item.status === "Sedang Dilayani"
-                            ? "Sedang proses"
-                            : "Menunggu"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Wellness Activities Section */}
+        {/* Habit Activities Section */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -734,17 +1021,17 @@ export default function Dashboard() {
                 <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
                   <Heart className="w-6 h-6 text-white" />
                 </div>
-                Aktivitas Kesehatan & Wellness
+                Aktivitas Kesehatan & Habit
               </h2>
               <p className="text-gray-600 mt-2">Kelola dan pantau aktivitas kesehatan yang tersedia untuk pengguna mobile</p>
             </div>
             <div className="hidden lg:flex items-center text-sm text-gray-500">
               <Activity className="w-4 h-4 mr-2" />
-              Total: {wellnessStats.total_activities} aktivitas
+              Total: {habitStats.total_activities} aktivitas
             </div>
           </div>
 
-          {/* Wellness Statistics Cards */}
+          {/* Habit Statistics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
               <div className="flex items-center justify-between mb-4">
@@ -758,11 +1045,11 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {wellnessStats.total_activities}
+                  {habitStats.total_activities}
                 </p>
                 <p className="text-sm text-gray-600 font-medium">Total Aktivitas</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {wellnessStats.active_activities} aktif saat ini
+                  {habitStats.active_activities} aktif saat ini
                 </p>
               </div>
             </div>
@@ -779,7 +1066,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {wellnessStats.categories}
+                  {habitStats.categories}
                 </p>
                 <p className="text-sm text-gray-600 font-medium">Kategori Aktivitas</p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -800,7 +1087,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {wellnessStats.avg_duration}
+                  {habitStats.avg_duration}
                 </p>
                 <p className="text-sm text-gray-600 font-medium">Durasi (Menit)</p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -821,7 +1108,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {wellnessStats.avg_points}
+                  {habitStats.avg_points}
                 </p>
                 <p className="text-sm text-gray-600 font-medium">Poin Rata-rata</p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -831,7 +1118,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Wellness Activities List */}
+          {/* Habit Activities List */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 border-b border-green-100">
               <div className="flex items-center justify-between">
@@ -840,7 +1127,7 @@ export default function Dashboard() {
                     <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
                       <Heart className="w-5 h-5 text-white" />
                     </div>
-                    Daftar Aktivitas Wellness
+                    Daftar Aktivitas Habit
                   </h3>
                   <p className="text-gray-600 mt-1">
                     Aktivitas kesehatan yang tersedia untuk pengguna mobile
@@ -854,17 +1141,17 @@ export default function Dashboard() {
             </div>
 
             <div className="p-6">
-              {wellnessActivities.length === 0 ? (
+              {habitActivities.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <Heart className="w-10 h-10 text-gray-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-700 mb-2">Belum Ada Aktivitas</h3>
-                  <p className="text-gray-500">Aktivitas wellness belum ditambahkan ke sistem</p>
+                  <p className="text-gray-500">Aktivitas habit belum ditambahkan ke sistem</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {wellnessActivities.map((activity, index) => (
+                  {habitActivities.map((activity, index) => (
                     <div
                       key={activity.id}
                       className={`group bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 ${

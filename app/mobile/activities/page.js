@@ -215,7 +215,7 @@ export default function ActivitiesPage() {
                 Activity Management
               </div>
               <h1 className="text-4xl lg:text-5xl font-bold mb-4">
-                Health <span className="text-yellow-300">Activities</span>
+                Habit <span className="text-yellow-300">Activities</span>
               </h1>
               <p className="text-xl text-blue-100 max-w-2xl">
                 Kelola aktivitas kesehatan dan tracking kesehatan pengguna mobile PHC

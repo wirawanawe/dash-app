@@ -1,6 +1,34 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+// Function to convert Indonesian meal type to English
+function convertMealTypeToEnglish(mealType) {
+  const mealTypeMap = {
+    'sarapan': 'breakfast',
+    'makan siang': 'lunch',
+    'makan malam': 'dinner',
+    'snack': 'snack',
+    // Keep English values as is
+    'breakfast': 'breakfast',
+    'lunch': 'lunch',
+    'dinner': 'dinner'
+  };
+  
+  return mealTypeMap[mealType] || mealType;
+}
+
+// Function to convert English meal type to Indonesian for display
+function convertMealTypeToIndonesian(mealType) {
+  const mealTypeMap = {
+    'breakfast': 'sarapan',
+    'lunch': 'makan siang',
+    'dinner': 'makan malam',
+    'snack': 'snack'
+  };
+  
+  return mealTypeMap[mealType] || mealType;
+}
+
 // GET - Get meal tracking data
 export async function GET(request) {
   try {
@@ -23,33 +51,32 @@ export async function GET(request) {
 
     let sql = `
       SELECT 
-        mt.id, mt.user_id, mt.meal_type, mt.recorded_at, mt.notes, mt.created_at,
-        mf.food_id, mf.quantity, mf.unit, mf.calories, mf.protein, mf.carbs, mf.fat,
-        fd.name as food_name, fd.name_indonesian as food_name_indonesian
-      FROM meal_tracking mt
-      LEFT JOIN meal_foods mf ON mt.id = mf.meal_id
-      LEFT JOIN food_database fd ON mf.food_id = fd.id
-      WHERE mt.user_id = ?
+        id, user_id, meal_type, recorded_at, food_id, food_name, food_name_indonesian,
+        quantity, unit, calories, protein, carbs, fat, notes, created_at
+      FROM meal_logging
+      WHERE user_id = ?
     `;
     let params = [user_id];
 
     if (date) {
-      sql += " AND DATE(mt.recorded_at) = ?";
+      sql += " AND DATE(recorded_at) = ?";
       params.push(date);
     }
 
     if (hours_ago) {
       const hours = parseInt(hours_ago);
-      sql += " AND mt.recorded_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)";
+      sql += " AND recorded_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)";
       params.push(hours);
     }
 
     if (meal_type) {
-      sql += " AND mt.meal_type = ?";
-      params.push(meal_type);
+      // Convert Indonesian meal type to English for database query
+      const englishMealType = convertMealTypeToEnglish(meal_type);
+      sql += " AND meal_type = ?";
+      params.push(englishMealType);
     }
 
-    sql += " ORDER BY mt.recorded_at DESC";
+    sql += " ORDER BY recorded_at DESC";
 
     // Add LIMIT if specified
     if (limit) {
@@ -68,7 +95,7 @@ export async function GET(request) {
         groupedMeals[mealKey] = {
           id: record.id,
           user_id: record.user_id,
-          meal_type: record.meal_type,
+          meal_type: convertMealTypeToIndonesian(record.meal_type), // Convert to Indonesian for display
           recorded_at: record.recorded_at,
           notes: record.notes,
           created_at: record.created_at,
@@ -96,7 +123,9 @@ export async function GET(request) {
 
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        entries: result
+      },
     });
   } catch (error) {
     console.error("Error fetching meal tracking:", error);
@@ -143,30 +172,17 @@ export async function POST(request) {
     }
 
     try {
+      // Convert Indonesian meal type to English for database storage
+      const englishMealType = convertMealTypeToEnglish(meal_type);
+      console.log('🍽️ Meal type conversion:', { original: meal_type, converted: englishMealType });
+
       // Format datetime for MySQL
       const formattedDate = recorded_at ? 
         new Date(recorded_at).toISOString().slice(0, 19).replace('T', ' ') : 
         new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-      // First, create the meal entry
-      const mealInsertSQL = `
-        INSERT INTO meal_tracking (
-          user_id, meal_type, recorded_at, notes, created_at
-        ) VALUES (?, ?, ?, ?, NOW())
-      `;
-
-      const mealResult = await query(mealInsertSQL, [
-        user_id,
-        meal_type,
-        formattedDate,
-        notes || null
-      ]);
-
-      const mealId = mealResult.insertId;
-      console.log('🍽️ Created meal entry with ID:', mealId);
-
-      // Then, insert each food as a separate record in meal_foods
-      const insertedFoodIds = [];
+      // Insert each food as a separate record in meal_logging
+      const insertedIds = [];
       
       for (const food of foods) {
         // Validate and convert nutrition values
@@ -182,30 +198,54 @@ export async function POST(request) {
         const validatedCarbs = Math.max(0, carbs);
         const validatedFat = Math.max(0, fat);
         
-        const foodInsertSQL = `
-          INSERT INTO meal_foods (
-            meal_id, food_id, quantity, unit, calories, protein, carbs, fat, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        // Get food name from food_database if food_id is provided
+        let foodName = null;
+        let foodNameIndonesian = null;
+        
+        if (food.food_id) {
+          const foodData = await query(
+            'SELECT name, name_indonesian FROM food_database WHERE id = ?',
+            [food.food_id]
+          );
+          
+          if (foodData.length > 0) {
+            foodName = foodData[0].name;
+            foodNameIndonesian = foodData[0].name_indonesian;
+          }
+        }
+        
+        const insertSQL = `
+          INSERT INTO meal_logging (
+            user_id, meal_type, recorded_at, food_id, food_name, food_name_indonesian,
+            quantity, unit, calories, protein, carbs, fat, notes, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
-        const foodResult = await query(foodInsertSQL, [
-          mealId,
+        const result = await query(insertSQL, [
+          user_id,
+          englishMealType, // Use converted English meal type
+          formattedDate,
           food.food_id || null,
+          foodName,
+          foodNameIndonesian,
           quantity,
           food.unit || 'serving',
           validatedCalories,
           validatedProtein,
           validatedCarbs,
-          validatedFat
+          validatedFat,
+          notes || null
         ]);
 
-        insertedFoodIds.push(foodResult.insertId);
+        insertedIds.push(result.insertId);
 
         // Debug logging for each food
         console.log('🍎 Saved food:', {
-          id: foodResult.insertId,
-          meal_id: mealId,
+          id: result.insertId,
+          user_id,
+          meal_type: englishMealType,
           food_id: food.food_id,
+          food_name: foodName,
           quantity,
           unit: food.unit || 'serving',
           calories: validatedCalories,
@@ -218,7 +258,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         message: "Meal tracking entry created successfully",
-        data: { meal_id: mealId, food_ids: insertedFoodIds },
+        data: { ids: insertedIds },
       });
     } catch (error) {
       console.error("Error inserting meal data:", error);

@@ -18,14 +18,19 @@ async function getUserFromToken(request) {
     }
   }
   
+  console.log("🔍 Auth header:", authHeader);
+  console.log("🔍 Token extracted:", token ? token.substring(0, 20) + "..." : "null");
+  console.log("🔍 JWT_SECRET available:", !!process.env.JWT_SECRET);
+  
   if (!token) return null;
 
   try {
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secretKey);
+    console.log("✅ Token verified successfully:", payload);
     return payload;
   } catch (error) {
-    console.error("Error verifying token:", error);
+    console.error("❌ Error verifying token:", error);
     return null;
   }
 }
@@ -49,6 +54,8 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const date = searchParams.get("date");
     const activity_type = searchParams.get("activity_type");
+    
+    console.log("🔍 GET /tracking/fitness - Parameters:", { date, activity_type, userId: userPayload.id });
 
     // Check database schema first to determine which columns exist
     let hasNewSchema = false;
@@ -80,7 +87,7 @@ export async function GET(request) {
       // Use new schema
       sql = `
         SELECT id, user_id, workout_type as activity_type, workout_type as activity_name, 
-               workout_duration_minutes as duration_minutes, calories_burned, 
+               workout_duration_minutes as duration_minutes, workout_duration_minutes as exercise_minutes, calories_burned, 
                distance_km, steps, notes, tracking_date, created_at
         FROM fitness_tracking
         WHERE user_id = ?
@@ -120,9 +127,9 @@ export async function GET(request) {
 
       sql += " ORDER BY tracking_date DESC, tracking_time DESC";
     } else {
-      // Use old schema
+      // Use old schema - add exercise_minutes as alias for duration_minutes for compatibility
       sql = `
-        SELECT id, user_id, activity_type, activity_name, duration_minutes, calories_burned, 
+        SELECT id, user_id, activity_type, activity_name, duration_minutes, duration_minutes as exercise_minutes, calories_burned, 
                distance_km, steps, intensity, notes, tracking_date, tracking_time, created_at
         FROM fitness_tracking
         WHERE user_id = ?
@@ -148,10 +155,11 @@ export async function GET(request) {
     fitnessData = await query(sql, params);
     
     console.log("📋 Retrieved fitness data count:", fitnessData.length);
+    console.log("📋 Sample fitness data:", fitnessData.slice(0, 2));
 
     return NextResponse.json({
       success: true,
-      data: fitnessData,
+      data: fitnessData
     });
   } catch (error) {
     console.error("❌ Error fetching fitness tracking:", error);
@@ -258,6 +266,14 @@ export async function POST(request) {
       hasExerciseMinutes = false;
     }
 
+    // Debug: Log the actual database schema for troubleshooting
+    try {
+      const allColumns = await query("SHOW COLUMNS FROM fitness_tracking");
+      console.log("🔍 All fitness_tracking columns:", allColumns.map(col => col.Field));
+    } catch (error) {
+      console.log("🔍 Error getting all columns:", error.message);
+    }
+
     let sql, params;
     
     if (hasNewSchema) {
@@ -281,6 +297,7 @@ export async function POST(request) {
       ];
     } else if (hasExerciseMinutes) {
       // Use updated old schema with exercise_minutes column
+      // This is the most compatible schema for mobile app data
       sql = `
         INSERT INTO fitness_tracking (
           user_id, activity_type, activity_name, duration_minutes, exercise_minutes,
@@ -302,6 +319,8 @@ export async function POST(request) {
         tracking_date || new Date().toISOString().split('T')[0],
         tracking_time || new Date().toTimeString().split(' ')[0],
       ];
+      
+      console.log("🔧 Using updated old schema with exercise_minutes column");
     } else {
       // Use old schema (activity_type, activity_name, duration_minutes)
       sql = `
@@ -324,6 +343,8 @@ export async function POST(request) {
         tracking_date || new Date().toISOString().split('T')[0],
         tracking_time || new Date().toTimeString().split(' ')[0],
       ];
+      
+      console.log("🔧 Using old schema without exercise_minutes column");
     }
     
     console.log("💾 Executing SQL:", sql);
@@ -333,10 +354,15 @@ export async function POST(request) {
     
     console.log("✅ Fitness tracking entry created successfully, ID:", result.insertId);
     
+
+    
     return NextResponse.json({
       success: true,
       message: "Fitness tracking entry created successfully",
-      data: { id: result.insertId },
+      data: { 
+        id: result.insertId,
+        duration_minutes: duration_minutes
+      },
     });
     
   } catch (error) {

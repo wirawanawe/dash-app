@@ -1,76 +1,64 @@
-import fetch from 'node-fetch';
+// Test script to simulate mobile app connection
+const urls = [
+  'http://localhost:3000/api/mobile',
+  'http://192.168.18.30:3000/api/mobile',
+  'http://10.0.2.2:3000/api/mobile'
+];
 
-async function testMobileConnection() {
-  const baseURL = 'http://localhost:3000';
-  
-  console.log('🔍 Testing mobile app connection...');
+async function testConnection(url) {
+  console.log(`\n🔍 Testing connection to: ${url}`);
   
   try {
-    // Test 1: Health endpoint
-    console.log('\n1. Testing health endpoint...');
-    const healthResponse = await fetch(`${baseURL}/api/mobile/health`);
+    // Test health endpoint
+    const healthUrl = url.replace('/api/mobile', '/api/health');
+    console.log(`Testing health: ${healthUrl}`);
+    
+    const healthResponse = await fetch(healthUrl);
     const healthData = await healthResponse.json();
+    console.log('✅ Health check:', healthData);
     
-    if (healthResponse.ok) {
-      console.log('✅ Health endpoint working:', healthData.message);
-    } else {
-      console.log('❌ Health endpoint failed:', healthData);
-      return;
-    }
+    // Test mood API
+    const moodUrl = `${url}/mood_tracking`;
+    console.log(`Testing mood API: ${moodUrl}`);
     
-    // Test 2: Sleep tracking API
-    console.log('\n2. Testing sleep tracking API...');
-    const sleepData = {
+    const moodData = {
       user_id: 1,
-      sleep_date: '2024-01-18',
-      sleep_hours: 8,
-      sleep_minutes: 0,
-      sleep_quality: 'excellent',
-      bedtime: '22:00',
-      wake_time: '06:00',
-      notes: 'Test sleep data from mobile app'
+      mood_level: 'happy',
+      stress_level: 'low',
+      tracking_date: '2025-01-21',
+      notes: 'Test connection'
     };
     
-    const sleepResponse = await fetch(`${baseURL}/api/mobile/sleep_tracking`, {
+    const moodResponse = await fetch(moodUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(sleepData)
+      body: JSON.stringify(moodData)
     });
     
-    const sleepResult = await sleepResponse.json();
+    const moodResult = await moodResponse.json();
+    console.log('✅ Mood API result:', moodResult);
     
-    if (sleepResponse.ok && sleepResult.success) {
-      console.log('✅ Sleep tracking API working:', sleepResult.message);
-      console.log('📊 Created sleep entry with ID:', sleepResult.data.id);
-    } else {
-      console.log('❌ Sleep tracking API failed:', sleepResult);
-    }
-    
-    // Test 3: Get sleep data
-    console.log('\n3. Testing get sleep data...');
-    const getSleepResponse = await fetch(`${baseURL}/api/mobile/sleep_tracking?user_id=1&sleep_date=2024-01-18`);
-    const getSleepResult = await getSleepResponse.json();
-    
-    if (getSleepResponse.ok && getSleepResult.success) {
-      console.log('✅ Get sleep data working:', getSleepResult.sleepData?.length || 0, 'entries found');
-    } else {
-      console.log('❌ Get sleep data failed:', getSleepResult);
-    }
-    
-    console.log('\n🎉 All tests completed successfully!');
+    return { success: true, url };
     
   } catch (error) {
-    console.error('❌ Test failed with error:', error.message);
+    console.log(`❌ Failed: ${error.message}`);
+    return { success: false, url, error: error.message };
   }
 }
 
-// Run the test
-testMobileConnection().then(() => {
-  console.log('\nTest script completed');
-  process.exit(0);
-}).catch((error) => {
-  console.error('Test script failed:', error);
-  process.exit(1);
-});
+async function runTests() {
+  console.log('🧪 Testing mobile app connections...\n');
+  
+  for (const url of urls) {
+    const result = await testConnection(url);
+    if (result.success) {
+      console.log(`\n🎉 SUCCESS: ${url} is working!`);
+    } else {
+      console.log(`\n💥 FAILED: ${url} - ${result.error}`);
+    }
+  }
+}
+
+runTests();
