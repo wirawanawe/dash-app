@@ -101,13 +101,13 @@ export async function POST(request) {
     const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     const validatedBloodType = blood_type && validBloodTypes.includes(blood_type) ? blood_type : null;
 
-    // Insert new user
+    // Insert new user with wellness_program_cycles set to 0
     const sql = `
       INSERT INTO mobile_users (
         name, email, phone, password, date_of_birth, gender,
         emergency_contact_name, emergency_contact_phone, ktp_number, address, insurance,
-        insurance_card_number, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+        insurance_card_number, wellness_program_cycles, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NOW(), NOW())
     `;
 
     // Ensure all parameters are properly handled (convert undefined to null)

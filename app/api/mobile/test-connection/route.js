@@ -2,23 +2,26 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request) {
+export async function GET() {
   try {
-    console.log('🔍 Mobile connection test endpoint called');
-    
+    // Simple health check endpoint
     return NextResponse.json({
       success: true,
-      message: 'Mobile app connection test successful',
+      message: 'Server is running',
       timestamp: new Date().toISOString(),
-      server: 'PHC Dashboard API',
-      version: '1.0.0'
+      status: 'healthy'
     });
   } catch (error) {
-    console.error('❌ Error in connection test:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Connection test failed' 
-    }, { status: 500 });
+    console.error('Test connection error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Server error',
+        timestamp: new Date().toISOString(),
+        status: 'error'
+      },
+      { status: 500 }
+    );
   }
 }
 

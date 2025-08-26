@@ -5,7 +5,7 @@ async function checkMobileUser() {
   console.log('🔍 Checking mobile user data...');
   
   const connection = await mysql.createConnection({
-    host: 'localhost',
+    host: 'dash.doctorphc.id',
     user: 'root',
     password: 'your_password_here', // Replace with actual password
     database: 'phc_dashboard'

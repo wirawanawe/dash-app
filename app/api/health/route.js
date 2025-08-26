@@ -1,28 +1,26 @@
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 
-export async function GET(request) {
+export async function GET() {
   try {
+    // Test database connection
+    await query('SELECT 1 as test');
+    
     return NextResponse.json({
-      success: true,
-      message: "PHC Mobile API is running",
+      status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: "1.0.0",
-      endpoints: {
-        fitness: "/api/mobile/tracking/fitness",
-        water: "/api/mobile/tracking/water",
-        sleep: "/api/mobile/tracking/sleep",
-        mood: "/api/mobile/tracking/mood",
-        nutrition: "/api/mobile/tracking/meal"
-      }
+      database: 'connected',
+      server: 'running'
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Health check failed",
-        error: error.message
-      },
-      { status: 500 }
-    );
+    console.error('Health check failed:', error);
+    
+    return NextResponse.json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      server: 'running',
+      error: error.message
+    }, { status: 500 });
   }
 } 

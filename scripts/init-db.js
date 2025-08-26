@@ -19,7 +19,7 @@ async function initializeDatabase() {
 
     // Create connection without database first
     connection = await mysql.createConnection({
-      host: process.env.DB_HOST || "localhost",
+      host: process.env.DB_HOST || "dash.doctorphc.id",
       user: process.env.DB_USER || "root",
       password: process.env.DB_PASSWORD || "",
     });

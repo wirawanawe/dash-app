@@ -68,17 +68,7 @@ export async function GET(request) {
         SUM(CASE WHEN um.status = 'active' THEN 1 ELSE 0 END) as active_missions,
         SUM(CASE WHEN um.status = 'expired' THEN 1 ELSE 0 END) as expired_missions,
         SUM(CASE WHEN um.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_missions,
-        SUM(CASE WHEN um.status = 'completed' THEN m.points ELSE 0 END) as total_points_earned,
-        -- Category breakdown (JSON format for efficiency)
-        JSON_OBJECTAGG(
-          m.category, 
-          JSON_OBJECT(
-            'total', COUNT(*),
-            'completed', SUM(CASE WHEN um.status = 'completed' THEN 1 ELSE 0 END),
-            'active', SUM(CASE WHEN um.status = 'active' THEN 1 ELSE 0 END),
-            'points', SUM(CASE WHEN um.status = 'completed' THEN m.points ELSE 0 END)
-          )
-        ) as category_breakdown
+        SUM(CASE WHEN um.status = 'completed' THEN m.points ELSE 0 END) as total_points_earned
       FROM user_missions um
       INNER JOIN missions m ON um.mission_id = m.id
       WHERE um.user_id = ?
@@ -94,16 +84,34 @@ export async function GET(request) {
     const statsResult = await query(optimizedStatsQuery, [userId, startDateStr, endDateStr]);
     const stats = statsResult[0];
 
-    // Parse category breakdown
-    let categoryBreakdown = {};
-    try {
-      if (stats.category_breakdown) {
-        categoryBreakdown = JSON.parse(stats.category_breakdown);
-      }
-    } catch (error) {
-      console.warn('Error parsing category breakdown:', error);
-      categoryBreakdown = {};
-    }
+    // Get category breakdown with a separate query
+    const categoryBreakdownQuery = `
+      SELECT 
+        m.category,
+        COUNT(*) as total,
+        SUM(CASE WHEN um.status = 'completed' THEN 1 ELSE 0 END) as completed,
+        SUM(CASE WHEN um.status = 'active' THEN 1 ELSE 0 END) as active,
+        SUM(CASE WHEN um.status = 'completed' THEN m.points ELSE 0 END) as points
+      FROM user_missions um
+      INNER JOIN missions m ON um.mission_id = m.id
+      WHERE um.user_id = ?
+        AND um.created_at >= ?
+        AND um.created_at <= ?
+      GROUP BY m.category
+    `;
+
+    const categoryBreakdownResult = await query(categoryBreakdownQuery, [userId, startDateStr, endDateStr]);
+    
+    // Convert category breakdown to object format
+    const categoryBreakdown = {};
+    categoryBreakdownResult.forEach(cat => {
+      categoryBreakdown[cat.category] = {
+        total: cat.total,
+        completed: cat.completed,
+        active: cat.active,
+        points: cat.points
+      };
+    });
 
     // Calculate completion rate
     const completionRate = stats.total_missions > 0 

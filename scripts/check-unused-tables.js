@@ -4,7 +4,7 @@ import mysql from 'mysql2/promise';
 
 // Database configuration
 const dbConfig = {
-  host: 'localhost',
+      host: 'dash.doctorphc.id',
   user: 'root',
   password: 'pr1k1t1w',
   database: 'phc_dashboard'

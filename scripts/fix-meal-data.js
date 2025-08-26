@@ -6,7 +6,7 @@ async function fixMealData() {
   try {
     // Database configuration
     const dbConfig = {
-      host: 'localhost',
+      host: 'dash.doctorphc.id',
       user: 'root',
       password: 'password',
       database: 'phc_dashboard',
@@ -99,7 +99,7 @@ async function fixMealData() {
 
     console.log('\n🎉 Meal data fix completed successfully!');
     console.log(`📱 Test with user_id: ${userId}`);
-    console.log(`🔗 API URL: http://localhost:3000/api/mobile/tracking/meal?user_id=${userId}`);
+    console.log(`🔗 API URL: https://dash.doctorphc.id/api/mobile/tracking/meal?user_id=${userId}`);
 
   } catch (error) {
     console.error('❌ Error fixing meal data:', error);

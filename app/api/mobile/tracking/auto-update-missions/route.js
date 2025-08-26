@@ -84,9 +84,9 @@ export async function POST(request) {
       }
     }
 
-    // If no active missions found, auto-assign new missions
+    // If no active missions found, suggest available missions instead of auto-assigning
     if (activeMissions.length === 0) {
-      console.log(`🔍 No active missions for ${tracking_type}, auto-assigning...`);
+      console.log(`🔍 No active missions for ${tracking_type}, suggesting available missions...`);
       
       const availableMissions = await query(
         `SELECT id, title, target_value, unit, category, points
@@ -99,62 +99,13 @@ export async function POST(request) {
         [tracking_type, getUnitFromTrackingType(tracking_type)]
       );
 
-      for (const mission of availableMissions) {
-        try {
-          // Check if user already has this mission for today
-          const existingMission = await query(
-            `SELECT id FROM user_missions 
-             WHERE user_id = ? AND mission_id = ? AND mission_date = ?`,
-            [user_id, mission.id, date]
-          );
-
-          if (existingMission.length === 0) {
-            // Assign new mission
-            const assignSql = `
-              INSERT INTO user_missions (
-                user_id, mission_id, status, current_value, progress, 
-                mission_date, created_at, updated_at
-              ) VALUES (?, ?, 'active', ?, ?, ?, NOW(), NOW())
-            `;
-
-            const initialProgress = Math.min(Math.round((current_value / mission.target_value) * 100), 100);
-            const initialStatus = initialProgress >= 100 ? 'completed' : 'active';
-
-            await query(assignSql, [
-              user_id, 
-              mission.id, 
-              current_value, 
-              initialProgress, 
-              date
-            ]);
-
-            if (initialStatus === 'completed') {
-              await query(
-                `UPDATE user_missions SET completed_at = NOW() WHERE user_id = ? AND mission_id = ? AND mission_date = ?`,
-                [user_id, mission.id, date]
-              );
-            }
-
-            updatedMissions.push({
-              user_mission_id: 'new',
-              mission_title: mission.title,
-              old_value: 0,
-              new_value: current_value,
-              old_progress: 0,
-              new_progress: initialProgress,
-              old_status: 'new',
-              new_status: initialStatus,
-              points: mission.points,
-              completed: initialStatus === "completed",
-              auto_assigned: true
-            });
-
-            console.log(`✅ Auto-assigned mission "${mission.title}": ${initialProgress}% (${initialStatus})`);
-          }
-        } catch (error) {
-          console.error(`❌ Error auto-assigning mission ${mission.id}:`, error);
-        }
-      }
+      console.log(`📋 Found ${availableMissions.length} available missions for ${tracking_type}`);
+      availableMissions.forEach(mission => {
+        console.log(`   - ${mission.title} (${mission.target_value} ${mission.unit})`);
+      });
+      
+      // Don't auto-assign missions - let users choose manually
+      console.log(`💡 Users can manually accept these missions from the mission list`);
     }
 
     const response = {

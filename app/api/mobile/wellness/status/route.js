@@ -112,7 +112,9 @@ export async function GET(request) {
     const profileComplete = !!(age && user?.gender && user?.activity_level && user?.fitness_goal);
 
     // Determine if user needs onboarding
-    const needsOnboarding = !user?.wellness_program_joined && missionCount === 0;
+    // User needs onboarding if they haven't joined the wellness program
+    // Missions alone are not sufficient - user must register for wellness program first
+    const needsOnboarding = !user?.wellness_program_joined;
 
     // Calculate actual days since joining wellness program
     let daysSinceJoining = 0;

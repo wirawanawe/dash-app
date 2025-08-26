@@ -214,7 +214,7 @@ app.post('/api/mobile/auth/login', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Simple server running on http://localhost:${PORT}`);
-  console.log(`🔐 Login endpoint: http://localhost:${PORT}/api/mobile/auth/login`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`🚀 Simple server running on https://dash.doctorphc.id:${PORT}`);
+  console.log(`🔐 Login endpoint: https://dash.doctorphc.id:${PORT}/api/mobile/auth/login`);
+  console.log(`🏥 Health check: https://dash.doctorphc.id:${PORT}/health`);
 });

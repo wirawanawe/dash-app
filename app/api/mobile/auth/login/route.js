@@ -110,7 +110,8 @@ export async function POST(request) {
         return NextResponse.json(
           {
             success: false,
-            message: "Email atau password salah",
+            message: "Email tidak terdaftar. Silakan daftar terlebih dahulu.",
+            errorType: "user_not_found"
           },
           { status: 401 }
         );
@@ -121,9 +122,10 @@ export async function POST(request) {
         return NextResponse.json(
           {
             success: false,
-            message: "Akun anda tidak aktif. Silahkan hubungi administrator.",
+            message: "Akun Anda telah dinonaktifkan. Hubungi admin untuk bantuan.",
+            errorType: "account_deactivated"
           },
-          { status: 401 }
+          { status: 403 }
         );
       }
 
@@ -134,7 +136,8 @@ export async function POST(request) {
         return NextResponse.json(
           {
             success: false,
-            message: "Email atau password salah",
+            message: "Password salah. Silakan periksa kembali password Anda.",
+            errorType: "invalid_password"
           },
           { status: 401 }
         );

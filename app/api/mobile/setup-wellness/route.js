@@ -152,7 +152,22 @@ export async function POST(request) {
         [user.id, 'height', height, 'cm', 'manual']
       );
 
-      // 3. Update mobile_users dengan data wellness (handle renew) dan increment cycle
+      // 3. Update mobile_users dengan data wellness dan increment cycle
+      // Check if user is joining for the first time or renewing
+      const [currentUser] = await query(
+        'SELECT wellness_program_joined, wellness_program_cycles FROM mobile_users WHERE id = ?',
+        [user.id]
+      );
+      
+      let newCycleCount = 1; // Default for first time join
+      if (currentUser && currentUser.wellness_program_joined) {
+        // User is renewing, increment existing cycles
+        newCycleCount = (currentUser.wellness_program_cycles || 0) + 1;
+        console.log(`🔄 User renewing wellness program. Previous cycles: ${currentUser.wellness_program_cycles}, New cycles: ${newCycleCount}`);
+      } else {
+        console.log(`🎯 User joining wellness program for the first time. Setting cycles to: ${newCycleCount}`);
+      }
+      
       await query(
         `UPDATE mobile_users 
          SET wellness_program_joined = ?, 
@@ -161,11 +176,11 @@ export async function POST(request) {
              wellness_program_end_date = DATE_ADD(NOW(), INTERVAL ? DAY),
              wellness_program_completed = FALSE,
              wellness_program_completion_date = NULL,
-             wellness_program_cycles = wellness_program_cycles + 1,
+             wellness_program_cycles = ?,
              fitness_goal = ?, 
              activity_level = ? 
          WHERE id = ?`,
-        [true, program_duration, program_duration, fitness_goal, activity_level, user.id]
+        [true, program_duration, program_duration, newCycleCount, fitness_goal, activity_level, user.id]
       );
 
       console.log(`✅ Wellness setup completed for user ID: ${user.id}`);
