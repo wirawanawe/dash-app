@@ -8,12 +8,37 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'doctor', 'staff') NOT NULL DEFAULT 'staff',
+  role ENUM('superadmin', 'admin', 'doctor', 'staff') NOT NULL DEFAULT 'staff',
+  clinic_id INT NULL,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email),
-  INDEX idx_role (role)
+  INDEX idx_role (role),
+  INDEX idx_clinic_id (clinic_id)
+);
+
+-- Create clinics table (updated to match mobile structure)
+CREATE TABLE IF NOT EXISTS clinics (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  address TEXT,
+  city VARCHAR(100),
+  phone VARCHAR(20),
+  email VARCHAR(255),
+  rating DECIMAL(3,2) DEFAULT 0,
+  total_reviews INT DEFAULT 0,
+  latitude DECIMAL(10,8),
+  longitude DECIMAL(11,8),
+  operating_hours JSON,
+  description TEXT,
+  image_url VARCHAR(500),
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_name (name),
+  INDEX idx_city (city),
+  INDEX idx_is_active (is_active)
 );
 
 -- Create doctors table
@@ -25,8 +50,10 @@ CREATE TABLE IF NOT EXISTS doctors (
   phone VARCHAR(20),
   email VARCHAR(100),
   address TEXT,
+  clinic_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE SET NULL
 );
 
 -- Create polyclinics table
@@ -109,19 +136,17 @@ CREATE TABLE IF NOT EXISTS patients (
 CREATE TABLE IF NOT EXISTS visits (
   id INT AUTO_INCREMENT PRIMARY KEY,
   patient_id INT NOT NULL,
-  doctor_id INT NOT NULL,
-  room VARCHAR(50),
-  complaint TEXT,
+  visit_date DATE NOT NULL,
+  visit_time TIME,
+  doctor_id INT,
+  diagnosis TEXT,
   treatment TEXT,
   notes TEXT,
-  status ENUM('Menunggu', 'Dalam Pemeriksaan', 'Selesai', 'Batal') DEFAULT 'Menunggu',
+  status ENUM('scheduled', 'in_progress', 'completed', 'cancelled') DEFAULT 'scheduled',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (patient_id) REFERENCES patients(id),
-  FOREIGN KEY (doctor_id) REFERENCES doctors(id),
-  INDEX idx_patient (patient_id),
-  INDEX idx_doctor (doctor_id),
-  INDEX idx_status (status)
+  FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+  FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE SET NULL
 );
 
 -- Create examinations table
@@ -142,3 +167,8 @@ CREATE TABLE IF NOT EXISTS examinations (
   FOREIGN KEY (icd_id) REFERENCES icd(id),
   INDEX idx_visit (visit_id)
 ); 
+
+-- Insert default superadmin user
+INSERT INTO users (name, email, password, role, is_active) VALUES 
+('Super Admin', 'superadmin@phc.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'superadmin', TRUE)
+ON DUPLICATE KEY UPDATE role = 'superadmin'; 

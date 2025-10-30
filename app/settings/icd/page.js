@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import ICDForm from "./components/ICDForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function ICDPage() {
   const [icds, setICDs] = useState([]);
@@ -155,6 +156,9 @@ export default function ICDPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-icd" />
       </div>
     </DashboardLayout>
   );

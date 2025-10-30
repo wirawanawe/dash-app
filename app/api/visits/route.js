@@ -25,237 +25,265 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 
 // GET all visits from external API
 export async function GET(request) {
+  // Extract query parameters outside try-catch so they're accessible in fallback
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search") || "";
+  const searchDate = searchParams.get("searchDate") || "";
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "10");
+  const startDate = searchParams.get("tglawal") || "";
+  const endDate = searchParams.get("tglakhir") || "";
+  const sortBy = searchParams.get("sortBy") || "date"; // date, id, name
+  const sortOrder = searchParams.get("sortOrder") || "desc"; // asc, desc
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
-    const searchDate = searchParams.get("searchDate") || "";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const startDate = searchParams.get("tglawal") || "";
-    const endDate = searchParams.get("tglakhir") || "";
-    const sortBy = searchParams.get("sortBy") || "date"; // date, id, name
-    const sortOrder = searchParams.get("sortOrder") || "desc"; // asc, desc
-
-    // Build API URL with pagination
-    let apiUrl = `http://api-klinik.doctorphc.id/transaksi/kunjungan?page=${page}&limit=${limit}`;
-
-    // Add keyword parameter if search is provided
-    if (search) {
-      apiUrl += `&keyword=${encodeURIComponent(search)}`;
+    // Extract filter parameters
+    const status = searchParams.get("status");
+    const doctorId = searchParams.get("doctorId");
+    const clinic = searchParams.get("clinic");
+    
+    // Determine if we need to fetch all data for client-side filtering
+    // This is needed when we have date filters, status filter, doctor filter, or clinic filter
+    const needsClientSideFiltering = searchDate || startDate || endDate || status || doctorId || clinic;
+    
+    // STRATEGY: Fetch newest data first (external API returns oldest first)
+    // 1. First, get total count from API
+    // 2. Calculate which pages to fetch from the END to get newest data
+    // 3. Fetch multiple pages from the end and combine
+    
+    // Step 1: Get total count
+    const countResponse = await fetchWithRetry(
+      `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=1&limit=1`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    
+    if (!countResponse.ok) {
+      throw new Error(`Failed to fetch count: ${countResponse.status}`);
     }
-
-    // Add date search parameter if provided
-    if (searchDate) {
-      apiUrl += `&search_date=${encodeURIComponent(searchDate)}`;
-    }
-
-    // Add date filters if provided
-    if (startDate) {
-      apiUrl += `&tglawal=${encodeURIComponent(startDate)}`;
-    }
-    if (endDate) {
-      apiUrl += `&tglakhir=${encodeURIComponent(endDate)}`;
-    }
-
-    const response = await fetchWithRetry(apiUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        // Add any required headers here (e.g., Authorization if needed)
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch from external API: ${response.status} ${response.statusText}`
+    
+    const countData = await countResponse.json();
+    const externalTotal = countData["total pasien"] || countData.total || 0;
+    
+    console.log(`[Visits API] Total in external DB: ${externalTotal}`);
+    
+    // Step 2: Calculate pages to fetch from the end
+    // We want to fetch up to 10000 newest records
+    const desiredRecords = 10000;
+    const recordsPerPage = 1000; // Fetch 1000 per page for efficiency
+    const pagesToFetch = Math.ceil(Math.min(desiredRecords, externalTotal) / recordsPerPage);
+    const totalPagesInExternal = Math.ceil(externalTotal / recordsPerPage);
+    const startPage = Math.max(1, totalPagesInExternal - pagesToFetch + 1);
+    
+    console.log(`[Visits API] Fetching ${pagesToFetch} pages from page ${startPage} to ${totalPagesInExternal}`);
+    
+    // Step 3: Fetch multiple pages from the end in parallel
+    const pageFetchPromises = [];
+    for (let pageNum = startPage; pageNum <= totalPagesInExternal; pageNum++) {
+      let apiUrl = `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=${pageNum}&limit=${recordsPerPage}`;
+      
+      // Add keyword parameter if search is provided
+      if (search) {
+        apiUrl += `&keyword=${encodeURIComponent(search)}`;
+      }
+      
+      pageFetchPromises.push(
+        fetchWithRetry(apiUrl, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }).then(res => res.json())
       );
     }
-
-    const externalData = await response.json();
-
-    // Process the external data - the API returns data in a specific format
+    
+    // Wait for all pages to be fetched
+    const pageResults = await Promise.all(pageFetchPromises);
+    
+    // Combine all pages and reverse to get newest first
     let rawVisits = [];
-    if (externalData.data && Array.isArray(externalData.data)) {
-      rawVisits = externalData.data;
-    } else if (Array.isArray(externalData)) {
-      rawVisits = externalData;
+    pageResults.forEach(pageData => {
+      if (pageData.data && Array.isArray(pageData.data)) {
+        rawVisits = rawVisits.concat(pageData.data);
+      }
+    });
+    
+    // Reverse to get newest first (external API returns oldest first)
+    rawVisits.reverse();
+    
+    console.log(`[Visits API] Fetched ${rawVisits.length} visits (newest first) from external API (Total in DB: ${externalTotal})`);
+    if (needsClientSideFiltering) {
+      console.log(`[Visits API] Client-side filtering active - Filters:`, {
+        searchDate,
+        startDate,
+        endDate,
+        status,
+        doctorId,
+        clinic
+      });
     }
 
     // Transform the external API data to match our expected format
     let visits = rawVisits.map((visit) => ({
-      id: visit.No_Kunjungan,
-      complaint: visit.Rekam_Medis?.[0]?.Subject || "-",
-      treatment: visit.Rekam_Medis?.[0]?.Planning || "-",
-      notes: visit.Rekam_Medis?.[0]?.Object || "-",
-      assessment: visit.Rekam_Medis?.[0]?.Assesment || "-",
-      status: visit.Keluar?.[0]?.Status ? "Selesai" : "Aktif",
-      room: visit.Unit_Rawat?.[0]?.Nama_Unit || "-",
+      id: visit.No_Kunjungan || visit.ID,
+      uniqueId: visit.ID,
+      visitNumber: visit.No_Kunjungan,
+      complaint: visit.Diagnosa || "-",
+      diagnosis: visit.Diagnosa || "-",
+      treatment: "-",
+      notes: "-",
+      assessment: "-",
+      status: "Selesai", // Default status since we don't have completion info
+      clinic: visit.Klinik || "-",
+      room: visit.Klinik || "-",
       visitDate: visit.Tgl_Kunjungan || null,
-      createdAt: visit.audittrail?.CreatedDate || null,
-      updatedAt: visit.audittrail?.LastModifiedDate || null,
+      createdAt: visit.audittrail?.created_at || null,
+      updatedAt: visit.audittrail?.updated_at || null,
       patient: {
-        id: visit.Pasien?.[0]?.No_MR || "",
+        id: visit.Pasien?.[0]?.NIK || "",
         name: visit.Pasien?.[0]?.Nama_Pasien || "-",
-        mrNumber: visit.Pasien?.[0]?.No_MR || "",
+        nik: visit.Pasien?.[0]?.NIK || "",
+        mrNumber: visit.Pasien?.[0]?.NIK || "",
         nip: visit.Pasien?.[0]?.NIP || "",
-        employeeName: visit.Pasien?.[0]?.Nama_Karyawan || "",
+        noPeserta: visit.Pasien?.[0]?.No_Peserta || "",
+        namaPeserta: visit.Pasien?.[0]?.Nama_Peserta || "",
+        gender: visit.Pasien?.[0]?.Jenis_Kelamin || "",
+        birthDate: visit.Pasien?.[0]?.Tgl_Lahir || "",
+        department: visit.Pasien?.[0]?.Bagian || "",
       },
       doctor: {
-        id: visit.Dokter?.[0]?.id || "",
-        name: visit.Dokter?.[0]?.Nama_Dokter || "-",
+        id: "",
+        name: visit.Dokter || "-",
       },
+      facility: {
+        code: visit.Fasilitas_Kesehatan?.[0]?.Kode || "",
+        name: visit.Fasilitas_Kesehatan?.[0]?.Nama_Faskes || "-",
+      },
+      // Keep compatibility with old structure
       insurance: {
-        id: visit.Penjamin?.[0]?.id || "",
-        name: visit.Penjamin?.[0]?.Nama_Penjamin || "-",
+        id: "",
+        name: "-",
       },
       company: {
-        id: visit.Perusahaan?.[0]?.id || "",
-        name: visit.Perusahaan?.[0]?.Nama_Perusahaan || "-",
+        id: "",
+        name: "-",
       },
       physicalExam: {
-        weight: visit.Pemeriksaan_Fisik?.[0]?.Berat_Badan || "0",
-        height: visit.Pemeriksaan_Fisik?.[0]?.Tinggi_Badan || "0",
-        waistCircumference:
-          visit.Pemeriksaan_Fisik?.[0]?.Lingkar_Pinggang || "0",
-        temperature: visit.Pemeriksaan_Fisik?.[0]?.Suhu || "0",
-        spO2: visit.Pemeriksaan_Fisik?.[0]?.SpO2 || "0",
+        weight: "0",
+        height: "0",
+        waistCircumference: "0",
+        temperature: "0",
+        spO2: "0",
         bloodPressure: {
-          systolic:
-            visit.Pemeriksaan_Fisik?.[0]?.Tekanan_Darah?.[0]?.Sistolik || "0",
-          diastolic:
-            visit.Pemeriksaan_Fisik?.[0]?.Tekanan_Darah?.[0]?.Diastolik || "0",
+          systolic: "0",
+          diastolic: "0",
         },
-        pulse: visit.Pemeriksaan_Fisik?.[0]?.Nadi || "0",
-        respirationRate: visit.Pemeriksaan_Fisik?.[0]?.Respiration_Rate || "0",
-        eyes: visit.Pemeriksaan_Fisik?.[0]?.Mata || "",
-        ears: visit.Pemeriksaan_Fisik?.[0]?.Telinga || "",
+        pulse: "0",
+        respirationRate: "0",
+        eyes: "",
+        ears: "",
       },
       referral: {
         source: {
-          type: visit.Rujukan_Asal?.[0]?.Jenis || "",
-          referrer: visit.Rujukan_Asal?.[0]?.Nama_Perujuk || "",
+          type: "",
+          referrer: "",
         },
         destination: {
-          notes: visit.Rujukan_Tujuan?.[0]?.Catatan || "",
+          notes: "",
         },
       },
       sickLeave: {
-        status: visit.Surat_Sakit?.[0]?.Status || false,
-        days: visit.Surat_Sakit?.[0]?.Jml_Hari || null,
-        startDate: visit.Surat_Sakit?.[0]?.Tgl_Awal || null,
-        endDate: visit.Surat_Sakit?.[0]?.Tgl_Akhir || null,
+        status: false,
+        days: null,
+        startDate: null,
+        endDate: null,
       },
-      healthCertificate: visit.Surat_Sehat || false,
+      healthCertificate: false,
       cancellation: {
-        userId: visit.Batal_Kunjungan?.[0]?.User_ID || null,
-        date: visit.Batal_Kunjungan?.[0]?.Tanggal || null,
-        reason: visit.Batal_Kunjungan?.[0]?.Alasan || null,
+        userId: null,
+        date: null,
+        reason: null,
       },
       examinations: [], // Keep for compatibility
     }));
 
+    // Helper function to normalize date (remove time component)
+    const normalizeDate = (dateString) => {
+      if (!dateString) return null;
+      
+      // Parse date string (handle both YYYY-MM-DD and YYYY-MM-DD HH:MM:SS formats)
+      let dateStr = dateString;
+      if (dateStr.includes(' ')) {
+        dateStr = dateStr.split(' ')[0]; // Take only date part
+      }
+      
+      // Validate date format YYYY-MM-DD
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+      if (datePattern.test(dateStr)) {
+        return dateStr;
+      }
+      
+      // Fallback: try to parse and format
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return null;
+      
+      // Format as YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     // Apply client-side date search filtering
     if (searchDate) {
+      const searchDateNormalized = normalizeDate(searchDate);
+      
       visits = visits.filter((visit) => {
-        const visitDateStr = visit.visitDate;
-        const searchDateObj = new Date(searchDate);
-
+        const visitDateNormalized = normalizeDate(visit.visitDate);
+        
         // Check if visitDate matches the searchDate
-        if (visitDateStr && visitDateStr !== "1900-01-01 00:00:00") {
-          const visitDate = new Date(visitDateStr);
-          if (!isNaN(visitDate.getTime()) && !isNaN(searchDateObj.getTime())) {
-            // Compare dates (ignore time)
-            const visitDateOnly = new Date(
-              visitDate.getFullYear(),
-              visitDate.getMonth(),
-              visitDate.getDate()
-            );
-            const searchDateOnly = new Date(
-              searchDateObj.getFullYear(),
-              searchDateObj.getMonth(),
-              searchDateObj.getDate()
-            );
-            return visitDateOnly.getTime() === searchDateOnly.getTime();
-          }
+        if (visitDateNormalized && visitDateNormalized !== "1900-01-01") {
+          return visitDateNormalized === searchDateNormalized;
         }
 
         // If no valid visitDate, check createdAt
-        if (visit.createdAt) {
-          const createdDate = new Date(visit.createdAt);
-          if (
-            !isNaN(createdDate.getTime()) &&
-            !isNaN(searchDateObj.getTime())
-          ) {
-            const createdDateOnly = new Date(
-              createdDate.getFullYear(),
-              createdDate.getMonth(),
-              createdDate.getDate()
-            );
-            const searchDateOnly = new Date(
-              searchDateObj.getFullYear(),
-              searchDateObj.getMonth(),
-              searchDateObj.getDate()
-            );
-            return createdDateOnly.getTime() === searchDateOnly.getTime();
-          }
+        const createdDateNormalized = normalizeDate(visit.createdAt);
+        if (createdDateNormalized) {
+          return createdDateNormalized === searchDateNormalized;
         }
 
         return false;
       });
     }
 
-    // Apply client-side date filtering if the external API doesn't support it
+    // Apply client-side date range filtering
     if (startDate || endDate) {
+      const startDateNormalized = startDate ? normalizeDate(startDate) : null;
+      const endDateNormalized = endDate ? normalizeDate(endDate) : null;
+      
       visits = visits.filter((visit) => {
-        const visitDateStr = visit.visitDate;
-
-        // Skip empty, null, or default dates
-        if (!visitDateStr || visitDateStr === "1900-01-01 00:00:00") {
-          // If no specific date is available, use createdAt for filtering
-          if (visit.createdAt) {
-            const createdDate = new Date(visit.createdAt);
-            const startDateObj = startDate ? new Date(startDate) : null;
-            const endDateObj = endDate ? new Date(endDate) : null;
-
-            if (isNaN(createdDate.getTime())) return true;
-
-            let matchesStart = true;
-            let matchesEnd = true;
-
-            if (startDateObj && !isNaN(startDateObj.getTime())) {
-              matchesStart = createdDate >= startDateObj;
-            }
-
-            if (endDateObj && !isNaN(endDateObj.getTime())) {
-              const endDatePlusOne = new Date(endDateObj);
-              endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
-              matchesEnd = createdDate < endDatePlusOne;
-            }
-
-            return matchesStart && matchesEnd;
-          }
-          return true; // Include if no date information available
+        // Get the visit date (prefer visitDate, fallback to createdAt)
+        let dateToCompare = normalizeDate(visit.visitDate);
+        
+        // If visitDate is invalid or default, use createdAt
+        if (!dateToCompare || dateToCompare === "1900-01-01") {
+          dateToCompare = normalizeDate(visit.createdAt);
         }
-
-        const visitDate = new Date(visitDateStr);
-        const startDateObj = startDate ? new Date(startDate) : null;
-        const endDateObj = endDate ? new Date(endDate) : null;
-
-        // Skip invalid dates
-        if (isNaN(visitDate.getTime())) return true;
+        
+        // If no valid date found, include the visit
+        if (!dateToCompare) return true;
 
         let matchesStart = true;
         let matchesEnd = true;
 
-        if (startDateObj && !isNaN(startDateObj.getTime())) {
-          matchesStart = visitDate >= startDateObj;
+        // Check start date
+        if (startDateNormalized) {
+          matchesStart = dateToCompare >= startDateNormalized;
         }
 
-        if (endDateObj && !isNaN(endDateObj.getTime())) {
-          // Add one day to end date to include the entire end date
-          const endDatePlusOne = new Date(endDateObj);
-          endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
-          matchesEnd = visitDate < endDatePlusOne;
+        // Check end date
+        if (endDateNormalized) {
+          matchesEnd = dateToCompare <= endDateNormalized;
         }
 
         return matchesStart && matchesEnd;
@@ -263,7 +291,6 @@ export async function GET(request) {
     }
 
     // Apply client-side status filtering
-    const status = searchParams.get("status");
     if (status) {
       visits = visits.filter((visit) => {
         return visit.status === status;
@@ -271,42 +298,57 @@ export async function GET(request) {
     }
 
     // Apply client-side doctor filtering
-    const doctorId = searchParams.get("doctorId");
     if (doctorId) {
       visits = visits.filter((visit) => {
         return visit.doctor.id === doctorId;
       });
     }
 
+    // Apply client-side clinic filtering
+    if (clinic) {
+      visits = visits.filter((visit) => {
+        return visit.clinic === clinic || visit.room === clinic;
+      });
+    }
+
     // Sort visits (default: newest first - tanggal terbaru di atas)
+    console.log(`[Visits API] Sorting by: ${sortBy}, order: ${sortOrder}`);
+    
     visits.sort((a, b) => {
       let comparison = 0;
 
       if (sortBy === "date") {
         // Function to get the best date from visit object
         const getBestDate = (visit) => {
-          // Priority: visitDate (if valid) > createdAt > id (as fallback)
-          if (visit.visitDate && visit.visitDate !== "1900-01-01 00:00:00") {
-            const visitDate = new Date(visit.visitDate);
-            if (!isNaN(visitDate.getTime())) {
-              return visitDate;
+          // Priority: visitDate (if valid) > createdAt > fallback to old date
+          
+          // Try visitDate first
+          if (visit.visitDate) {
+            const dateStr = String(visit.visitDate);
+            // Check if not default/invalid date
+            if (!dateStr.startsWith('1900-01-01') && dateStr !== '0000-00-00') {
+              const visitDate = new Date(visit.visitDate);
+              if (!isNaN(visitDate.getTime()) && visitDate.getFullYear() > 1900) {
+                return visitDate;
+              }
             }
           }
 
+          // Fallback to createdAt
           if (visit.createdAt) {
             const createdDate = new Date(visit.createdAt);
-            if (!isNaN(createdDate.getTime())) {
+            if (!isNaN(createdDate.getTime()) && createdDate.getFullYear() > 1900) {
               return createdDate;
             }
           }
 
-          // Fallback to epoch time if no valid dates
-          return new Date(0);
+          // Fallback to very old date (will be sorted to bottom)
+          return new Date('1900-01-01');
         };
 
         const aDate = getBestDate(a);
         const bDate = getBestDate(b);
-        comparison = bDate.getTime() - aDate.getTime(); // Default descending
+        comparison = bDate.getTime() - aDate.getTime(); // Descending: newest first
 
         // If dates are the same, use ID as secondary sort (higher ID = newer)
         if (comparison === 0) {
@@ -334,15 +376,43 @@ export async function GET(request) {
       return comparison;
     });
 
-    // Use the pagination info from the external API
-    const totalFromAPI =
-      externalData["total pasien"] || externalData.total || visits.length;
-    const totalPages = Math.ceil(totalFromAPI / limit);
+    // Log first few visits after sorting to verify order
+    if (visits.length > 0) {
+      console.log(`[Visits API] After sorting (first 3):`, 
+        visits.slice(0, 3).map(v => ({
+          id: v.id,
+          visitDate: v.visitDate,
+          createdAt: v.createdAt,
+          patient: v.patient?.name
+        }))
+      );
+    }
+
+    // Calculate pagination AFTER all filtering
+    // If there's any filtering, use filtered length; otherwise use external total
+    const actualTotal = needsClientSideFiltering ? visits.length : externalTotal;
+    const totalPages = Math.ceil(actualTotal / limit);
+    
+    if (needsClientSideFiltering) {
+      console.log(`[Visits API] After filtering: ${actualTotal} visits match the criteria (from ${externalTotal} total)`);
+    } else {
+      console.log(`[Visits API] No filtering applied: returning ${actualTotal} total visits from external API`);
+    }
+    
+    // Apply pagination to filtered results
+    let paginatedVisits = visits;
+    if (needsClientSideFiltering) {
+      // If we fetched all data for client-side filtering, now paginate the results
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      paginatedVisits = visits.slice(startIndex, endIndex);
+      console.log(`[Visits API] Returning page ${page} with ${paginatedVisits.length} visits (total: ${actualTotal}, pages: ${totalPages})`);
+    }
 
     return NextResponse.json({
-      data: visits,
+      data: paginatedVisits,
       pagination: {
-        total: totalFromAPI,
+        total: actualTotal,
         page,
         limit,
         totalPages,

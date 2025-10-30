@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import InsuranceForm from "./components/InsuranceForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function InsurancePage() {
   const [insurances, setInsurances] = useState([]);
@@ -151,6 +152,9 @@ export default function InsurancePage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-insurance" />
       </div>
     </DashboardLayout>
   );

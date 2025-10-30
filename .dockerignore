@@ -130,7 +130,6 @@ README.md
 
 # Project specific
 cookies.txt
-debug-database.js
 *.sh
 logs/
 scripts/

@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { query } from "@/lib/db";
-import bcrypt from "bcryptjs";
+import { getCookieOptions } from "@/lib/auth";
 
 export async function POST(request) {
   try {
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is not defined in environment variables");
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Server configuration error: JWT_SECRET missing",
-        },
-        { status: 500 }
-      );
-    }
-
     const { email, password } = await request.json();
 
-    // Validasi input
+    // Validate input
     if (!email || !password) {
       return NextResponse.json(
         {
@@ -29,27 +19,51 @@ export async function POST(request) {
       );
     }
 
-    // Helper function for cookie options
-    const getCookieOptions = () => {
-      const isProduction = process.env.NODE_ENV === "production";
-
-      // Check if running on HTTPS - be more strict about HTTPS detection
-      const protocol =
-        request.headers.get("x-forwarded-proto") ||
-        request.headers.get("x-forwarded-protocol") ||
-        (request.url?.startsWith("https://") ? "https" : "http");
-
-      // Only set secure flag if actually using HTTPS
-      const isHttps = protocol === "https";
-
-      return {
-        httpOnly: true,
-        secure: isHttps, // Only secure when actually using HTTPS
-        sameSite: isProduction ? "strict" : "lax", // Use 'lax' for development
-        maxAge: 86400, // 1 day
-        path: "/",
+    // Superadmin fallback untuk testing
+    if (email === "superadmin@phc.com" && password === "superadmin123") {
+      const superadminUser = {
+        id: "superadmin-001",
+        name: "Super Administrator",
+        email: "superadmin@phc.com",
+        role: "SUPERADMIN",
+        clinic_id: null,
+        clinic: null,
       };
-    };
+
+      // Create a JWT token
+      const token = await new SignJWT({
+        userId: superadminUser.id,
+        id: superadminUser.id,
+        name: superadminUser.name,
+        email: superadminUser.email,
+        role: superadminUser.role,
+        clinic_id: null, // Superadmin can see all clinics
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("1d")
+        .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+
+      const response = NextResponse.json(
+        {
+          success: true,
+          message: "Login berhasil",
+          user: superadminUser,
+        },
+        { status: 200 }
+      );
+
+      const cookieOptions = getCookieOptions();
+
+      response.cookies.set("token", token, cookieOptions);
+      response.cookies.set(
+        "lastActivity",
+        Date.now().toString(),
+        cookieOptions
+      );
+
+      return response;
+    }
 
     // Admin fallback untuk testing saat database belum siap
     if (email === "admin@phc.com" && password === "admin123") {
@@ -101,7 +115,7 @@ export async function POST(request) {
     try {
       // Cari user di database
       let sql = `
-        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active
+        SELECT u.id, u.name, u.email, u.password, u.role, u.is_active, u.clinic_id
         FROM users u 
         WHERE u.email = ?
       `;
@@ -116,11 +130,6 @@ export async function POST(request) {
           { status: 401 }
         );
       }
-
-      // Set clinic info to null since clinic_id column doesn't exist
-      user.clinic_id = null;
-      user.clinic_name = null;
-      user.clinic_code = null;
 
       // Cek apakah user aktif
       if (!user.is_active) {
@@ -146,6 +155,16 @@ export async function POST(request) {
         );
       }
 
+      // Get clinic info if user has clinic_id
+      let clinicInfo = null;
+      if (user.clinic_id) {
+        const clinicSql = "SELECT id, name, address, city FROM clinics WHERE id = ?";
+        const [clinic] = await query(clinicSql, [user.clinic_id]);
+        if (clinic) {
+          clinicInfo = clinic;
+        }
+      }
+
       // Create a JWT token
       const token = await new SignJWT({
         userId: user.id,
@@ -153,7 +172,7 @@ export async function POST(request) {
         name: user.name,
         email: user.email,
         role: user.role.toUpperCase(),
-        clinic_id: null, // No clinic_id in current schema
+        clinic_id: user.clinic_id,
       })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -166,8 +185,8 @@ export async function POST(request) {
         name: user.name,
         email: user.email,
         role: user.role.toUpperCase(),
-        clinic_id: null,
-        clinic: null,
+        clinic_id: user.clinic_id,
+        clinic: clinicInfo,
       };
 
       const response = NextResponse.json(
@@ -249,8 +268,11 @@ export async function POST(request) {
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(
-      { error: "Authentication failed" },
-      { status: 401 }
+      {
+        success: false,
+        message: "Terjadi kesalahan pada server",
+      },
+      { status: 500 }
     );
   }
 }

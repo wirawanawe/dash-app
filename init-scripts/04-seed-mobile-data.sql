@@ -1,0 +1,58 @@
+-- Seed Mobile Data for Dashboard
+-- This script inserts initial data for mobile app features
+
+-- Insert sample missions
+INSERT INTO missions (title, description, category, points, duration_days, target_value, target_unit, is_active) VALUES
+('Daily Steps Challenge', 'Walk 10,000 steps every day for a week to improve your cardiovascular health', 'fitness', 100, 7, 10000, 'steps', 1),
+('Water Intake Goal', 'Drink 8 glasses of water daily to stay hydrated and healthy', 'nutrition', 50, 7, 8, 'glasses', 1),
+('Sleep Quality Improvement', 'Get 8 hours of quality sleep for better health and productivity', 'sleep', 75, 7, 8, 'hours', 1),
+('Meditation Practice', 'Practice meditation for 10 minutes daily to reduce stress', 'mental_health', 60, 7, 10, 'minutes', 1),
+('Fruit and Vegetable Intake', 'Eat 5 servings of fruits and vegetables daily', 'nutrition', 80, 7, 5, 'servings', 1),
+('Cardio Exercise', 'Do 30 minutes of cardio exercise 3 times a week', 'fitness', 120, 21, 3, 'sessions', 1),
+('Weight Training', 'Complete 3 weight training sessions this week', 'fitness', 150, 7, 3, 'sessions', 1),
+('Stress Management', 'Practice deep breathing exercises for 5 minutes daily', 'mental_health', 40, 7, 5, 'minutes', 1),
+('Social Connection', 'Connect with a friend or family member daily', 'wellness', 30, 7, 1, 'connection', 1),
+('Screen Time Reduction', 'Reduce screen time by 1 hour daily', 'wellness', 45, 7, 1, 'hour', 1),
+('Protein Intake', 'Consume adequate protein (0.8g per kg body weight) daily', 'nutrition', 70, 7, 0.8, 'g/kg', 1),
+('Stretching Routine', 'Do 15 minutes of stretching exercises daily', 'fitness', 55, 7, 15, 'minutes', 1),
+('Gratitude Practice', 'Write down 3 things you are grateful for daily', 'mental_health', 35, 7, 3, 'items', 1),
+('Healthy Snacking', 'Replace unhealthy snacks with fruits or nuts', 'nutrition', 65, 7, 1, 'replacement', 1),
+('Mindful Eating', 'Practice mindful eating during one meal daily', 'wellness', 50, 7, 1, 'meal', 1),
+('Early Bedtime', 'Go to bed 30 minutes earlier than usual', 'sleep', 60, 7, 30, 'minutes', 1),
+('Reading Habit', 'Read for 20 minutes daily', 'wellness', 40, 7, 20, 'minutes', 1),
+('Walking Break', 'Take a 10-minute walking break every 2 hours', 'fitness', 45, 7, 10, 'minutes', 1),
+('Positive Affirmations', 'Repeat positive affirmations for 5 minutes daily', 'mental_health', 30, 7, 5, 'minutes', 1),
+('Green Tea Consumption', 'Drink 2 cups of green tea daily', 'nutrition', 40, 7, 2, 'cups', 1),
+('Posture Improvement', 'Maintain good posture for 1 hour continuously', 'wellness', 35, 7, 1, 'hour', 1),
+('Digital Detox', 'Spend 2 hours without using digital devices', 'wellness', 70, 7, 2, 'hours', 1),
+('Creative Activity', 'Engage in a creative activity for 30 minutes', 'mental_health', 55, 7, 30, 'minutes', 1),
+('Meal Planning', 'Plan your meals for the next day', 'nutrition', 50, 7, 1, 'plan', 1),
+('Active Commuting', 'Walk or cycle instead of driving for short distances', 'fitness', 80, 7, 1, 'trip', 1);
+
+-- Insert sample wellness activities
+INSERT INTO wellness_activities (title, description, category, duration_minutes, difficulty, points, is_active) VALUES
+('Morning Yoga', 'Start your day with gentle yoga stretches', 'fitness', 15, 'easy', 20, 1),
+('Healthy Cooking', 'Prepare a nutritious meal from scratch', 'nutrition', 45, 'medium', 40, 1),
+('Nature Walk', 'Take a peaceful walk in nature', 'social', 30, 'easy', 25, 1),
+('Journaling', 'Write about your thoughts and feelings', 'mental_health', 10, 'easy', 15, 1),
+('Strength Training', 'Complete a full body strength workout', 'fitness', 60, 'hard', 60, 1),
+('Meal Prep', 'Prepare healthy meals for the week', 'nutrition', 120, 'medium', 50, 1),
+('Meditation Session', 'Practice mindfulness meditation', 'mental_health', 20, 'medium', 30, 1),
+('Social Call', 'Call a friend or family member', 'social', 15, 'easy', 20, 1),
+('Gardening', 'Spend time tending to plants', 'environmental', 30, 'medium', 35, 1),
+('Reading Session', 'Read a book or article', 'mental_health', 30, 'easy', 25, 1),
+('Dance Workout', 'Have fun with a dance workout session', 'fitness', 45, 'medium', 40, 1),
+('Healthy Snack Prep', 'Prepare healthy snacks for the week', 'nutrition', 30, 'easy', 25, 1),
+('Breathing Exercise', 'Practice deep breathing techniques', 'mental_health', 10, 'easy', 15, 1),
+('Volunteer Work', 'Help someone in need', 'social', 60, 'medium', 50, 1),
+('Recycling Activity', 'Sort and recycle household waste', 'environmental', 20, 'easy', 20, 1),
+('Puzzle Solving', 'Solve a crossword or Sudoku puzzle', 'mental_health', 20, 'medium', 25, 1),
+('HIIT Workout', 'High-intensity interval training session', 'fitness', 30, 'hard', 45, 1),
+('Smoothie Making', 'Create a healthy smoothie', 'nutrition', 15, 'easy', 20, 1),
+('Gratitude Walk', 'Walk while thinking about things you are grateful for', 'social', 20, 'easy', 25, 1),
+('Art Therapy', 'Express yourself through drawing or painting', 'mental_health', 45, 'medium', 35, 1),
+('Community Cleanup', 'Participate in a community cleanup event', 'environmental', 90, 'medium', 60, 1),
+('Stretching Session', 'Complete a full body stretching routine', 'fitness', 20, 'easy', 20, 1),
+('Healthy Baking', 'Bake healthy treats using nutritious ingredients', 'nutrition', 60, 'medium', 40, 1),
+('Mindful Walking', 'Practice walking meditation', 'mental_health', 30, 'medium', 30, 1),
+('Social Media Detox', 'Take a break from social media', 'mental_health', 120, 'medium', 40, 1); 

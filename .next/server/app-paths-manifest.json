@@ -1,7 +1,7 @@
 {
-  "/patients/page": "app/patients/page.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/api/auth/me/route": "app/api/auth/me/route.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/visits/page": "app/visits/page.js",
-  "/laboratory/results/page": "app/laboratory/results/page.js",
-  "/doctors/page": "app/doctors/page.js"
+  "/api/auth/permissions/route": "app/api/auth/permissions/route.js",
+  "/api/visits/route": "app/api/visits/route.js"
 }

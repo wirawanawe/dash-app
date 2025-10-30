@@ -7,92 +7,45 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const search = searchParams.get("search") || "";
 
-    // First try to get from local database
-    let sql = "SELECT * FROM doctors";
-    let params = [];
+    // First try to get doctors from local database
+    let doctors = await query(
+      "SELECT * FROM doctors ORDER BY name ASC"
+    );
 
-    if (search) {
-      sql += " WHERE name LIKE ? OR specialist LIKE ?";
-      params = [`%${search}%`, `%${search}%`];
-    }
-
-    sql += " ORDER BY name ASC";
-
-    const doctors = await query(sql, params);
-
-    // If no doctors in local database, fetch from external API
-    if (doctors.length === 0) {
+    // If no doctors in local DB, try external API
+    if (!doctors || doctors.length === 0) {
       try {
-        console.log("No doctors in local DB, fetching from external API...");
-
-        // Fetch visits data to extract unique doctors
-        const apiUrl = `http://api-klinik.doctorphc.id/transaksi/kunjungan?limit=100`;
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.ok) {
-          const externalData = await response.json();
-          let rawVisits = [];
-
-          if (externalData.data && Array.isArray(externalData.data)) {
-            rawVisits = externalData.data;
-          } else if (Array.isArray(externalData)) {
-            rawVisits = externalData;
+        const externalResponse = await fetch(
+          `${process.env.EXTERNAL_API_URL}/doctors`,
+          {
+            headers: {
+              "Authorization": `Bearer ${process.env.EXTERNAL_API_TOKEN}`,
+            },
           }
+        );
 
-          // Extract unique doctors from visits data
-          const uniqueDoctors = [];
-          const doctorMap = new Map();
-
-          rawVisits.forEach((visit) => {
-            if (visit.Dokter && visit.Dokter[0]) {
-              const doctor = visit.Dokter[0];
-              const doctorId = doctor.id || doctor.Id || "unknown";
-              const doctorName = doctor.Nama_Dokter || doctor.name || "";
-
-              if (doctorName && !doctorMap.has(doctorId)) {
-                doctorMap.set(doctorId, {
-                  id: doctorId,
-                  name: doctorName,
-                  specialist: doctor.Spesialist || "",
-                });
-                uniqueDoctors.push(doctorMap.get(doctorId));
-              }
-            }
+        if (externalResponse.ok) {
+          const externalDoctors = await externalResponse.json();
+          return NextResponse.json({
+            success: true,
+            doctors: externalDoctors,
+            source: "external",
           });
-
-          // Filter by search if provided
-          let filteredDoctors = uniqueDoctors;
-          if (search) {
-            filteredDoctors = uniqueDoctors.filter(
-              (doctor) =>
-                doctor.name.toLowerCase().includes(search.toLowerCase()) ||
-                (doctor.specialist &&
-                  doctor.specialist
-                    .toLowerCase()
-                    .includes(search.toLowerCase()))
-            );
-          }
-
-          // Sort by name
-          filteredDoctors.sort((a, b) => a.name.localeCompare(b.name));
-
-          return NextResponse.json(filteredDoctors);
         }
-      } catch (apiError) {
-        console.error("Error fetching from external API:", apiError);
+      } catch (externalError) {
+        console.error("External API error:", externalError);
       }
     }
 
-    return NextResponse.json(doctors);
+    return NextResponse.json({
+      success: true,
+      doctors: doctors,
+      source: "local",
+    });
   } catch (error) {
     console.error("Error fetching doctors:", error);
     return NextResponse.json(
-      { message: "Failed to fetch doctors" },
+      { error: "Failed to fetch doctors" },
       { status: 500 }
     );
   }

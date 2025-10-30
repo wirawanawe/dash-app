@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import CompanyForm from "./components/CompanyForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState([]);
@@ -147,6 +148,9 @@ export default function CompaniesPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-companies" />
       </div>
     </DashboardLayout>
   );

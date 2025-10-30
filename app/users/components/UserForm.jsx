@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/components/Providers";
+import toast from "react-hot-toast";
 
 export default function UserForm({ user, clinics, onSubmit, onCancel }) {
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -13,26 +16,39 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Log clinics prop for debugging
+  console.log('[UserForm] Clinics prop:', clinics);
+  console.log('[UserForm] Clinics is array?', Array.isArray(clinics));
+  console.log('[UserForm] Clinics length:', clinics?.length);
 
   useEffect(() => {
     if (user) {
-      setFormData({
+      console.log('[UserForm] Loading user data:', user);
+      const newFormData = {
         name: user.name || "",
         email: user.email || "",
         password: "", // Don't show password in edit mode
-        role: user.role?.toLowerCase() || "staff",
+        role: user.role ? user.role.toLowerCase() : "staff",
         is_active: user.is_active ?? true,
-        clinic_id: user.clinic?.id ? user.clinic.id.toString() : "",
-      });
+        clinic_id: user.clinic_id ? user.clinic_id.toString() : (user.clinic?.id ? user.clinic.id.toString() : ""),
+      };
+      console.log('[UserForm] Setting formData to:', newFormData);
+      setFormData(newFormData);
     }
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+    
     setFormData({
       ...formData,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: newValue,
     });
+
+    console.log('[UserForm] Field changed:', name, '=', newValue);
 
     // Clear error for this field
     if (errors[name]) {
@@ -45,33 +61,119 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) {
+    
+    console.log('[UserForm] Validating form with data:', formData);
+    
+    if (!formData.name || !formData.name.trim()) {
       newErrors.name = "Nama harus diisi";
+      console.log('[UserForm] Name validation failed:', formData.name);
     }
-    if (!formData.email.trim()) {
+    if (!formData.email || !formData.email.trim()) {
       newErrors.email = "Email harus diisi";
+      console.log('[UserForm] Email validation failed:', formData.email);
     } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = "Format email tidak valid";
+      console.log('[UserForm] Email format invalid:', formData.email);
     }
 
     // Only validate password for new users
     if (!user && !formData.password) {
       newErrors.password = "Password harus diisi";
+      console.log('[UserForm] Password validation failed for new user');
     }
 
     setErrors(newErrors);
+    console.log('[UserForm] Validation errors:', newErrors);
+    console.log('[UserForm] Validation result:', Object.keys(newErrors).length === 0);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSubmit({
-        ...formData,
-        // If editing and password is empty, don't include it in the request
-        ...(user && !formData.password && { password: undefined }),
+
+    console.log('[UserForm] Current formData:', formData);
+
+    // Validate form first
+    if (!validateForm()) {
+      console.log('[UserForm] Validation failed, errors:', errors);
+      toast.error("Mohon lengkapi semua field yang wajib diisi");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Ensure fields are not empty strings
+      const name = (formData.name || "").trim();
+      const email = (formData.email || "").trim();
+      
+      if (!name || !email) {
+        toast.error("Nama dan Email harus diisi");
+        setIsLoading(false);
+        return;
+      }
+
+      const submitData = {
+        name: name,
+        email: email,
+        role: formData.role || "staff",
         clinic_id: formData.clinic_id ? parseInt(formData.clinic_id) : null,
+        is_active: formData.is_active !== undefined ? formData.is_active : true,
+      };
+
+      // Only include password if it's provided
+      if (formData.password && formData.password.trim()) {
+        submitData.password = formData.password;
+      }
+
+      console.log('[UserForm] Submitting data:', { 
+        ...submitData, 
+        password: submitData.password ? '***' : undefined,
+        originalClinicId: formData.clinic_id,
+        isEdit: !!user,
+        userId: user?.id
       });
+
+      const url = user ? `/api/users/${user.id}` : "/api/users";
+      const method = user ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(submitData),
+      });
+
+      console.log('[UserForm] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log('[UserForm] Error response:', errorData);
+        throw new Error(errorData.error || "Gagal menyimpan data");
+      }
+
+      const result = await response.json();
+      console.log('[UserForm] Success response:', result);
+
+      toast.success(
+        user ? "User berhasil diupdate" : "User berhasil ditambahkan"
+      );
+      
+      // Call onSubmit callback to signal success (no params to avoid double submit)
+      if (onSubmit) {
+        onSubmit();
+      }
+      
+      // Close modal
+      if (onCancel) {
+        onCancel();
+      }
+    } catch (error) {
+      console.error("[UserForm] Error saving user:", error);
+      toast.error(error.message || "Gagal menyimpan data");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,9 +197,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className={`w-full p-2 text-black border rounded-md ${
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.name ? "border-red-500" : "border-gray-300"
               }`}
+              placeholder="Masukkan nama lengkap"
             />
             {errors.name && (
               <p className="text-red-500 text-xs mt-1">{errors.name}</p>
@@ -117,9 +220,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full p-2 text-black border rounded-md ${
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.email ? "border-red-500" : "border-gray-300"
               }`}
+              placeholder="Masukkan email"
             />
             {errors.email && (
               <p className="text-red-500 text-xs mt-1">{errors.email}</p>
@@ -140,9 +244,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className={`w-full p-2 text-black border rounded-md ${
+                className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.password ? "border-red-500" : "border-gray-300"
                 }`}
+                placeholder="Masukkan password"
               />
               <button
                 type="button"
@@ -170,11 +275,31 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               value={formData.role}
               onChange={handleChange}
               className="w-full p-2 text-black border border-gray-300 rounded-md"
+              disabled={currentUser?.role?.toLowerCase() === "admin" && !user}
             >
-              <option value="admin">Admin</option>
-              <option value="doctor">Dokter</option>
-              <option value="staff">Staff</option>
+              {currentUser?.role?.toLowerCase() === "superadmin" ? (
+                <>
+                  <option value="superadmin">Superadmin</option>
+                  <option value="admin">Admin</option>
+                  <option value="doctor">Dokter</option>
+                  <option value="staff">Staff</option>
+                </>
+              ) : currentUser?.role?.toLowerCase() === "admin" ? (
+                <>
+                  <option value="staff">Staff</option>
+                </>
+              ) : (
+                <>
+                  <option value="doctor">Dokter</option>
+                  <option value="staff">Staff</option>
+                </>
+              )}
             </select>
+            {currentUser?.role?.toLowerCase() === "admin" && !user && (
+              <p className="text-xs text-gray-500 mt-1">
+                Admin hanya dapat menambahkan pengguna dengan role Staff
+              </p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -192,14 +317,18 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               className="w-full p-2 text-black border border-gray-300 rounded-md"
             >
               <option value="">-- Pilih Klinik --</option>
-              {clinics.map((clinic) => (
-                <option key={clinic.id} value={clinic.id.toString()}>
-                  {clinic.name} ({clinic.code})
-                </option>
-              ))}
+              {clinics && Array.isArray(clinics) && clinics.length > 0 ? (
+                clinics.map((clinic) => (
+                  <option key={clinic.id} value={clinic.id.toString()}>
+                    {clinic.name} ({clinic.code})
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>Tidak ada klinik tersedia</option>
+              )}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.role === "admin"
+              {formData.role === "admin" || formData.role === "superadmin"
                 ? "Admin dapat melihat semua klinik tanpa perlu memilih klinik tertentu"
                 : "Staff harus dipilihkan klinik untuk membatasi akses data"}
             </p>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import PolyclinicForm from "./components/PolyclinicForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function PolyclinicsPage() {
   const [polyclinics, setPolyclinics] = useState([]);
@@ -152,6 +153,9 @@ export default function PolyclinicsPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-polyclinics" />
       </div>
     </DashboardLayout>
   );

@@ -36,21 +36,33 @@ export async function GET(request) {
     // Verify authentication
     const user = await verifyAuth(request);
     if (!user) {
-      console.log("Unauthorized access attempt to settings/clinics");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("User authenticated for clinics fetch:", user.email);
+    // Check if user has access to clinics
+    if (!user || (user.role !== "SUPERADMIN" && user.role !== "ADMIN")) {
+      return NextResponse.json(
+        { error: "Unauthorized access to clinics settings" },
+        { status: 403 }
+      );
+    }
 
-    // Get all clinics (simpler query for dropdowns/select inputs)
-    const clinics = await query(`
-      SELECT id, name, code 
-      FROM polyclinics 
-      ORDER BY name ASC
-    `);
+    try {
+      const clinics = await query(
+        "SELECT * FROM clinics ORDER BY name ASC"
+      );
 
-    console.log(`Retrieved ${clinics.length} clinics successfully`);
-    return NextResponse.json(clinics);
+      return NextResponse.json({
+        success: true,
+        clinics: clinics,
+      });
+    } catch (error) {
+      console.error("Error fetching clinics:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch clinics" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error fetching clinics:", error);
     return NextResponse.json(

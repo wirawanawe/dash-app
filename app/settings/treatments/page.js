@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import TreatmentForm from "./components/TreatmentForm";
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function TreatmentsPage() {
   const [treatments, setTreatments] = useState([]);
@@ -162,6 +163,9 @@ export default function TreatmentsPage() {
             </table>
           </div>
         )}
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="settings-treatments" />
       </div>
     </DashboardLayout>
   );

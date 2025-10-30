@@ -10,6 +10,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
     status: "Aktif",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (polyclinic) {
@@ -34,9 +35,6 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
     setIsLoading(true);
 
     try {
-      // Log data yang akan dikirim
-      console.log("Sending data:", formData);
-
       const url = polyclinic
         ? `/api/settings/polyclinics/${polyclinic.id}`
         : "/api/settings/polyclinics";
@@ -54,9 +52,6 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
         }),
       });
 
-      // Log response status
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Server error:", errorData);
@@ -64,15 +59,14 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
       }
 
       const result = await response.json();
-      console.log("Success response:", result);
 
       toast.success(
         polyclinic ? "Poli berhasil diupdate" : "Poli berhasil ditambahkan"
       );
-      onSubmit();
+      onSubmit(result);
     } catch (error) {
-      console.error("Error details:", error);
-      toast.error(error.message || "Gagal menyimpan data poli");
+      console.error("Error saving polyclinic:", error);
+      toast.error(error.message || "Gagal menyimpan data");
     } finally {
       setIsLoading(false);
     }
@@ -94,8 +88,10 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-2 text-black border rounded-lg focus:outline-none focus:border-[#E22345]"
-              required
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.name ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Masukkan nama poli"
             />
           </div>
 

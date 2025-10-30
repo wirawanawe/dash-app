@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import ApiDocumentation from "@/components/ApiDocumentation";
 import { FaSearch, FaPlus } from "react-icons/fa";
 import toast from "react-hot-toast";
 
@@ -42,7 +43,7 @@ export default function LaboratoryResultsPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl text-black font-bold">Hasil Laboratorium</h1>
           <button
@@ -155,6 +156,9 @@ export default function LaboratoryResultsPage() {
             </div>
           )}
         </div>
+
+        {/* API Documentation */}
+        <ApiDocumentation pageType="laboratory" />
       </div>
     </DashboardLayout>
   );
