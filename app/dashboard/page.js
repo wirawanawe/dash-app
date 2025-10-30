@@ -487,7 +487,7 @@ export default function Dashboard() {
               <p className="text-xs text-gray-500 mt-1">menit (estimasi)</p>
             </div>
           </div>
-        </div> */}
+        </div>
 
         {/* Modern Doctor Rooms Section */}
         <div className="space-y-6">
