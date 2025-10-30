@@ -45,7 +45,7 @@ export default function EditMedicinePage() {
           setClinics(clinicsResult.data || []);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+
         toast.error('Gagal mengambil data obat');
         router.push('/medicine');
       } finally {
@@ -82,7 +82,7 @@ export default function EditMedicinePage() {
         toast.error(result.message || 'Gagal memperbarui obat');
       }
     } catch (error) {
-      console.error('Error updating medicine:', error);
+
       toast.error('Terjadi kesalahan saat memperbarui obat');
     } finally {
       setSubmitting(false);

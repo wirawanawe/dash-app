@@ -62,7 +62,6 @@ export async function GET() {
 
     return NextResponse.json(formattedExaminations);
   } catch (error) {
-    console.error("Database error:", error);
 
     // Provide more specific error details
     let errorMessage = "Gagal mengambil data pemeriksaan";
@@ -165,7 +164,7 @@ export async function POST(request) {
 
     return NextResponse.json(formattedExamination);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal menambahkan pemeriksaan" },
       { status: 500 }

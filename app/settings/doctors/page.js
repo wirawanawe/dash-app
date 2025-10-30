@@ -26,7 +26,7 @@ export default function DoctorsPage() {
       setDoctors(Array.isArray(data) ? data : []);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data dokter");
       setDoctors([]);
       setIsLoading(false);
@@ -50,7 +50,7 @@ export default function DoctorsPage() {
         toast.success("Dokter berhasil dihapus");
         fetchDoctors();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus dokter");
       }
     }

@@ -23,7 +23,7 @@ export default function InsurancePage() {
       setInsurances(data);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data asuransi");
       setIsLoading(false);
     }
@@ -46,7 +46,7 @@ export default function InsurancePage() {
         toast.success("Asuransi berhasil dihapus");
         fetchInsurances();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus asuransi");
       }
     }

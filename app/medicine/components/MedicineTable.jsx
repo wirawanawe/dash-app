@@ -28,7 +28,7 @@ export default function MedicineTable({ medicines, onRefresh }) {
         setClinics(result.data || []);
       }
     } catch (error) {
-      console.error('Error fetching clinics:', error);
+
     }
   };
 
@@ -78,7 +78,7 @@ export default function MedicineTable({ medicines, onRefresh }) {
         toast.error(result.message || 'Gagal memperbarui obat');
       }
     } catch (error) {
-      console.error('Error updating medicine:', error);
+
       toast.error('Terjadi kesalahan saat memperbarui obat');
     } finally {
       setLoading(false);
@@ -105,7 +105,7 @@ export default function MedicineTable({ medicines, onRefresh }) {
         toast.error(result.message || 'Gagal menghapus obat');
       }
     } catch (error) {
-      console.error('Error deleting medicine:', error);
+
       toast.error('Terjadi kesalahan saat menghapus obat');
     } finally {
       setDeletingId(null);

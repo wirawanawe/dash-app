@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(missions[0]);
   } catch (error) {
-    console.error('Error fetching mission:', error);
+
     return NextResponse.json(
       { error: 'Failed to fetch mission' },
       { status: 500 }
@@ -104,7 +104,7 @@ export async function PUT(request, { params }) {
       message: 'Mission updated successfully'
     });
   } catch (error) {
-    console.error('Error updating mission:', error);
+
     return NextResponse.json(
       { error: 'Failed to update mission' },
       { status: 500 }
@@ -139,7 +139,7 @@ export async function DELETE(request, { params }) {
       message: 'Mission deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting mission:', error);
+
     return NextResponse.json(
       { error: 'Failed to delete mission' },
       { status: 500 }

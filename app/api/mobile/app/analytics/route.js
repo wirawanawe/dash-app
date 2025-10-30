@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get app analytics
 export async function GET(request) {
   try {
@@ -188,7 +187,7 @@ export async function GET(request) {
       data: analytics,
     });
   } catch (error) {
-    console.error("Error fetching app analytics:", error);
+
     return NextResponse.json(
       {
         success: false,

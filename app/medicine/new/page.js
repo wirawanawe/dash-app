@@ -32,7 +32,7 @@ export default function NewMedicinePage() {
           setClinics(result.data || []);
         }
       } catch (error) {
-        console.error('Error fetching clinics:', error);
+
         toast.error('Gagal mengambil data klinik');
       }
     };
@@ -64,7 +64,7 @@ export default function NewMedicinePage() {
         toast.error(result.message || 'Gagal menambahkan obat');
       }
     } catch (error) {
-      console.error('Error creating medicine:', error);
+
       toast.error('Terjadi kesalahan saat menambahkan obat');
     } finally {
       setLoading(false);

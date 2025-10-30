@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get backup information
 export async function GET(request) {
   try {
@@ -73,7 +72,7 @@ export async function GET(request) {
       statistics,
     });
   } catch (error) {
-    console.error("Error fetching backup information:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -174,7 +173,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error creating backup:", error);
+
     return NextResponse.json(
       {
         success: false,

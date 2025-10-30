@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
       insurance: insurance || null,
     });
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data pasien" },
       { status: 500 }
@@ -127,7 +127,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(updatedPatient);
   } catch (error) {
-    console.error("Error:", error);
+
     if (error.code === "ER_DUP_ENTRY") {
       return NextResponse.json(
         { error: "NIK sudah terdaftar" },
@@ -154,7 +154,7 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json({ message: "Pasien berhasil dihapus" });
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { error: "Gagal menghapus pasien" },
       { status: 500 }

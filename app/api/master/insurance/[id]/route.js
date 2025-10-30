@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(insurance);
   } catch (error) {
-    console.error("Error fetching insurance:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data asuransi" },
       { status: 500 }
@@ -46,7 +46,7 @@ export async function PUT(request, { params }) {
     });
     return NextResponse.json(insurance);
   } catch (error) {
-    console.error("Error updating insurance:", error);
+
     return NextResponse.json(
       { error: "Gagal mengupdate asuransi" },
       { status: 500 }
@@ -64,7 +64,7 @@ export async function DELETE(request, { params }) {
     });
     return NextResponse.json({ message: "Asuransi berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting insurance:", error);
+
     return NextResponse.json(
       { error: "Gagal menghapus asuransi" },
       { status: 500 }

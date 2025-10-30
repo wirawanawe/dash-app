@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET all doctors with polyclinic and clinic information
 export async function GET(request) {
   try {
@@ -16,7 +15,7 @@ export async function GET(request) {
         const { verifyJwtToken } = await import("@/lib/auth");
         userPayload = await verifyJwtToken(token.value);
       } catch (error) {
-        console.error("Error verifying token:", error);
+
       }
     }
 
@@ -79,7 +78,7 @@ export async function GET(request) {
 
     return NextResponse.json(doctors);
   } catch (error) {
-    console.error("Error fetching doctors:", error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -149,7 +148,7 @@ export async function POST(request) {
 
     return NextResponse.json(newDoctor, { status: 201 });
   } catch (error) {
-    console.error("Error creating doctor:", error);
+
     return NextResponse.json(
       { message: "Gagal menambahkan dokter", error: error.message },
       { status: 500 }

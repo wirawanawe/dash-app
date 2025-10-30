@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get user water settings
 export async function GET(request) {
   try {
@@ -73,7 +72,7 @@ export async function GET(request) {
       data: settings[0],
     });
   } catch (error) {
-    console.error("Error fetching water settings:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -196,7 +195,7 @@ export async function PUT(request) {
       data: updatedSettings[0] || null,
     });
   } catch (error) {
-    console.error("Error updating water settings:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -259,7 +258,7 @@ export async function POST(request) {
       }
     });
   } catch (error) {
-    console.error("Error calculating water recommendation:", error);
+
     return NextResponse.json(
       {
         success: false,

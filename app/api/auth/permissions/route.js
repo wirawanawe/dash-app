@@ -36,7 +36,7 @@ export async function GET(request) {
 
     return NextResponse.json(permissionsObj);
   } catch (error) {
-    console.error("Error fetching user permissions:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data permission" },
       { status: 500 }

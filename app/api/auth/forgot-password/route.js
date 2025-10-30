@@ -92,8 +92,7 @@ export async function POST(request) {
         message: "Email reset password telah dikirim. Silakan cek email Anda.",
       });
     } catch (emailError) {
-      console.error("Email sending error:", emailError);
-      
+
       // Remove reset token if email fails
       await query(
         "UPDATE users SET reset_token = NULL, reset_token_expiry = NULL WHERE id = ?",
@@ -109,7 +108,7 @@ export async function POST(request) {
       );
     }
   } catch (error) {
-    console.error("Forgot password error:", error);
+
     return NextResponse.json(
       {
         success: false,

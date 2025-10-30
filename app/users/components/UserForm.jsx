@@ -19,13 +19,10 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Log clinics prop for debugging
-  console.log('[UserForm] Clinics prop:', clinics);
-  console.log('[UserForm] Clinics is array?', Array.isArray(clinics));
-  console.log('[UserForm] Clinics length:', clinics?.length);
 
   useEffect(() => {
     if (user) {
-      console.log('[UserForm] Loading user data:', user);
+
       const newFormData = {
         name: user.name || "",
         email: user.email || "",
@@ -34,7 +31,7 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         is_active: user.is_active ?? true,
         clinic_id: user.clinic_id ? user.clinic_id.toString() : (user.clinic?.id ? user.clinic.id.toString() : ""),
       };
-      console.log('[UserForm] Setting formData to:', newFormData);
+
       setFormData(newFormData);
     }
   }, [user]);
@@ -48,8 +45,6 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
       [name]: newValue,
     });
 
-    console.log('[UserForm] Field changed:', name, '=', newValue);
-
     // Clear error for this field
     if (errors[name]) {
       setErrors({
@@ -61,25 +56,23 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
 
   const validateForm = () => {
     const newErrors = {};
-    
-    console.log('[UserForm] Validating form with data:', formData);
-    
+
     if (!formData.name || !formData.name.trim()) {
       newErrors.name = "Nama harus diisi";
-      console.log('[UserForm] Name validation failed:', formData.name);
+
     }
     if (!formData.email || !formData.email.trim()) {
       newErrors.email = "Email harus diisi";
-      console.log('[UserForm] Email validation failed:', formData.email);
+
     } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = "Format email tidak valid";
-      console.log('[UserForm] Email format invalid:', formData.email);
+
     }
 
     // Only validate password for new users
     if (!user && !formData.password) {
       newErrors.password = "Password harus diisi";
-      console.log('[UserForm] Password validation failed for new user');
+
     }
     
     // For existing users, if password is provided, it should be at least 6 characters
@@ -88,19 +81,16 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
     }
 
     setErrors(newErrors);
-    console.log('[UserForm] Validation errors:', newErrors);
-    console.log('[UserForm] Validation result:', Object.keys(newErrors).length === 0);
+
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log('[UserForm] Current formData:', formData);
-
     // Validate form first
     if (!validateForm()) {
-      console.log('[UserForm] Validation failed, errors:', errors);
+
       toast.error("Mohon lengkapi semua field yang wajib diisi");
       return;
     }
@@ -131,14 +121,6 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         submitData.password = formData.password;
       }
 
-      console.log('[UserForm] Submitting data:', { 
-        ...submitData, 
-        password: submitData.password ? '***' : undefined,
-        originalClinicId: formData.clinic_id,
-        isEdit: !!user,
-        userId: user?.id
-      });
-
       const url = user ? `/api/users/${user.id}` : "/api/users";
       const method = user ? "PUT" : "POST";
 
@@ -150,16 +132,13 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         body: JSON.stringify(submitData),
       });
 
-      console.log('[UserForm] Response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.log('[UserForm] Error response:', errorData);
+
         throw new Error(errorData.error || "Gagal menyimpan data");
       }
 
       const result = await response.json();
-      console.log('[UserForm] Success response:', result);
 
       toast.success(
         user ? "User berhasil diupdate" : "User berhasil ditambahkan"
@@ -175,7 +154,7 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         onCancel();
       }
     } catch (error) {
-      console.error("[UserForm] Error saving user:", error);
+
       toast.error(error.message || "Gagal menyimpan data");
     } finally {
       setIsLoading(false);
@@ -280,7 +259,6 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               value={formData.role}
               onChange={handleChange}
               className="w-full p-2 text-black border border-gray-300 rounded-md"
-              disabled={currentUser?.role?.toLowerCase() === "admin" && !user}
             >
               {currentUser?.role?.toLowerCase() === "superadmin" ? (
                 <>
@@ -291,6 +269,8 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
                 </>
               ) : currentUser?.role?.toLowerCase() === "admin" ? (
                 <>
+                  <option value="admin">Admin</option>
+                  <option value="doctor">Dokter</option>
                   <option value="staff">Staff</option>
                 </>
               ) : (
@@ -300,9 +280,9 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
                 </>
               )}
             </select>
-            {currentUser?.role?.toLowerCase() === "admin" && !user && (
+            {currentUser?.role?.toLowerCase() !== "superadmin" && (
               <p className="text-xs text-gray-500 mt-1">
-                Admin hanya dapat menambahkan pengguna dengan role Staff
+                Hanya Superadmin yang dapat mengatur role Superadmin
               </p>
             )}
           </div>

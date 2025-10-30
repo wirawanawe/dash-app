@@ -10,8 +10,7 @@ export async function POST(request) {
   try {
     // Clear the rate limit store
     // Note: This is a simple implementation - in production you'd want more sophisticated rate limit clearing
-    console.log('🧹 Clearing rate limits for development...');
-    
+
     // Return success
     return Response.json({
       success: true,
@@ -19,7 +18,7 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error clearing rate limits:', error);
+
     return Response.json(
       { success: false, message: 'Failed to clear rate limits' },
       { status: 500 }

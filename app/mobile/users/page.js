@@ -37,10 +37,10 @@ export default function MobileUsersPage() {
         setTotalPages(data.pagination.totalPages);
         setCurrentPage(data.pagination.page);
       } else {
-        console.error('Failed to fetch users:', data.error);
+
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function MobileUsersPage() {
         alert(data.error || 'Failed to delete user');
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
+
       alert('Failed to delete user');
     }
   };

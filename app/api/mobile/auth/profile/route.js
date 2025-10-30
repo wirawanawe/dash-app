@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 export async function PUT(request) {
   try {
     // Get authorization header
@@ -104,7 +103,7 @@ export async function PUT(request) {
         { status: 200 }
       );
     } catch (jwtError) {
-      console.error("JWT verification error:", jwtError);
+
       return NextResponse.json(
         {
           success: false,
@@ -114,7 +113,7 @@ export async function PUT(request) {
       );
     }
   } catch (error) {
-    console.error("Update user profile error:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -67,7 +67,7 @@ export async function GET(request) {
       data: aboutInfo,
     });
   } catch (error) {
-    console.error("Error fetching about information:", error);
+
     return NextResponse.json(
       {
         success: false,

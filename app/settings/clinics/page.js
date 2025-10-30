@@ -29,7 +29,7 @@ export default function ClinicsPage() {
       const data = await response.json();
       setClinics(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data klinik");
       setClinics([]);
     } finally {
@@ -64,7 +64,7 @@ export default function ClinicsPage() {
         toast.success("Klinik berhasil dihapus");
         fetchClinics();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error(error.message);
       }
     }

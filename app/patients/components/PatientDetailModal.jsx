@@ -51,6 +51,11 @@ export default function PatientDetailModal({ patient, onClose }) {
     startDate: "",
     endDate: ""
   });
+  
+  // Family members state
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [loadingFamily, setLoadingFamily] = useState(false);
+  const [namaPeserta, setNamaPeserta] = useState("");
 
   if (!patient) return null;
 
@@ -149,7 +154,7 @@ export default function PatientDetailModal({ patient, onClose }) {
           }
         }
       } catch (externalError) {
-        console.error('External API error:', externalError);
+        // External API error
       }
       
       // If no visits from external API or patient has ID, try internal API
@@ -164,23 +169,56 @@ export default function PatientDetailModal({ patient, onClose }) {
             }
           }
         } catch (internalError) {
-          console.error('Internal API error:', internalError);
+          // Internal API error
         }
       }
       setVisitHistory(visits);
     } catch (error) {
-      console.error('Error fetching visit history:', error);
       setVisitHistory([]);
     } finally {
       setLoadingVisits(false);
     }
   };
 
+  const fetchFamilyMembers = async () => {
+    if (!patient.nip) {
+      setFamilyMembers([]);
+      return;
+    }
+    
+    setLoadingFamily(true);
+    try {
+      const url = `/api/patients/family?nip=${encodeURIComponent(patient.nip)}`;
+      
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          setFamilyMembers(data.data || []);
+          setNamaPeserta(data.namaPeserta || "");
+        } else {
+          setFamilyMembers([]);
+        }
+      } else {
+        const errorData = await response.json();
+        setFamilyMembers([]);
+      }
+    } catch (error) {
+      setFamilyMembers([]);
+    } finally {
+      setLoadingFamily(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "visit-history") {
       fetchVisitHistory();
+    } else if (activeTab === "family-members") {
+      fetchFamilyMembers();
     }
-  }, [activeTab, patient.mrNumber, patient.mrn]);
+  }, [activeTab, patient.mrNumber, patient.mrn, patient.nip]);
 
   // Filter visits based on date range
   useEffect(() => {
@@ -250,7 +288,7 @@ export default function PatientDetailModal({ patient, onClose }) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b bg-gray-50 flex-shrink-0">
+        <div className="flex border-b bg-gray-50 flex-shrink-0 overflow-x-auto">
           <TabButton
             id="patient-info"
             icon={FaUser}
@@ -265,6 +303,15 @@ export default function PatientDetailModal({ patient, onClose }) {
             isActive={activeTab === "visit-history"}
             onClick={() => setActiveTab("visit-history")}
           />
+          {patient.nip && (
+            <TabButton
+              id="family-members"
+              icon={FaUserIcon}
+              label="Anggota Keluarga"
+              isActive={activeTab === "family-members"}
+              onClick={() => setActiveTab("family-members")}
+            />
+          )}
         </div>
 
         {/* Tab Content - Scrollable */}
@@ -290,7 +337,7 @@ export default function PatientDetailModal({ patient, onClose }) {
                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center mb-2">
                         <FaIdCard className="text-blue-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-600">No. RM</span>
+                        <span className="text-sm font-medium text-gray-600">NIP</span>
                       </div>
                       <p className="text-lg font-bold text-gray-900 font-mono">
                         {patient.mrNumber || patient.mrn || patient.id || "-"}
@@ -327,9 +374,11 @@ export default function PatientDetailModal({ patient, onClose }) {
                     <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center mb-1">
                         <FaVenusMars className="text-pink-500 mr-1 text-sm" />
-                        <span className="text-xs font-medium text-gray-600">Gender</span>
+                        <span className="text-xs font-medium text-gray-600">Jenis Kelamin</span>
                       </div>
-                      <p className="text-sm font-semibold text-gray-900">{patient.gender || "-"}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {patient.gender === 'MALE' ? 'Laki-laki' : patient.gender === 'FEMALE' ? 'Perempuan' : patient.gender || "-"}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center mb-1">
@@ -500,12 +549,17 @@ export default function PatientDetailModal({ patient, onClose }) {
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center mb-2">
-                        <FaUser className="text-blue-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-600">Nama Karyawan</span>
+                        <FaUser className="text-purple-500 mr-2" />
+                        <span className="text-sm font-medium text-gray-600">Nama Peserta (Kepala Keluarga)</span>
                       </div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {patient.employeeName || "-"}
+                        {patient.namaPeserta || patient.employeeName || "-"}
                       </p>
+                      {patient.nip && patient.namaPeserta && (
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 mt-2">
+                          👑 Pemilik NIP
+                        </span>
+                      )}
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center mb-2">
@@ -547,10 +601,19 @@ export default function PatientDetailModal({ patient, onClose }) {
                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                       <div className="flex items-center mb-2">
                         <FaBuilding className="text-purple-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-600">Departemen</span>
+                        <span className="text-sm font-medium text-gray-600">Bagian/Departemen</span>
                       </div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {patient.department || "-"}
+                        {patient.bagian || patient.department || "-"}
+                      </p>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex items-center mb-2">
+                        <FaIdCard className="text-blue-500 mr-2" />
+                        <span className="text-sm font-medium text-gray-600">No. Peserta</span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 font-mono">
+                        {patient.noPeserta || "-"}
                       </p>
                     </div>
                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -720,6 +783,272 @@ export default function PatientDetailModal({ patient, onClose }) {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === "family-members" && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <FaUserIcon className="mr-3 text-purple-500 text-xl" />
+                  Anggota Keluarga dengan NIP: {patient.nip}
+                </h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  Daftar anggota keluarga yang terdaftar dengan NIP yang sama
+                </p>
+                
+                {/* Nama Peserta (Kepala Keluarga) Section */}
+                {namaPeserta && (
+                  <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border-2 border-purple-300">
+                    <div className="flex items-center">
+                      <div className="p-3 bg-purple-100 rounded-full mr-3">
+                        <FaUser className="text-purple-600 text-xl" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 font-medium">Kepala Keluarga (Pemilik NIP)</p>
+                        <p className="text-lg font-bold text-purple-900">{namaPeserta}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {loadingFamily ? (
+                <div className="flex flex-col items-center justify-center h-64">
+                  <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                    <FaUserIcon className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="loading-spinner h-8 w-8 text-purple-600 mx-auto mb-4"></div>
+                  <p className="text-xl font-medium text-gray-700 mb-2">Memuat Data Anggota Keluarga</p>
+                  <p className="text-gray-500">Mengambil informasi anggota keluarga...</p>
+                </div>
+              ) : familyMembers.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <p className="text-sm text-blue-800 font-medium">
+                      📊 Total {familyMembers.length} anggota keluarga ditemukan
+                    </p>
+                  </div>
+                  
+                  {/* Table View */}
+                  <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gradient-to-r from-purple-50 to-blue-50">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Nama Lengkap
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              NIK
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              No. MR
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Jenis Kelamin
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Tanggal Lahir
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Gol. Darah
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Telepon
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Bagian
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
+                              Aksi
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {familyMembers.map((member, index) => (
+                            <tr 
+                              key={member.id || index}
+                              className={`hover:bg-gray-50 transition-colors ${
+                                member.isMainParticipant 
+                                  ? "bg-purple-50" 
+                                  : member.id === patient.id 
+                                    ? "bg-blue-50" 
+                                    : ""
+                              }`}
+                            >
+                              {/* Status Badge */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-col gap-1">
+                                  {member.isMainParticipant && (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-purple-200 text-purple-800">
+                                      👑 Kepala Keluarga
+                                    </span>
+                                  )}
+                                  {member.id === patient.id && !member.isMainParticipant && (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-blue-200 text-blue-800">
+                                      👤 Saat Ini
+                                    </span>
+                                  )}
+                                  {!member.isMainParticipant && member.id !== patient.id && (
+                                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                                      👥 Anggota
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              
+                              {/* Nama */}
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  <div className={`p-2 rounded-full mr-3 ${
+                                    member.isMainParticipant ? "bg-purple-100" : "bg-blue-100"
+                                  }`}>
+                                    <FaUser className={`text-sm ${
+                                      member.isMainParticipant ? "text-purple-600" : "text-blue-600"
+                                    }`} />
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-bold text-gray-900">{member.name}</div>
+                                    {member.namaPeserta && member.isMainParticipant && (
+                                      <div className="text-xs text-purple-600 font-medium">Pemilik NIP</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              
+                              {/* NIK */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-mono">{member.nik || "-"}</div>
+                              </td>
+                              
+                              {/* No. MR */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-mono">{member.mrn || "-"}</div>
+                              </td>
+                              
+                              {/* Jenis Kelamin */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                  member.gender === 'MALE' 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : member.gender === 'FEMALE'
+                                      ? 'bg-pink-100 text-pink-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {member.gender === 'MALE' ? '👨 Laki-laki' : member.gender === 'FEMALE' ? '👩 Perempuan' : member.gender || "-"}
+                                </span>
+                              </td>
+                              
+                              {/* Tanggal Lahir */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{formatDate(member.birthDate)}</div>
+                                <div className="text-xs text-gray-500">{calculateAge(member.birthDate)}</div>
+                              </td>
+                              
+                              {/* Golongan Darah */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-semibold text-red-600">{member.bloodType || "-"}</div>
+                              </td>
+                              
+                              {/* Telepon */}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 font-mono">{member.phone || "-"}</div>
+                              </td>
+                              
+                              {/* Bagian */}
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-900 max-w-xs truncate" title={member.bagian}>
+                                  {member.bagian || "-"}
+                                </div>
+                              </td>
+                              
+                              {/* Aksi */}
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <button
+                                  onClick={() => {
+                                    // Close current modal and open the selected family member's detail
+                                    const event = new CustomEvent('openPatientDetail', { 
+                                      detail: member 
+                                    });
+                                    window.dispatchEvent(event);
+                                    onClose();
+                                  }}
+                                  className="inline-flex items-center px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm hover:shadow-md"
+                                  title="Lihat detail pasien"
+                                >
+                                  <FaEye className="mr-1" />
+                                  Detail
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  {/* Summary Info */}
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                      
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">{familyMembers.length}</div>
+                        <div className="text-sm text-gray-600">Total Anggota</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">{familyMembers.filter(m => m.status === 'Aktif' || !m.status).length}</div>
+                        <div className="text-sm text-gray-600">Aktif</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FaUserIcon className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">
+                    Tidak Ada Anggota Keluarga
+                  </h4>
+                  <p className="text-gray-500 mb-4">
+                    Tidak ditemukan anggota keluarga lain dengan NIP yang sama
+                  </p>
+                  
+                  {/* Debug Info */}
+                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left max-w-md mx-auto">
+                    <div className="flex items-center mb-2">
+                      <FaExclamationTriangle className="text-yellow-600 mr-2" />
+                      <p className="text-sm font-semibold text-yellow-800">Debug Information</p>
+                    </div>
+                    <div className="text-xs text-gray-700 space-y-1">
+                      <p><strong>NIP:</strong> {patient.nip}</p>
+                      <p><strong>Nama:</strong> {patient.name}</p>
+                      <p className="text-yellow-700 mt-2">
+                        💡 Cek console browser (F12) untuk log detail
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const debugUrl = `/api/patients/debug-family?nip=${encodeURIComponent(patient.nip)}`;
+                            const res = await fetch(debugUrl);
+                            const data = await res.json();
+                            alert('Debug data berhasil diambil. Cek console browser (F12) untuk detail.');
+                          } catch (err) {
+                            alert('Error: ' + err.message);
+                          }
+                        }}
+                        className="mt-3 w-full px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
+                      >
+                        🔍 Ambil Debug Data
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

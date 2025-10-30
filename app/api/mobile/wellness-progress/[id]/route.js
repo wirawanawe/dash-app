@@ -32,7 +32,7 @@ export async function GET(request, { params }) {
       `;
       userResult = await query(userQuery, [numericUserId]);
     } catch (error) {
-      console.error('Error fetching user data:', error);
+
       return NextResponse.json(
         { success: false, message: 'Database error while fetching user data', error: error.message },
         { status: 500 }
@@ -69,7 +69,7 @@ export async function GET(request, { params }) {
         const diffTime = Math.abs(today.getTime() - joinDate.getTime());
         daysSinceJoining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       } catch (error) {
-        console.error('Error calculating days since joining wellness program:', error);
+
       }
     }
 
@@ -94,7 +94,7 @@ export async function GET(request, { params }) {
       `;
       activities = await query(activitiesQuery, [numericUserId]);
     } catch (error) {
-      console.error('Error fetching wellness activities:', error);
+
       // Continue with empty activities array
     }
 
@@ -119,7 +119,7 @@ export async function GET(request, { params }) {
       `;
       missions = await query(missionsQuery, [numericUserId]);
     } catch (error) {
-      console.error('Error fetching user missions:', error);
+
       // Try with minimal columns if the full query fails
       try {
         const fallbackMissionsQuery = `
@@ -135,7 +135,7 @@ export async function GET(request, { params }) {
         `;
         missions = await query(fallbackMissionsQuery, [numericUserId]);
       } catch (fallbackError) {
-        console.error('Error fetching user missions with fallback:', fallbackError);
+
         // Continue with empty missions array
       }
     }
@@ -188,7 +188,7 @@ export async function GET(request, { params }) {
       `;
       trackingData = await query(trackingQuery, [numericUserId, numericUserId, numericUserId]);
     } catch (error) {
-      console.error('Error fetching tracking data:', error);
+
       // Try individual queries if the union fails
       try {
         const waterQuery = `
@@ -250,7 +250,7 @@ export async function GET(request, { params }) {
           new Date(b.date) - new Date(a.date)
         ).slice(0, 50);
       } catch (individualError) {
-        console.error('Error fetching individual tracking data:', individualError);
+
         // Continue with empty tracking data array
       }
     }
@@ -374,7 +374,7 @@ export async function GET(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error fetching wellness progress:', error);
+
     return NextResponse.json(
       { 
         success: false, 

@@ -38,7 +38,7 @@ export default function PatientDetailPage() {
 
         setPatient(data);
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error(error.message);
       } finally {
         setLoading(false);
@@ -66,7 +66,7 @@ export default function PatientDetailPage() {
       toast.success("Pasien berhasil dihapus");
       router.push("/patients");
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message);
     }
   };

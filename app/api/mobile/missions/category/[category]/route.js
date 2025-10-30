@@ -95,7 +95,7 @@ export async function GET(request, { params }) {
       },
     });
   } catch (error) {
-    console.error("Error fetching missions by category:", error);
+
     return NextResponse.json(
       {
         success: false,

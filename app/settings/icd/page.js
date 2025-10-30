@@ -33,7 +33,7 @@ export default function ICDPage() {
       const data = await response.json();
       setICDs(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data ICD");
       setICDs([]);
     } finally {
@@ -58,7 +58,7 @@ export default function ICDPage() {
         toast.success("ICD berhasil dihapus");
         fetchICDs();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus ICD");
       }
     }

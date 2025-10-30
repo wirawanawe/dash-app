@@ -87,7 +87,7 @@ export async function POST(request) {
           );
         }
       } catch (dbError) {
-        console.error("Database error during test user login:", dbError);
+
       }
     }
 
@@ -197,7 +197,6 @@ export async function POST(request) {
         { status: 200 }
       );
     } catch (dbError) {
-      console.error("Database error during mobile login:", dbError);
 
       return NextResponse.json(
         {
@@ -208,7 +207,7 @@ export async function POST(request) {
       );
     }
   } catch (error) {
-    console.error("Mobile login error:", error);
+
     return NextResponse.json(
       {
         success: false,

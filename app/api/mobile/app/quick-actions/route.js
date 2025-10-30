@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get quick actions for mobile app
 export async function GET(request) {
   try {
@@ -43,7 +42,7 @@ export async function GET(request) {
         const wellnessResult = await query(wellnessQuery, [userId]);
         userWellness = wellnessResult[0] || userWellness;
       } catch (error) {
-        console.log("🔍 Quick-actions: Wellness query failed, using defaults");
+
       }
 
       // Get user's recent activities to determine which quick actions to show
@@ -88,7 +87,7 @@ export async function GET(request) {
         
         recentActivities = await query(recentActivitiesQuery, [userId, userId, userId, userId, userId]);
       } catch (error) {
-        console.log("🔍 Quick-actions: Recent activities query failed, using empty array");
+
       }
 
       // Get today's summary to show priority actions
@@ -111,7 +110,7 @@ export async function GET(request) {
         const todaySummary = await query(todaySummaryQuery, [userId]);
         todayData = todaySummary[0] || todayData;
       } catch (error) {
-        console.log("🔍 Quick-actions: Today summary query failed, using defaults");
+
       }
 
       // Define quick actions based on user's wellness program and recent activities
@@ -213,7 +212,7 @@ export async function GET(request) {
         }
       });
           } catch (jwtError) {
-        console.error("JWT verification error:", jwtError);
+
         return NextResponse.json(
           {
             success: false,
@@ -223,7 +222,7 @@ export async function GET(request) {
         );
       }
   } catch (error) {
-    console.error("Error fetching quick actions:", error);
+
     return NextResponse.json(
       {
         success: false,

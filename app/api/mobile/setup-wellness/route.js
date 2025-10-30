@@ -58,7 +58,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Setup wellness GET error:', error);
+
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }
@@ -71,12 +71,8 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log(`🔍 Setup wellness POST - User ID: ${user.id}`);
-
     const body = await request.json();
     const { weight, height, gender, activity_level, fitness_goal, program_duration } = body;
-
-    console.log(`📊 Request body:`, { weight, height, gender, activity_level, fitness_goal, program_duration });
 
     // Validasi input
     if (!weight || !height || !gender || !activity_level || !fitness_goal || !program_duration) {
@@ -87,8 +83,7 @@ export async function POST(request) {
       if (!activity_level) missingFields.push('activity_level');
       if (!fitness_goal) missingFields.push('fitness_goal');
       if (!program_duration) missingFields.push('program_duration');
-      
-      console.log(`❌ Missing required fields: ${missingFields.join(', ')}`);
+
       return NextResponse.json({ 
         success: false, 
         message: `Semua field harus diisi: ${missingFields.join(', ')}` 
@@ -97,7 +92,7 @@ export async function POST(request) {
 
     // Validasi nilai
     if (weight <= 0 || height <= 0) {
-      console.log(`❌ Invalid values - weight: ${weight}, height: ${height}`);
+
       return NextResponse.json({ 
         success: false, 
         message: 'Berat badan dan tinggi badan harus lebih dari 0' 
@@ -106,7 +101,7 @@ export async function POST(request) {
 
     // Validasi durasi program
     if (program_duration < 7 || program_duration > 365) {
-      console.log(`❌ Invalid program duration: ${program_duration}`);
+
       return NextResponse.json({ 
         success: false, 
         message: 'Durasi program harus antara 7-365 hari' 
@@ -120,24 +115,20 @@ export async function POST(request) {
     );
 
     if (!userResult) {
-      console.log(`❌ User not found - ID: ${user.id}`);
+
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
-
-    console.log(`📅 User date_of_birth: ${userResult.date_of_birth}`);
 
     // Hitung usia otomatis dari tanggal lahir
     const age = calculateAge(userResult.date_of_birth);
     
     if (age === null) {
-      console.log(`❌ No date_of_birth found for user ID: ${user.id}`);
+
       return NextResponse.json({ 
         success: false, 
         message: 'Tanggal lahir tidak ditemukan. Silakan update profil terlebih dahulu.' 
       }, { status: 400 });
     }
-
-    console.log(`✅ Calculated age: ${age}`);
 
     try {
       // 1. Simpan data berat badan ke health_data
@@ -163,9 +154,9 @@ export async function POST(request) {
       if (currentUser && currentUser.wellness_program_joined) {
         // User is renewing, increment existing cycles
         newCycleCount = (currentUser.wellness_program_cycles || 0) + 1;
-        console.log(`🔄 User renewing wellness program. Previous cycles: ${currentUser.wellness_program_cycles}, New cycles: ${newCycleCount}`);
+
       } else {
-        console.log(`🎯 User joining wellness program for the first time. Setting cycles to: ${newCycleCount}`);
+
       }
       
       await query(
@@ -182,8 +173,6 @@ export async function POST(request) {
          WHERE id = ?`,
         [true, program_duration, program_duration, newCycleCount, fitness_goal, activity_level, user.id]
       );
-
-      console.log(`✅ Wellness setup completed for user ID: ${user.id}`);
 
       return NextResponse.json({
         success: true,
@@ -202,12 +191,12 @@ export async function POST(request) {
       });
 
     } catch (error) {
-      console.error('Error in wellness setup:', error);
+
       throw error;
     }
 
   } catch (error) {
-    console.error('Setup wellness POST error:', error);
+
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }
@@ -268,12 +257,12 @@ export async function PUT(request) {
       });
 
     } catch (error) {
-      console.error('Error in wellness update:', error);
+
       throw error;
     }
 
   } catch (error) {
-    console.error('Update wellness PUT error:', error);
+
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }
 }

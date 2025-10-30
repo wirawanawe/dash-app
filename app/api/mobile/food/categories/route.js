@@ -18,7 +18,7 @@ export async function GET() {
       data: categories.map(cat => cat.category)
     });
   } catch (error) {
-    console.error("Error fetching food categories:", error);
+
     return NextResponse.json(
       { 
         success: false,

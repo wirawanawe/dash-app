@@ -63,7 +63,7 @@ export async function GET(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in wellness activities endpoint:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 

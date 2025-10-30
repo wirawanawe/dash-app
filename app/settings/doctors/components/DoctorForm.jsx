@@ -49,7 +49,7 @@ export default function DoctorForm({ doctor, onSubmit, onCancel }) {
       const data = await response.json();
       setPolyclinics(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data poli");
       setPolyclinics([]);
     }
@@ -100,7 +100,7 @@ export default function DoctorForm({ doctor, onSubmit, onCancel }) {
       );
       onSubmit();
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message || "Gagal menyimpan data dokter");
     } finally {
       setIsLoading(false);

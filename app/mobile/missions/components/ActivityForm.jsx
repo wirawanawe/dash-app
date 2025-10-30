@@ -146,7 +146,7 @@ export default function ActivityForm({ activity, onSubmit, onClose }) {
       toast.success('Activity saved successfully!');
       onSubmit();
     } catch (error) {
-      console.error('Error saving activity:', error);
+
       toast.error('Failed to save activity');
     } finally {
       setLoading(false);

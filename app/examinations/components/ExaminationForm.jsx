@@ -42,7 +42,7 @@ export default function ExaminationForm({ examination, onSubmit, onCancel }) {
       const data = await response.json();
       setVisits(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data kunjungan");
       setVisits([]);
     }
@@ -55,7 +55,7 @@ export default function ExaminationForm({ examination, onSubmit, onCancel }) {
       const data = await response.json();
       setICDs(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data ICD");
       setICDs([]);
     }
@@ -75,7 +75,7 @@ export default function ExaminationForm({ examination, onSubmit, onCancel }) {
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error("Error:", error);
+
     } finally {
       setIsLoading(false);
     }

@@ -42,7 +42,7 @@ const Sidebar = ({ onClose }) => {
           setUserPermissions(data);
         }
       } catch (error) {
-        console.error('Error fetching permissions:', error);
+
       }
     };
 
@@ -105,12 +105,12 @@ const Sidebar = ({ onClose }) => {
           path: "/visits",
           menuKey: "visits",
         },
-        {
-          title: "Pemeriksaan",
-          icon: <FaStethoscope />,
-          path: "/examinations",
-          menuKey: "examinations",
-        },
+        // {
+        //   title: "Pemeriksaan",
+        //   icon: <FaStethoscope />,
+        //   path: "/examinations",
+        //   menuKey: "examinations",
+        // },
         {
           title: "Chat Konsultasi",
           icon: <FaComments />,

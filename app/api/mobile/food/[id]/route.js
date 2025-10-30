@@ -48,7 +48,7 @@ export async function GET(request, { params }) {
       data: foods[0]
     });
   } catch (error) {
-    console.error("Error fetching food:", error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -148,7 +148,7 @@ export async function PUT(request, { params }) {
       message: "Data makanan berhasil diperbarui"
     });
   } catch (error) {
-    console.error("Error updating food:", error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -202,7 +202,7 @@ export async function DELETE(request, { params }) {
       message: "Data makanan berhasil dihapus"
     });
   } catch (error) {
-    console.error("Error deleting food:", error);
+
     return NextResponse.json(
       { 
         success: false,

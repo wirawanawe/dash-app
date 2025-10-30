@@ -11,7 +11,7 @@ export async function GET() {
     });
     return NextResponse.json(treatments);
   } catch (error) {
-    console.error("Error fetching treatments:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data tindakan" },
       { status: 500 }
@@ -34,7 +34,7 @@ export async function POST(request) {
     });
     return NextResponse.json(treatment);
   } catch (error) {
-    console.error("Error creating treatment:", error);
+
     return NextResponse.json(
       { error: "Gagal menambahkan tindakan" },
       { status: 500 }

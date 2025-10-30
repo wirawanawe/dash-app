@@ -46,10 +46,10 @@ export default function WellnessActivitiesPage() {
         setTotalPages(data.pagination.totalPages);
         setCurrentPage(data.pagination.page);
       } else {
-        console.error('Failed to fetch activities:', data.error);
+
       }
     } catch (error) {
-      console.error('Error fetching activities:', error);
+
     } finally {
       setLoading(false);
     }
@@ -85,7 +85,7 @@ export default function WellnessActivitiesPage() {
         alert(data.error || 'Failed to delete activity');
       }
     } catch (error) {
-      console.error('Error deleting activity:', error);
+
       alert('Failed to delete activity');
     }
   };

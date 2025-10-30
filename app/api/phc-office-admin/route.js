@@ -3,7 +3,6 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET() {
   try {
     const result = await query(`
@@ -17,7 +16,7 @@ export async function GET() {
       data: result 
     });
   } catch (error) {
-    console.error('Error fetching PHC office admin data:', error);
+
     return NextResponse.json(
       { success: false, error: 'Failed to fetch PHC office admin data' },
       { status: 500 }
@@ -50,7 +49,7 @@ export async function POST(request) {
       data: { id: result.insertId }
     });
   } catch (error) {
-    console.error('Error creating PHC office admin data:', error);
+
     return NextResponse.json(
       { success: false, error: 'Failed to create PHC office admin data' },
       { status: 500 }
@@ -89,7 +88,7 @@ export async function PUT(request) {
       message: 'PHC office admin data updated successfully' 
     });
   } catch (error) {
-    console.error('Error updating PHC office admin data:', error);
+
     return NextResponse.json(
       { success: false, error: 'Failed to update PHC office admin data' },
       { status: 500 }
@@ -127,7 +126,7 @@ export async function DELETE(request) {
       message: 'PHC office admin data deleted successfully' 
     });
   } catch (error) {
-    console.error('Error deleting PHC office admin data:', error);
+
     return NextResponse.json(
       { success: false, error: 'Failed to delete PHC office admin data' },
       { status: 500 }

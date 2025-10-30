@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-
 // Gunakan mock data statis untuk semua request
 const staticDate = "2023-12-31T12:00:00.000Z";
 
@@ -104,7 +103,7 @@ export async function GET(request) {
 
     return response;
   } catch (error) {
-    console.error("Error dalam endpoint hasil lab:", error);
+
     // Selalu kembalikan data meskipun terjadi error
     return NextResponse.json(mockDatabase.slice(0, 2)); // Kembalikan 2 data jika error
   }
@@ -146,7 +145,7 @@ export async function POST(request) {
 
     return NextResponse.json(newEntry, { status: 201 });
   } catch (error) {
-    console.error("Error creating lab result:", error);
+
     return NextResponse.json(
       { message: "Failed to create laboratory result" },
       { status: 500 }

@@ -12,7 +12,7 @@ export async function GET() {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Health check failed:', error);
+
     return NextResponse.json(
       { 
         success: false, 

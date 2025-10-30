@@ -69,7 +69,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(formattedExamination);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data pemeriksaan" },
       { status: 500 }
@@ -166,7 +166,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(formattedExamination);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengupdate pemeriksaan" },
       { status: 500 }
@@ -180,7 +180,7 @@ export async function DELETE(request, { params }) {
     await query("DELETE FROM examinations WHERE id = ?", [params.id]);
     return NextResponse.json({ message: "Pemeriksaan berhasil dihapus" });
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus pemeriksaan" },
       { status: 500 }

@@ -28,17 +28,14 @@ app.prepare().then(() => {
       
       await handle(req, res, parsedUrl);
     } catch (err) {
-      console.error('Error occurred handling', req.url, err);
       res.statusCode = 500;
       res.end('internal server error');
     }
   })
     .once('error', (err) => {
-      console.error(err);
       process.exit(1);
     })
     .listen(port, hostname, () => {
-      console.log(`> Ready on http://${hostname}:${port}`);
-      console.log(`> Mobile app can access: http://10.242.90.103:${port}`);
+      // Server ready
     });
 }); 

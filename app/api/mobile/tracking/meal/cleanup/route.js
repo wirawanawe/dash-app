@@ -19,8 +19,6 @@ export async function DELETE(request) {
       );
     }
 
-    console.log(`🧹 Cleaning up old meal data for user ${user_id}...`);
-
     // Check which tables exist
     const mealFoodsTables = await query("SHOW TABLES LIKE 'meal_foods'");
     const mealTrackingTables = await query("SHOW TABLES LIKE 'meal_tracking'");
@@ -44,9 +42,9 @@ export async function DELETE(request) {
 
       const mealFoodsResult = await query(deleteMealFoodsSql, [user_id]);
       mealFoodsDeleted = mealFoodsResult.affectedRows || 0;
-      console.log(`   ✅ Deleted ${mealFoodsDeleted} meal_foods records`);
+
     } else {
-      console.log("   ℹ️ meal_foods or meal_tracking table does not exist, skipping meal_foods cleanup...");
+
     }
 
     if (hasMealTrackingTable) {
@@ -58,9 +56,9 @@ export async function DELETE(request) {
 
       const mealTrackingResult = await query(deleteMealTrackingSql, [user_id]);
       mealTrackingDeleted = mealTrackingResult.affectedRows || 0;
-      console.log(`   ✅ Deleted ${mealTrackingDeleted} meal_tracking records`);
+
     } else {
-      console.log("   ℹ️ meal_tracking table does not exist, skipping...");
+
     }
 
     // Clean up meal_logging table if it exists
@@ -72,7 +70,7 @@ export async function DELETE(request) {
 
       const mealLoggingResult = await query(deleteMealLoggingSql, [user_id]);
       mealLoggingDeleted = mealLoggingResult.affectedRows || 0;
-      console.log(`   ✅ Deleted ${mealLoggingDeleted} meal_logging records`);
+
     }
 
     const totalDeleted = mealFoodsDeleted + mealTrackingDeleted + mealLoggingDeleted;
@@ -88,7 +86,7 @@ export async function DELETE(request) {
       }
     });
   } catch (error) {
-    console.error("Error cleaning up old meal data:", error);
+
     return NextResponse.json(
       {
         success: false,

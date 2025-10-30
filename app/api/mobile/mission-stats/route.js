@@ -80,7 +80,7 @@ export async function GET(request) {
         data: missionStats,
       });
     } catch (jwtError) {
-      console.error("JWT verification error:", jwtError);
+
       return NextResponse.json(
         {
           success: false,
@@ -90,7 +90,7 @@ export async function GET(request) {
       );
     }
   } catch (error) {
-    console.error("Error fetching mission stats:", error);
+
     return NextResponse.json(
       {
         success: false,

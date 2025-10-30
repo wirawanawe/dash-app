@@ -5,22 +5,16 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
-    console.log('🔍 Public wellness stats endpoint called');
-    
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '7';
 
-    console.log('🔍 Processing public request for period:', period);
-
     // Get total available wellness activities
     const totalActivitiesQuery = `SELECT COUNT(*) as total FROM available_habit_activities WHERE is_active = 1`;
-    console.log('🔍 Executing total activities query:', totalActivitiesQuery);
-    
+
     const totalResult = await query(totalActivitiesQuery);
     const totalAvailableActivities = totalResult[0]?.total || 0;
-    
-    console.log('✅ Total available activities:', totalAvailableActivities);
-    
+
     // Get overall completed activities (all users)
     const userActivitiesQuery = `
       SELECT 
@@ -39,8 +33,6 @@ export async function GET(request) {
     const totalPoints = userActivitiesResult.reduce((sum, activity) => {
       return sum + (activity.points_earned || activity.base_points || 0);
     }, 0);
-    
-    console.log('✅ Public wellness stats - Available:', totalAvailableActivities, 'Completed:', completedActivities, 'Points:', totalPoints);
 
     const response = {
       success: true,
@@ -55,12 +47,10 @@ export async function GET(request) {
       message: 'Public wellness stats loaded successfully'
     };
 
-    console.log('✅ Returning public response:', response);
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Error in public wellness stats endpoint:', error);
-    console.error('❌ Error stack:', error.stack);
+
     return NextResponse.json({ 
       success: false, 
       error: error.message,

@@ -25,7 +25,7 @@ async function verifyAuth(request) {
     const { payload } = await jwtVerify(tokenValue, secretKey);
     return payload;
   } catch (error) {
-    console.error("Token verification error:", error);
+
     return null;
   }
 }
@@ -57,14 +57,14 @@ export async function GET(request) {
         clinics: clinics,
       });
     } catch (error) {
-      console.error("Error fetching clinics:", error);
+
       return NextResponse.json(
         { error: "Failed to fetch clinics" },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error("Error fetching clinics:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data klinik" },
       { status: 500 }

@@ -31,7 +31,7 @@ export async function GET(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error fetching user mission:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -132,7 +132,7 @@ export async function PUT(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error updating user mission:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -161,7 +161,7 @@ export async function DELETE(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error deleting user mission:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

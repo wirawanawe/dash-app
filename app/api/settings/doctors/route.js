@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET all doctors
 export async function GET(request) {
   try {
@@ -36,7 +35,7 @@ export async function GET(request) {
           });
         }
       } catch (externalError) {
-        console.error("External API error:", externalError);
+
       }
     }
 
@@ -46,7 +45,7 @@ export async function GET(request) {
       source: "local",
     });
   } catch (error) {
-    console.error("Error fetching doctors:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch doctors" },
       { status: 500 }
@@ -91,7 +90,7 @@ export async function POST(request) {
 
     return NextResponse.json(newDoctor[0], { status: 201 });
   } catch (error) {
-    console.error("Error creating doctor:", error);
+
     return NextResponse.json(
       { message: "Failed to create doctor" },
       { status: 500 }

@@ -54,7 +54,7 @@ export default function PHCOfficeAdminPage() {
         });
       }
     } catch (error) {
-      console.error('Error fetching office data:', error);
+
       setMessage({ type: 'error', text: 'Gagal mengambil data kantor PHC' });
     }
   };
@@ -87,7 +87,7 @@ export default function PHCOfficeAdminPage() {
         setMessage({ type: 'error', text: result.error });
       }
     } catch (error) {
-      console.error('Error saving office data:', error);
+
       setMessage({ type: 'error', text: 'Gagal menyimpan data kantor PHC' });
     } finally {
       setIsLoading(false);
@@ -123,7 +123,7 @@ export default function PHCOfficeAdminPage() {
         setMessage({ type: 'error', text: result.error });
       }
     } catch (error) {
-      console.error('Error deleting office data:', error);
+
       setMessage({ type: 'error', text: 'Gagal menghapus data kantor PHC' });
     } finally {
       setIsLoading(false);

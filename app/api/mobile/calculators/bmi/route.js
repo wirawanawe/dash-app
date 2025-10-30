@@ -77,7 +77,7 @@ export async function POST(request) {
       data: result,
     });
   } catch (error) {
-    console.error("Error calculating BMI:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -70,7 +70,7 @@ export default function LoginPage() {
 
       if (!userResponse.ok) {
         const userErrorText = await userResponse.text();
-        console.error("Failed to get user data:", userErrorText);
+
         throw new Error("Failed to get user data");
       }
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
       toast.success("Login berhasil! Selamat datang di PHC Dashboard");
       router.push("/dashboard");
     } catch (error) {
-      console.error("Login error:", error);
+
       toast.error(error.message || "Login gagal");
     } finally {
       setIsLoading(false);
@@ -133,7 +133,7 @@ export default function LoginPage() {
   const handleLogoError = () => {
     // If logo fails to load, just set it as loaded to prevent infinite loop
     setLogoLoaded(true);
-    console.warn("Logo failed to load");
+
   };
 
   return (

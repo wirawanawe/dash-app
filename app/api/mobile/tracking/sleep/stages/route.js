@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get sleep stages data
 export async function GET(request) {
   try {
@@ -55,7 +54,7 @@ export async function GET(request) {
       data: mockSleepStages,
     });
   } catch (error) {
-    console.error("Error fetching sleep stages:", error);
+
     return NextResponse.json(
       {
         success: false,

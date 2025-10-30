@@ -14,7 +14,7 @@ export async function GET() {
     });
     return NextResponse.json(doctors);
   } catch (error) {
-    console.error("Error fetching doctors:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data dokter" },
       { status: 500 }
@@ -42,7 +42,7 @@ export async function POST(request) {
     });
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Error creating doctor:", error);
+
     return NextResponse.json(
       { error: "Gagal menambahkan dokter" },
       { status: 500 }

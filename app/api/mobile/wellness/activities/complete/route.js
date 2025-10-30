@@ -30,7 +30,7 @@ export async function POST(request) {
       );
       payload = result.payload;
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError.message);
+
       return NextResponse.json(
         {
           success: false,
@@ -161,7 +161,7 @@ export async function POST(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in wellness activity completion:', error);
+
     return NextResponse.json({ 
       success: false, 
       message: 'Terjadi kesalahan pada server. Silakan coba lagi dalam beberapa menit.',

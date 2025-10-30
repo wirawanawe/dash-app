@@ -117,7 +117,7 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error('Error validating PIN:', error);
+
     return NextResponse.json({
       success: false,
       message: 'Internal server error'
@@ -175,7 +175,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error getting PIN validation status:', error);
+
     return NextResponse.json({
       success: false,
       message: 'Internal server error'

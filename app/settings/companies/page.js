@@ -26,7 +26,7 @@ export default function CompaniesPage() {
       setCompanies(Array.isArray(data) ? data : []);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data perusahaan");
       setCompanies([]);
       setIsLoading(false);
@@ -50,7 +50,7 @@ export default function CompaniesPage() {
         toast.success("Perusahaan berhasil dihapus");
         fetchCompanies();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus perusahaan");
       }
     }

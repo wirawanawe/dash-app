@@ -4,7 +4,6 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
     // Get authorization header
@@ -57,7 +56,7 @@ export async function GET(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in wellness challenges endpoint:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 

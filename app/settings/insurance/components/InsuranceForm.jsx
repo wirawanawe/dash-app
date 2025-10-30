@@ -61,7 +61,7 @@ export default function InsuranceForm({ insurance, onSubmit, onCancel }) {
       );
       onSubmit();
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal menyimpan data asuransi");
     } finally {
       setIsLoading(false);

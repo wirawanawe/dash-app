@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET /api/mobile/bookings/my-bookings - get user's own bookings
 export async function GET(request) {
   try {
@@ -148,7 +147,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error getting user bookings:", error);
+
     return NextResponse.json(
       {
         success: false,

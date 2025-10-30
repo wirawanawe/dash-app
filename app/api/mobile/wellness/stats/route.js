@@ -6,13 +6,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
-    console.log('🔍 Wellness stats endpoint called');
-    
+
     // Get authorization header
     const authHeader = request.headers.get("authorization");
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log('❌ No authorization header');
+
       return NextResponse.json(
         {
           success: false,
@@ -23,7 +22,6 @@ export async function GET(request) {
     }
 
     const token = authHeader.substring(7);
-    console.log('🔍 Token received:', token.substring(0, 20) + '...');
 
     // Verify JWT token
     let payload;
@@ -33,9 +31,9 @@ export async function GET(request) {
         new TextEncoder().encode(process.env.JWT_SECRET)
       );
       payload = result.payload;
-      console.log('✅ JWT verified, userId:', payload.userId);
+
     } catch (jwtError) {
-      console.error('❌ JWT verification failed:', jwtError);
+
       return NextResponse.json(
         {
           success: false,
@@ -49,8 +47,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '7';
 
-    console.log('🔍 Processing request for userId:', userId, 'period:', period);
-
     // Initialize default values
     let moodEntries = 0;
     let avgMoodScore = 0;
@@ -63,7 +59,7 @@ export async function GET(request) {
 
     try {
       // Test mood query
-      console.log('🔍 Testing mood query...');
+
       const daysAgo = parseInt(period);
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
@@ -86,48 +82,47 @@ export async function GET(request) {
       const [moodResult] = await query(moodQuery, [userId, startDateStr]);
       moodEntries = moodResult[0]?.mood_entries || 0;
       avgMoodScore = moodResult[0]?.avg_mood_score || 0;
-      console.log('✅ Mood entries:', moodEntries, 'Avg mood score:', avgMoodScore);
+
     } catch (error) {
-      console.error('❌ Error in mood query:', error);
+
     }
 
     try {
       // Test water query
-      console.log('🔍 Testing water query...');
+
       const waterQuery = 'SELECT COUNT(*) as water_entries FROM water_tracking WHERE user_id = ?';
       const [waterResult] = await query(waterQuery, [userId]);
       waterEntries = waterResult[0]?.water_entries || 0;
-      console.log('✅ Water entries:', waterEntries);
+
     } catch (error) {
-      console.error('❌ Error in water query:', error);
+
     }
 
     try {
       // Test sleep query
-      console.log('🔍 Testing sleep query...');
+
       const sleepQuery = 'SELECT COUNT(*) as sleep_entries FROM sleep_tracking WHERE user_id = ?';
       const [sleepResult] = await query(sleepQuery, [userId]);
       sleepEntries = sleepResult[0]?.sleep_entries || 0;
-      console.log('✅ Sleep entries:', sleepEntries);
+
     } catch (error) {
-      console.error('❌ Error in sleep query:', error);
+
     }
 
     try {
       // Test fitness query
-      console.log('🔍 Testing fitness query...');
+
       const fitnessQuery = 'SELECT COUNT(*) as fitness_entries FROM fitness_tracking WHERE user_id = ?';
       const [fitnessResult] = await query(fitnessQuery, [userId]);
       fitnessEntries = fitnessResult[0]?.fitness_entries || 0;
-      console.log('✅ Fitness entries:', fitnessEntries);
+
     } catch (error) {
-      console.error('❌ Error in fitness query:', error);
+
     }
 
     try {
       // Get wellness activities stats
-      console.log('🔍 Testing wellness activities query...');
-      
+
       // First, get total available wellness activities
       const totalActivitiesQuery = `
         SELECT COUNT(*) as total_available
@@ -155,10 +150,9 @@ export async function GET(request) {
       totalPoints = userActivitiesResult.reduce((sum, activity) => {
         return sum + (activity.base_points || 0);
       }, 0);
-      
-      console.log('✅ Wellness activities - Available:', totalAvailableActivities, 'Completed:', completedActivities, 'Points:', totalPoints);
+
     } catch (error) {
-      console.error('❌ Error in wellness activities query:', error);
+
     }
 
     const response = {
@@ -185,12 +179,10 @@ export async function GET(request) {
       }
     };
 
-    console.log('✅ Returning response:', response);
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Error in wellness stats endpoint:', error);
-    console.error('❌ Error stack:', error.stack);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',

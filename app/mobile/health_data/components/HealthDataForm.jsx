@@ -41,7 +41,7 @@ export default function HealthDataForm({ healthData, onSubmit, onClose }) {
       const data = await response.json();
       setUsers(data.users || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+
     } finally {
       setLoadingData(false);
     }
@@ -78,7 +78,7 @@ export default function HealthDataForm({ healthData, onSubmit, onClose }) {
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error('Error submitting form:', error);
+
     } finally {
       setLoading(false);
     }

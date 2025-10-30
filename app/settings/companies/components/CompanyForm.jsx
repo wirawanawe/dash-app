@@ -61,7 +61,7 @@ export default function CompanyForm({ company, onSubmit, onCancel }) {
       );
       onSubmit();
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal menyimpan data perusahaan");
     } finally {
       setIsLoading(false);

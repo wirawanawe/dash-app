@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(company);
   } catch (error) {
-    console.error("Error fetching company:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch company" },
       { status: 500 }
@@ -40,7 +40,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(company);
   } catch (error) {
-    console.error("Error updating company:", error);
+
     return NextResponse.json(
       { error: "Failed to update company" },
       { status: 500 }
@@ -57,7 +57,7 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json({ message: "Company deleted successfully" });
   } catch (error) {
-    console.error("Error deleting company:", error);
+
     return NextResponse.json(
       { error: "Failed to delete company" },
       { status: 500 }

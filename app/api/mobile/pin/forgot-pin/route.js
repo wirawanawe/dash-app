@@ -60,11 +60,10 @@ export async function POST(request) {
     try {
       // For now, just log the OTP in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`📱 Development: WhatsApp OTP would be sent to ${user.phone}: ${otp}`);
+
       }
       
       // TODO: Implement actual WhatsApp sending when service is ready
-      console.log(`📱 WhatsApp OTP simulation: ${otp} sent to ${user.phone}`);
 
       return NextResponse.json({
         success: true,
@@ -77,8 +76,7 @@ export async function POST(request) {
       });
 
     } catch (whatsappError) {
-      console.error("WhatsApp sending error:", whatsappError);
-      
+
       // Remove OTP if WhatsApp fails
       await query(
         "UPDATE mobile_users SET pin_reset_otp = NULL, pin_reset_otp_expiry = NULL WHERE id = ?",
@@ -95,7 +93,7 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error("Forgot PIN error:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -211,7 +209,7 @@ export async function PUT(request) {
     });
 
   } catch (error) {
-    console.error("Reset PIN error:", error);
+
     return NextResponse.json(
       {
         success: false,

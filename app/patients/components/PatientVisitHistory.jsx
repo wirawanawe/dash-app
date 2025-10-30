@@ -49,7 +49,7 @@ export default function PatientVisitHistory({ patientId }) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`API Error Response: ${errorText}`);
+
         throw new Error("Gagal mengambil data kunjungan");
       }
 
@@ -57,7 +57,7 @@ export default function PatientVisitHistory({ patientId }) {
       setVisits(data.data || []);
       setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
-      console.error("Error fetching visits:", error);
+
       setError(error.message || "Gagal mengambil data kunjungan");
     } finally {
       setLoading(false);

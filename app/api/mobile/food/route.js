@@ -87,7 +87,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error("Error fetching foods:", error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -158,7 +158,7 @@ export async function POST(request) {
     }, { status: 201 });
     
   } catch (error) {
-    console.error("Error creating food:", error);
+
     return NextResponse.json(
       { 
         success: false,

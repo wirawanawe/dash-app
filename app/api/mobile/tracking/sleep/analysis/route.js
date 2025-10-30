@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get sleep analysis
 export async function GET(request) {
   try {
@@ -125,7 +124,7 @@ export async function GET(request) {
       data: analysis,
     });
   } catch (error) {
-    console.error("Error fetching sleep analysis:", error);
+
     return NextResponse.json(
       {
         success: false,

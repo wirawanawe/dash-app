@@ -6,8 +6,6 @@ export async function POST(request) {
   try {
     const { user_id, tracking_type, current_value, date } = await request.json();
 
-    console.log(`🔄 Auto-updating missions for user ${user_id}, type: ${tracking_type}, value: ${current_value}, date: ${date}`);
-
     if (!user_id || !tracking_type || current_value === undefined) {
       return NextResponse.json(
         {
@@ -32,8 +30,6 @@ export async function POST(request) {
       [user_id, tracking_type, getUnitFromTrackingType(tracking_type), date]
     );
 
-    console.log(`📋 Found ${activeMissions.length} active missions for ${tracking_type}`);
-
     const updatedMissions = [];
 
     for (const mission of activeMissions) {
@@ -51,8 +47,6 @@ export async function POST(request) {
         } else if (newProgress > 0) {
           newStatus = "active";
         }
-
-        console.log(`📊 Mission "${mission.title}": ${mission.current_value} + ${current_value} = ${newTotalValue}/${mission.target_value} (${newProgress}%)`);
 
         // Update mission progress with accumulated value
         const updateSql = `
@@ -77,17 +71,14 @@ export async function POST(request) {
           completed: newStatus === "completed"
         });
 
-        console.log(`✅ Updated mission "${mission.title}": ${newProgress}% (${newStatus})`);
-
       } catch (error) {
-        console.error(`❌ Error updating mission ${mission.user_mission_id}:`, error);
+
       }
     }
 
     // If no active missions found, suggest available missions instead of auto-assigning
     if (activeMissions.length === 0) {
-      console.log(`🔍 No active missions for ${tracking_type}, suggesting available missions...`);
-      
+
       const availableMissions = await query(
         `SELECT id, title, target_value, unit, category, points
          FROM missions 
@@ -99,13 +90,12 @@ export async function POST(request) {
         [tracking_type, getUnitFromTrackingType(tracking_type)]
       );
 
-      console.log(`📋 Found ${availableMissions.length} available missions for ${tracking_type}`);
       availableMissions.forEach(mission => {
-        console.log(`   - ${mission.title} (${mission.target_value} ${mission.unit})`);
+
       });
       
       // Don't auto-assign missions - let users choose manually
-      console.log(`💡 Users can manually accept these missions from the mission list`);
+
     }
 
     const response = {
@@ -119,12 +109,10 @@ export async function POST(request) {
       }
     };
 
-    console.log(`✅ Auto-update completed: ${updatedMissions.length} missions updated`);
-
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error("Error auto-updating missions:", error);
+
     return NextResponse.json(
       {
         success: false,

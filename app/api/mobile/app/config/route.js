@@ -94,7 +94,7 @@ export async function GET(request) {
       data: configInfo,
     });
   } catch (error) {
-    console.error("Error fetching app configuration:", error);
+
     return NextResponse.json(
       {
         success: false,

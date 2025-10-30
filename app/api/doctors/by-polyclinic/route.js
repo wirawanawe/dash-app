@@ -70,7 +70,7 @@ export async function GET(request) {
         null
     });
   } catch (error) {
-    console.error("Error fetching doctors by polyclinic:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data dokter berdasarkan poli" },
       { status: 500 }

@@ -56,8 +56,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const programId = searchParams.get('programId');
 
-    console.log(`📊 Generating wellness report for user ID: ${userId}${programId ? `, program ID: ${programId}` : ''}`);
-
     // Get user data
     const userQuery = `
       SELECT 
@@ -268,7 +266,7 @@ export async function GET(request) {
     return response;
 
   } catch (error) {
-    console.error('❌ Error generating wellness report:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',

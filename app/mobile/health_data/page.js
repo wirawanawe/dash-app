@@ -49,7 +49,7 @@ export default function HealthDataPage() {
         throw new Error(data.message || 'Gagal memuat data health data');
       }
     } catch (err) {
-      console.error('Error fetching health data:', err);
+
       setError(err.message);
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function HealthDataPage() {
         throw new Error(data.message || 'Gagal menghapus data kesehatan');
       }
     } catch (err) {
-      console.error('Error deleting health data:', err);
+
       alert(err.message);
     }
   };
@@ -126,7 +126,7 @@ export default function HealthDataPage() {
         alert(`Error: ${errorMessage}`);
       }
     } catch (err) {
-      console.error('Error saving health data:', err);
+
       alert('Network error: Gagal menyimpan data kesehatan. Please check your connection.');
     }
   };

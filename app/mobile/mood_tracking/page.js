@@ -49,7 +49,7 @@ export default function MoodTrackingPage() {
         throw new Error(data.message || 'Gagal memuat data mood tracking');
       }
     } catch (err) {
-      console.error('Error fetching mood data:', err);
+
       setError(err.message);
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function MoodTrackingPage() {
         throw new Error(data.message || 'Gagal menghapus data mood');
       }
     } catch (err) {
-      console.error('Error deleting mood data:', err);
+
       alert(err.message);
     }
   };
@@ -123,7 +123,7 @@ export default function MoodTrackingPage() {
         throw new Error(data.message || 'Gagal menyimpan data mood');
       }
     } catch (err) {
-      console.error('Error saving mood data:', err);
+
       alert(err.message);
     }
   };

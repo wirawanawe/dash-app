@@ -57,7 +57,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(formattedVisit);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data kunjungan" },
       { status: 500 }
@@ -142,7 +142,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(formattedVisit);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengupdate kunjungan" },
       { status: 500 }
@@ -156,7 +156,7 @@ export async function DELETE(request, { params }) {
     await query("DELETE FROM visits WHERE id = ?", [params.id]);
     return NextResponse.json({ message: "Kunjungan berhasil dihapus" });
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus kunjungan" },
       { status: 500 }

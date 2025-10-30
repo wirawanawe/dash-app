@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { jwtVerify } from "jose";
 
 // Role hierarchy: Superadmin > Admin > Doctor > Staff
 const roleHierarchy = {
@@ -20,9 +21,39 @@ const canManageRole = (userRole, targetRole) => {
   return userLevel > targetLevel; // Can only manage roles below their own level
 };
 
+// Function to get user from token
+async function getUserFromToken(request) {
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get("authorization");
+  let token = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  } else {
+    // Fallback to cookies
+    const cookieToken = request.cookies.get("token");
+    if (cookieToken) {
+      token = cookieToken.value;
+    }
+  }
+  
+  if (!token) return null;
+
+  try {
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(token, secretKey);
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
 // GET all users with role-based filtering
 export async function GET(request) {
   try {
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     
@@ -52,6 +83,14 @@ export async function GET(request) {
     if (role) {
       whereConditions.push('u.role = ?');
       params.push(role);
+    }
+
+    // Add clinic filtering based on current user's clinic_id
+    // If user has clinic_id, they can only see users from the same clinic
+    // If user has no clinic_id (null), they can see all users
+    if (userPayload && userPayload.clinic_id) {
+      whereConditions.push('u.clinic_id = ?');
+      params.push(userPayload.clinic_id);
     }
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -94,7 +133,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error("Error fetching users:", error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -162,7 +201,7 @@ export async function POST(request) {
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
-    console.error("❌ Error creating user:", error);
+
     return NextResponse.json(
       { 
         success: false,

@@ -24,7 +24,7 @@ export default function ClinicPolyclinics({ clinicId, clinicName }) {
         setPolyclinics(data.filter(p => p.is_available));
       }
     } catch (error) {
-      console.error("Error fetching clinic polyclinics:", error);
+
     }
   };
 
@@ -36,7 +36,7 @@ export default function ClinicPolyclinics({ clinicId, clinicName }) {
         setAvailablePolyclinics(data.filter(p => p.status === 'Aktif'));
       }
     } catch (error) {
-      console.error("Error fetching available polyclinics:", error);
+
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export default function ClinicPolyclinics({ clinicId, clinicName }) {
         toast.error(error.message || "Gagal menambahkan poli");
       }
     } catch (error) {
-      console.error("Error adding polyclinic:", error);
+
       toast.error("Gagal menambahkan poli");
     }
   };
@@ -84,7 +84,7 @@ export default function ClinicPolyclinics({ clinicId, clinicName }) {
           toast.error(error.message || "Gagal menghapus poli");
         }
       } catch (error) {
-        console.error("Error removing polyclinic:", error);
+
         toast.error("Gagal menghapus poli");
       }
     }

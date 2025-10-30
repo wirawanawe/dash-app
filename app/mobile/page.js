@@ -58,7 +58,7 @@ export default function MobileDashboard() {
         fetch('/api/mobile/users?limit=1'),
         fetch('/api/mobile/food?limit=1'),
         fetch('/api/mobile/missions?limit=1'),
-        fetch('/api/mobile/wellness?limit=1')
+        fetch('/api/mobile/activities-api?limit=1')
       ]);
 
       // Parse responses
@@ -70,8 +70,8 @@ export default function MobileDashboard() {
       // Calculate statistics
       const totalUsers = usersData.pagination?.total || 0;
       const totalFoods = foodsData.pagination?.total || 0;
-      const totalMissions = missionsData.pagination?.total || 0;
-      const totalWellnessActivities = wellnessData.pagination?.total || 0;
+      const totalMissions = missionsData.success ? (missionsData.pagination?.total || 0) : 0;
+      const totalWellnessActivities = wellnessData.success ? (wellnessData.pagination?.total || 0) : 0;
 
       // Calculate active users (users created in last 30 days)
       const thirtyDaysAgo = new Date();
@@ -102,7 +102,7 @@ export default function MobileDashboard() {
       });
 
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
+
       setError('Gagal memuat data dashboard');
     } finally {
       setLoading(false);
@@ -191,10 +191,10 @@ export default function MobileDashboard() {
       trend: `${dashboardData.totalMissions.toLocaleString()} missions`
     },
     {
-      title: "Wellness Activities",
-      description: "Kelola aktivitas wellness dan mindfulness",
+      title: "Habit Activities",
+      description: "Kelola aktivitas kebiasaan dan tracking harian",
       icon: Activity,
-      href: "/mobile/wellness",
+      href: "/mobile/activities",
       gradient: "from-indigo-500 to-purple-500",
       iconBg: "bg-indigo-100",
       iconColor: "text-indigo-600",
@@ -225,10 +225,10 @@ export default function MobileDashboard() {
       gradient: "from-orange-500 to-red-500"
     },
     {
-      title: "Aktivitas Wellness",
-      description: "Kelola aktivitas wellness",
+      title: "Aktivitas Kebiasaan",
+      description: "Kelola habit activities",
       icon: Activity,
-      href: "/mobile/wellness",
+      href: "/mobile/activities",
       gradient: "from-indigo-500 to-purple-500"
     }
   ];

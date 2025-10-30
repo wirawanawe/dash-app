@@ -24,7 +24,7 @@ export async function DELETE(request, { params }) {
       message: 'Activity deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting activity:', error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -87,7 +87,7 @@ export async function PUT(request, { params }) {
       message: 'Activity updated successfully'
     });
   } catch (error) {
-    console.error('Error updating activity:', error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -135,7 +135,7 @@ export async function GET(request, { params }) {
       activity: result[0]
     });
   } catch (error) {
-    console.error('Error fetching activity:', error);
+
     return NextResponse.json(
       { 
         success: false,

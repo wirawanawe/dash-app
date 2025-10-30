@@ -101,7 +101,7 @@ export async function PUT(request, { params }) {
       },
     });
   } catch (error) {
-    console.error("Error reactivating mission:", error);
+
     return NextResponse.json(
       {
         success: false,

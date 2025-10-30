@@ -63,7 +63,7 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error('Error fetching mobile users stats:', error);
+
     return NextResponse.json(
       { success: false, error: 'Failed to fetch mobile users stats', message: error.message },
       { status: 500 }

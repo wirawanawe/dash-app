@@ -4,18 +4,15 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
-    console.log('🔍 Mood tracker endpoint called');
-    
+
     // Get authorization header
     const authHeader = request.headers.get("authorization");
     let userId;
     
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-      console.log('🔍 Token received:', token.substring(0, 20) + '...');
 
       // Verify JWT token
       try {
@@ -23,10 +20,10 @@ export async function GET(request) {
           token,
           new TextEncoder().encode(process.env.JWT_SECRET)
         );
-        console.log('✅ JWT verified, userId:', payload.userId);
+
         userId = payload.userId;
       } catch (jwtError) {
-        console.error('❌ JWT verification failed:', jwtError);
+
         return NextResponse.json(
           {
             success: false,
@@ -41,7 +38,7 @@ export async function GET(request) {
       userId = searchParams.get("user_id");
       
       if (!userId) {
-        console.log('❌ No authorization header or user_id parameter');
+
         return NextResponse.json(
           {
             success: false,
@@ -50,13 +47,11 @@ export async function GET(request) {
           { status: 401 }
         );
       }
-      console.log('🔍 Using user_id from query params:', userId);
+
     }
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '7';
-
-    console.log('🔍 Processing request for userId:', userId, 'period:', period);
 
     // Get comprehensive mood data for the specified period
     const daysAgo = parseInt(period);
@@ -76,7 +71,6 @@ export async function GET(request) {
       ORDER BY tracking_date DESC
     `;
     const moodResults = await query(moodQuery, [userId, startDateStr]);
-    console.log('✅ Mood query results:', moodResults);
 
     // Calculate mood statistics
     const totalEntries = moodResults.length;
@@ -129,12 +123,10 @@ export async function GET(request) {
       }
     };
 
-    console.log('✅ Returning response');
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Error in mood tracker endpoint:', error);
-    console.error('❌ Error stack:', error.stack);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 
@@ -210,7 +202,7 @@ export async function POST(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in mood tracking creation:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 

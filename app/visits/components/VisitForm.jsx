@@ -39,7 +39,7 @@ export default function VisitForm({ visit, onSubmit, onCancel }) {
       const data = await response.json();
       setDoctors(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data dokter");
     }
   };
@@ -58,7 +58,7 @@ export default function VisitForm({ visit, onSubmit, onCancel }) {
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error("Error:", error);
+
     } finally {
       setIsLoading(false);
     }

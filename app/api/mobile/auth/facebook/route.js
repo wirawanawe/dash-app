@@ -43,7 +43,7 @@ export async function POST(request) {
           formattedDateOfBirth = date.toISOString().split('T')[0];
         }
       } catch (error) {
-        console.error("Error parsing date_of_birth:", error);
+
         return NextResponse.json(
           {
             success: false,
@@ -146,7 +146,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Facebook auth error:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(users[0]);
   } catch (error) {
-    console.error('Error fetching mobile user:', error);
+
     return NextResponse.json(
       { error: 'Failed to fetch mobile user' },
       { status: 500 }
@@ -136,7 +136,7 @@ export async function PUT(request, { params }) {
       message: 'Mobile user updated successfully'
     });
   } catch (error) {
-    console.error('Error updating mobile user:', error);
+
     return NextResponse.json(
       { error: 'Failed to update mobile user' },
       { status: 500 }
@@ -171,7 +171,7 @@ export async function DELETE(request, { params }) {
       message: 'Mobile user deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting mobile user:', error);
+
     return NextResponse.json(
       { error: 'Failed to delete mobile user' },
       { status: 500 }

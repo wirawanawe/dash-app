@@ -43,7 +43,7 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
         setPolyclinics(data);
       }
     } catch (error) {
-      console.error('Error fetching polyclinics:', error);
+
     } finally {
       setLoadingPolyclinics(false);
     }
@@ -59,7 +59,7 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
         setSelectedPolyclinics(availablePolyclinics);
       }
     } catch (error) {
-      console.error('Error fetching clinic polyclinics:', error);
+
     }
   };
 
@@ -189,7 +189,7 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
 
       await onSubmit(submitData);
     } catch (error) {
-      console.error("Error submitting form:", error);
+
     } finally {
       setLoading(false);
     }

@@ -87,7 +87,7 @@ export async function GET(request) {
           const diffTime = Math.abs(today.getTime() - joinDate.getTime());
           daysSinceJoining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         } catch (error) {
-          console.error('Error calculating days since joining wellness program:', error);
+
         }
       }
 
@@ -156,7 +156,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error fetching wellness progress list:', error);
+
     return NextResponse.json(
       { 
         success: false,

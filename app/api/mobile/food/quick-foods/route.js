@@ -51,7 +51,7 @@ export async function GET(request) {
       data: quickFoods
     });
   } catch (error) {
-    console.error("Error fetching quick foods:", error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -155,7 +155,7 @@ export async function POST(request) {
     });
     
   } catch (error) {
-    console.error("Error adding to quick foods:", error);
+
     return NextResponse.json(
       { 
         success: false,

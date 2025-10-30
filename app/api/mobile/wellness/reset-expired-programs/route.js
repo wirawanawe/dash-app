@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic';
 // POST - Reset expired wellness programs
 export async function POST(request) {
   try {
-    console.log('🔄 Starting expired wellness programs reset process...');
 
     // Find all users with expired programs that haven't been reset yet
     const expiredUsersQuery = `
@@ -29,7 +28,7 @@ export async function POST(request) {
     const expiredUsers = await query(expiredUsersQuery);
     
     if (expiredUsers.length === 0) {
-      console.log('✅ No expired programs found to reset');
+
       return NextResponse.json({
         success: true,
         message: 'No expired programs found to reset',
@@ -40,16 +39,13 @@ export async function POST(request) {
       });
     }
 
-    console.log(`📋 Found ${expiredUsers.length} users with expired programs`);
-
     const resetResults = [];
     let successCount = 0;
     let errorCount = 0;
 
     for (const user of expiredUsers) {
       try {
-        console.log(`🔄 Processing user ID: ${user.id} (${user.name})`);
-        
+
         // First, mark the program as completed and save to history
         await markProgramAsCompleted(user.id, user);
         
@@ -75,10 +71,9 @@ export async function POST(request) {
         });
         
         successCount++;
-        console.log(`✅ Successfully reset program for user ID: ${user.id}`);
-        
+
       } catch (error) {
-        console.error(`❌ Error resetting program for user ID ${user.id}:`, error);
+
         resetResults.push({
           user_id: user.id,
           name: user.name,
@@ -89,8 +84,6 @@ export async function POST(request) {
         errorCount++;
       }
     }
-
-    console.log(`✅ Reset process completed. Success: ${successCount}, Errors: ${errorCount}`);
 
     return NextResponse.json({
       success: true,
@@ -103,7 +96,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('❌ Error in expired programs reset:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',
@@ -115,7 +108,6 @@ export async function POST(request) {
 // GET - Check for expired programs (for monitoring)
 export async function GET(request) {
   try {
-    console.log('🔍 Checking for expired wellness programs...');
 
     const expiredUsersQuery = `
       SELECT 
@@ -155,7 +147,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('❌ Error checking expired programs:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',
@@ -167,8 +159,7 @@ export async function GET(request) {
 // Helper function to mark program as completed and save to history
 async function markProgramAsCompleted(userId, userData) {
   try {
-    console.log(`📝 Marking program as completed for user ID: ${userId}`);
-    
+
     // Get wellness progress data for the completed program
     const progressQuery = `
       SELECT 
@@ -249,11 +240,9 @@ async function markProgramAsCompleted(userId, userData) {
     `;
     
     await query(updateQuery, [userId]);
-    
-    console.log(`✅ Program marked as completed for user ID: ${userId}`);
-    
+
   } catch (error) {
-    console.error(`❌ Error marking program as completed for user ${userId}:`, error);
+
     throw error;
   }
 }

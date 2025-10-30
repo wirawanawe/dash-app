@@ -5,7 +5,6 @@ import bcrypt from "bcryptjs";
 
 export const dynamic = 'force-dynamic';
 
-
 export async function PUT(request) {
   try {
     // Get token from cookies instead of authorization header
@@ -85,7 +84,7 @@ export async function PUT(request) {
       user: userWithoutPassword,
     });
   } catch (error) {
-    console.error("Error updating profile:", error);
+
     return NextResponse.json(
       { error: "Gagal memperbarui profil" },
       { status: 500 }

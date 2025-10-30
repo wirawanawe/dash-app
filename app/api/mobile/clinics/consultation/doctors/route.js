@@ -66,7 +66,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error getting consultation doctors:", error);
+
     return NextResponse.json(
       {
         success: false,

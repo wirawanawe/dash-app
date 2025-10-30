@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("Error fetching user:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data pengguna" },
       { status: 500 }
@@ -60,7 +60,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(updatedUser);
   } catch (error) {
-    console.error("Error updating user:", error);
+
     return NextResponse.json(
       { message: "Gagal mengupdate pengguna" },
       { status: 500 }
@@ -75,7 +75,7 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json({ message: "Pengguna berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting user:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus pengguna" },
       { status: 500 }

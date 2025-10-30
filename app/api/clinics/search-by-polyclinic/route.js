@@ -64,7 +64,7 @@ export async function GET(request) {
         null
     });
   } catch (error) {
-    console.error("Error searching clinics by polyclinic:", error);
+
     return NextResponse.json(
       { message: "Gagal mencari klinik berdasarkan poli" },
       { status: 500 }

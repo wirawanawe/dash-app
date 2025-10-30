@@ -79,8 +79,7 @@ export default function VisitsPage() {
   const [stats, setStats] = useState({
     total: 0,
     today: 0,
-    active: 0,
-    completed: 0,
+    monthly: 0,
   });
 
   const fetchVisits = async () => {
@@ -91,7 +90,7 @@ export default function VisitsPage() {
       const params = new URLSearchParams({
         search,
         page: "1",           // Always fetch from page 1
-        limit: "10000",      // Fetch all data (large limit)
+        limit: "999999",     // Fetch all data (no limit)
         sortBy: "date",      // Sort by date
         sortOrder: "desc",   // Descending (terbaru dulu)
       });
@@ -158,10 +157,9 @@ export default function VisitsPage() {
       setVisits(paginatedData);
       setMetadata({ total: totalData }); // Use actual total from API, not just fetched length
       setTotalPages(totalPagesCalculated);
-      
-      console.log(`[Visits] Total in DB: ${totalData}, Fetched: ${fetchedData}, Page: ${page}, Showing: ${paginatedData.length}`);
+
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setAllVisits([]);
       setVisits([]);
@@ -172,30 +170,23 @@ export default function VisitsPage() {
     }
   };
 
-  const fetchDoctors = async () => {
+  const fetchDoctorsAndClinics = async () => {
     try {
-      const response = await fetch("/api/settings/doctors");
+      // Fetch doctors and clinics from visits table (more reliable)
+      const response = await fetch("/api/visits/filters");
       if (!response.ok)
         throw new Error(`HTTP error! Status: ${response.status}`);
 
       const data = await response.json();
-      setDoctors(Array.isArray(data) ? data : []);
+      
+      // API returns { success: true, doctors: [...], clinics: [...] }
+      const doctorsList = data.doctors || [];
+      const clinicsList = data.clinics || [];
+      
+      setDoctors(Array.isArray(doctorsList) ? doctorsList : []);
+      setClinics(Array.isArray(clinicsList) ? clinicsList : []);
     } catch (error) {
-      console.error("Error fetching doctors:", error);
       setDoctors([]);
-    }
-  };
-
-  const fetchClinics = async () => {
-    try {
-      const response = await fetch("/api/clinics");
-      if (!response.ok)
-        throw new Error(`HTTP error! Status: ${response.status}`);
-
-      const data = await response.json();
-      setClinics(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching clinics:", error);
       setClinics([]);
     }
   };
@@ -206,43 +197,38 @@ export default function VisitsPage() {
       const today = new Date();
       const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+      // Get this month's date range
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthStart = `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-${String(startOfMonth.getDate()).padStart(2, '0')}`;
+      const monthEnd = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+
       // Fetch all stats in parallel
-      // NOTE: External API tidak punya field status, semua kunjungan di-set sebagai "Selesai"
-      // Jadi "Total" = "Completed", tidak perlu fetch terpisah untuk completed
-      const [totalResponse, todayResponse, activeResponse] = await Promise.all([
+      const [totalResponse, todayResponse, monthlyResponse] = await Promise.all([
         // Total: Fetch dengan limit besar, tanpa filter
-        fetch('/api/visits?limit=10000'),
+        fetch('/api/visits?limit=999999'),
         // Today: Fetch dengan filter tanggal hari ini
-        fetch(`/api/visits?searchDate=${todayString}&limit=10000`),
-        // Active: Fetch dengan filter status Aktif (akan return 0 karena semua "Selesai")
-        fetch('/api/visits?status=Aktif&limit=10000'),
+        fetch(`/api/visits?searchDate=${todayString}&limit=999999`),
+        // Monthly: Fetch dengan filter bulan ini
+        fetch(`/api/visits?tglawal=${monthStart}&tglakhir=${monthEnd}&limit=999999`),
       ]);
 
-      const [totalData, todayData, activeData] = await Promise.all([
+      const [totalData, todayData, monthlyData] = await Promise.all([
         totalResponse.json(),
         todayResponse.json(),
-        activeResponse.json(),
+        monthlyResponse.json(),
       ]);
 
-      // Karena external API tidak punya status dan semua di-set "Selesai",
-      // maka completed = total (semua kunjungan adalah kunjungan selesai)
       const totalCount = totalData.pagination?.total || 0;
 
       setStats({
         total: totalCount,
         today: todayData.pagination?.total || 0,
-        active: activeData.pagination?.total || 0,
-        completed: totalCount, // Sama dengan total karena semua kunjungan "Selesai"
+        monthly: monthlyData.pagination?.total || 0,
       });
 
-      console.log('[Visits Stats] Updated:', {
-        total: totalCount,
-        today: todayData.pagination?.total || 0,
-        active: activeData.pagination?.total || 0,
-        completed: totalCount,
-      });
     } catch (error) {
-      console.error('Error fetching stats:', error);
+
     }
   };
 
@@ -272,14 +258,12 @@ export default function VisitsPage() {
       
       setVisits(paginatedData);
       setTotalPages(totalPagesCalculated);
-      
-      console.log(`[Pagination] Page: ${page}, Limit: ${limit}, Showing: ${paginatedData.length} of ${totalData}`);
+
     }
   }, [page, limit, allVisits]);
 
   useEffect(() => {
-    fetchDoctors();
-    fetchClinics();
+    fetchDoctorsAndClinics();
     fetchStats(); // Fetch stats on initial load
   }, []);
 
@@ -341,7 +325,7 @@ export default function VisitsPage() {
       fetchVisits();
       fetchStats(); // Update statistics after saving
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal menyimpan kunjungan");
     }
   };
@@ -359,7 +343,7 @@ export default function VisitsPage() {
         fetchVisits();
         fetchStats(); // Update statistics after deletion
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus kunjungan");
       }
     }
@@ -490,7 +474,7 @@ export default function VisitsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div 
             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
@@ -524,20 +508,21 @@ export default function VisitsPage() {
             style={{ animationDelay: '100ms' }}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
-                <Activity className="w-6 h-6 text-white" />
+              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                <CalendarDays className="w-6 h-6 text-white" />
               </div>
-              <div className="inline-flex items-center px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">
-                Live
+              <div className="flex items-center text-sm font-medium text-purple-600">
+                <Calendar className="w-4 h-4 mr-1" />
+                Bulan Ini
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-emerald-600 mb-1">
-                {stats.active}
+              <p className="text-3xl font-bold text-gray-900 mb-1">
+                {stats.monthly}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Aktif</p>
+              <p className="text-sm text-gray-600 font-medium">Kunjungan Bulan Ini</p>
               <p className="text-xs text-gray-500 mt-1">
-                Sedang berlangsung
+                {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
               </p>
             </div>
           </div>
@@ -547,32 +532,6 @@ export default function VisitsPage() {
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
             }`}
             style={{ animationDelay: '200ms' }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex items-center text-sm font-medium text-purple-600">
-                <Heart className="w-4 h-4 mr-1" />
-                Selesai
-              </div>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
-                {stats.completed}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Selesai</p>
-              <p className="text-xs text-gray-500 mt-1">
-                Telah diselesaikan
-              </p>
-            </div>
-          </div>
-
-          <div 
-            className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-              isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-            }`}
-            style={{ animationDelay: '300ms' }}
           >
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg">
@@ -722,7 +681,7 @@ export default function VisitsPage() {
                     >
                       <option value="">Semua Dokter</option>
                       {doctors.map((doctor) => (
-                        <option key={doctor.id} value={doctor.id}>
+                        <option key={doctor.id} value={doctor.name}>
                           {doctor.name}
                         </option>
                       ))}
@@ -730,7 +689,7 @@ export default function VisitsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Klinik / Poli
+                      Klinik
                     </label>
                     <select
                       name="clinic"
@@ -835,10 +794,7 @@ export default function VisitsPage() {
               )}
               {appliedFilters.doctorId && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  Dokter:{" "}
-                  {doctors.find(
-                    (d) => d.id.toString() === appliedFilters.doctorId
-                  )?.name || appliedFilters.doctorId}
+                  Dokter: {appliedFilters.doctorId}
                   <button
                     onClick={() => {
                       setFilters((prev) => ({ ...prev, doctorId: "" }));
@@ -883,16 +839,7 @@ export default function VisitsPage() {
                   Daftar lengkap kunjungan pasien dalam sistem
                 </p>
               </div>
-              <div className="hidden lg:flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Aktif</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Selesai</span>
-                </div>
-              </div>
+             
             </div>
           </div>
 
@@ -923,10 +870,10 @@ export default function VisitsPage() {
                           Dokter
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Klinik/Poli
+                          Poli
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Kode Faskes
+                          Klinik
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Diagnosa
@@ -984,8 +931,8 @@ export default function VisitsPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="flex flex-col">
-                                <span className="font-semibold text-blue-600">{visit.facility?.code || "-"}</span>
-                                <span className="text-xs text-gray-500">{visit.facility?.name || "-"}</span>
+                                <span className="font-semibold text-blue-600">{visit.facility?.name || "-"}</span>
+                                <span className="text-xs text-gray-500">{visit.facility?.code || "-"}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={visit.diagnosis || visit.complaint || "-"}>

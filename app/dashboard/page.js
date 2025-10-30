@@ -15,17 +15,23 @@ import {
   Zap,
   RefreshCw,
   ChevronRight,
-  Star
+  Star,
+  Building2
 } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
+    totalVisits: 0,
+    totalPatients: 0,
+    totalClinics: 0,
     dailyVisits: 0,
     monthlyVisits: 0,
     activeVisits: 0,
     totalVisitsToday: 0,
     avgWaitTime: 0,
   });
+  const [monthlyVisitsData, setMonthlyVisitsData] = useState([]);
   const [mobileStats, setMobileStats] = useState({
     totalMobileUsers: 0,
     activeMobileUsers: 0,
@@ -81,42 +87,71 @@ export default function Dashboard() {
       const monthEnd = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
 
       // Log dates for debugging
-      console.log('[Dashboard] Fetching data for:', {
-        todayString,
-        monthStart,
-        monthEnd,
-      });
 
       // Fetch visits data for different time periods
       // NOTE: External API tidak punya field status, semua kunjungan adalah "Selesai"
       const [todayVisits, monthlyVisits, allVisits] = await Promise.all([
         fetchVisits({ searchDate: todayString, limit: 10000 }),
         fetchVisits({ tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),
-        fetchVisits({ limit: 10000 }), // Fetch untuk mendapatkan total
+        fetchVisits({ limit: 999999 }), // Fetch semua data tanpa limit
       ]);
 
-      // Calculate statistics
+      // Calculate statistics - Gunakan total dari pagination API, bukan length array
       const dailyVisitsCount = todayVisits.data?.length || 0;
       const monthlyVisitsCount = monthlyVisits.data?.length || 0;
       const activeVisitsCount = 0; // Semua kunjungan "Selesai", tidak ada "Aktif"
+      // Ambil total dari pagination API untuk mendapatkan jumlah sebenarnya
+      const totalVisitsCount = allVisits.pagination?.total || allVisits.data?.length || 0;
 
       // Get total visits today (including completed)
       const totalVisitsToday = todayVisits.data?.length || 0;
-
-      // Log statistics for debugging
-      console.log('[Dashboard] Statistics:', {
-        dailyVisitsCount,
-        monthlyVisitsCount,
-        activeVisitsCount,
-        totalVisitsToday,
-        totalAllVisits: allVisits.pagination?.total || 0,
-      });
 
       // Calculate average wait time (estimated based on active visits)
       const avgWaitTime =
         activeVisitsCount > 0 ? Math.ceil(activeVisitsCount * 15) : 0;
 
+      // Fetch total patients
+      let totalPatientsCount = 0;
+      try {
+        const patientsResponse = await fetch('/api/patients?limit=10000');
+        if (patientsResponse.ok) {
+          const patientsData = await patientsResponse.json();
+          totalPatientsCount = patientsData.pagination?.total || patientsData.data?.length || 0;
+        }
+      } catch (err) {
+        // Error fetching patients
+      }
+
+      // Fetch total clinics/faskes
+      let totalClinicsCount = 0;
+      try {
+        const clinicsResponse = await fetch('/api/clinics?limit=10000');
+        if (clinicsResponse.ok) {
+          const clinicsData = await clinicsResponse.json();
+          // Gunakan pagination.total untuk mendapatkan jumlah sebenarnya
+          totalClinicsCount = clinicsData.pagination?.total || clinicsData.data?.length || 0;
+        }
+      } catch (err) {
+        // Error fetching clinics
+      }
+
+      // Fetch monthly visits data for chart
+      try {
+        const monthlyResponse = await fetch('/api/dashboard/monthly-visits');
+        if (monthlyResponse.ok) {
+          const monthlyData = await monthlyResponse.json();
+          if (monthlyData.success) {
+            setMonthlyVisitsData(monthlyData.data);
+          }
+        }
+      } catch (err) {
+        // Error fetching monthly data
+      }
+
       setStats({
+        totalVisits: totalVisitsCount,
+        totalPatients: totalPatientsCount,
+        totalClinics: totalClinicsCount,
         dailyVisits: dailyVisitsCount,
         monthlyVisits: monthlyVisitsCount,
         activeVisits: activeVisitsCount,
@@ -125,7 +160,7 @@ export default function Dashboard() {
       });
 
       // Process doctor rooms - tidak ada kunjungan aktif karena semua "Selesai"
-      const rooms = processDoctorRooms([]);
+      const rooms = await processDoctorRooms([]);
       setDoctorRooms(rooms);
 
       // Process upcoming queue - tidak ada antrian karena semua kunjungan "Selesai"
@@ -133,41 +168,39 @@ export default function Dashboard() {
       setUpcomingQueue(queue);
 
       // Fetch mobile user statistics
-      console.log("Fetching mobile user statistics...");
+
       const mobileStatsResponse = await fetch('/api/dashboard/mobile-stats');
-      console.log("Mobile stats response status:", mobileStatsResponse.status);
-      
+
       if (mobileStatsResponse.ok) {
         const mobileStatsData = await mobileStatsResponse.json();
-        console.log("Mobile stats data:", mobileStatsData);
+
         if (mobileStatsData.success) {
           setMobileStats(mobileStatsData.data);
         } else {
-          console.warn("Failed to fetch mobile stats:", mobileStatsData.message);
+
         }
       } else {
-        console.warn("Failed to fetch mobile stats:", mobileStatsResponse.status);
+
       }
 
       // Fetch habit activities data
-      console.log("Fetching habit activities...");
+
       const habitResponse = await fetch('/api/dashboard/habit-activities?limit=8');
-      console.log("Habit response status:", habitResponse.status);
-      
+
       if (habitResponse.ok) {
         const habitData = await habitResponse.json();
-        console.log("Habit data:", habitData);
+
         if (habitData.success) {
           setHabitActivities(habitData.data);
           setHabitStats(habitData.summary);
         } else {
-          console.warn("Failed to fetch habit activities:", habitData.message);
+
         }
       } else {
-        console.warn("Failed to fetch habit activities:", habitResponse.status);
+
       }
     } catch (err) {
-      console.error("Error fetching dashboard data:", err);
+
       setError("Gagal memuat data dashboard: " + err.message);
     } finally {
       setLoading(false);
@@ -254,7 +287,7 @@ export default function Dashboard() {
         throw new Error('Failed to fetch rooms');
       }
     } catch (error) {
-      console.error("Error fetching rooms:", error);
+
       // Fallback to basic room structure
       const totalRooms = Math.max(4, rooms.length);
       for (let i = rooms.length; i < totalRooms; i++) {
@@ -386,7 +419,7 @@ export default function Dashboard() {
         </div>
 
         {/* Enhanced Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <div 
             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
@@ -395,20 +428,20 @@ export default function Dashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                <Users className="w-6 h-6 text-white" />
+                <Calendar className="w-6 h-6 text-white" />
               </div>
               <div className="flex items-center text-sm font-medium text-emerald-600">
                 <TrendingUp className="w-4 h-4 mr-1" />
-                +12%
+                +15%
               </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {stats.dailyVisits}
+                {stats.totalVisits.toLocaleString('id-ID')}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Hari Ini</p>
+              <p className="text-sm text-gray-600 font-medium">Total Kunjungan</p>
               <p className="text-xs text-gray-500 mt-1">
-                {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                Semua waktu
               </p>
             </div>
           </div>
@@ -421,20 +454,20 @@ export default function Dashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
-                <Calendar className="w-6 h-6 text-white" />
+                <Building2 className="w-6 h-6 text-white" />
               </div>
               <div className="flex items-center text-sm font-medium text-emerald-600">
-                <TrendingUp className="w-4 h-4 mr-1" />
-                +8%
+                <Activity className="w-4 h-4 mr-1" />
+                Aktif
               </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {stats.monthlyVisits}
+                {stats.totalClinics}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Bulan Ini</p>
-              <p className="text-xs text-emerald-600 mt-1 font-medium">
-                {new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
+              <p className="text-sm text-gray-600 font-medium">Total Faskes</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Fasilitas Kesehatan
               </p>
             </div>
           </div>
@@ -447,50 +480,111 @@ export default function Dashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                <Activity className="w-6 h-6 text-white" />
+                <Users className="w-6 h-6 text-white" />
               </div>
-              <div className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
-                Live
-              </div>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-purple-600 mb-1">
-                {stats.activeVisits}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Aktif</p>
-              <p className="text-xs text-gray-600 mt-1">
-                Sedang berlangsung
-              </p>
-            </div>
-          </div>
-
-          <div 
-            className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-              isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-            }`}
-            style={{ animationDelay: '300ms' }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg">
-                <Timer className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex items-center text-sm font-medium text-orange-600">
-                <Heart className="w-4 h-4 mr-1" />
-                Est.
+              <div className="flex items-center text-sm font-medium text-purple-600">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                +8%
               </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                ~{stats.avgWaitTime}
+                {stats.totalPatients.toLocaleString('id-ID')}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Waktu Tunggu</p>
-              <p className="text-xs text-gray-500 mt-1">menit (estimasi)</p>
+              <p className="text-sm text-gray-600 font-medium">Total Pasien</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Terdaftar di sistem
+              </p>
             </div>
           </div>
         </div>
 
+        {/* Grafik Kunjungan Per Bulan */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-blue-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-3">
+                    <BarChart3 className="w-6 h-6 text-white" />
+                  </div>
+                  Grafik Kunjungan Per Bulan
+                </h2>
+                <p className="text-gray-600 mt-2">Data kunjungan 12 bulan terakhir</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {monthlyVisitsData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={monthlyVisitsData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis 
+                    dataKey="label" 
+                    stroke="#666"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis 
+                    stroke="#666"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)', 
+                      border: '2px solid #3b82f6',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      padding: '12px'
+                    }}
+                    labelStyle={{ 
+                      fontWeight: 'bold', 
+                      marginBottom: '8px',
+                      fontSize: '14px',
+                      color: '#1f2937'
+                    }}
+                    itemStyle={{
+                      color: '#3b82f6',
+                      fontWeight: '600',
+                      fontSize: '16px'
+                    }}
+                    formatter={(value) => [`${value} kunjungan`, 'Total']}
+                    labelFormatter={(label) => `Periode: ${label}`}
+                  />
+                  <Legend 
+                    wrapperStyle={{
+                      paddingTop: '20px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill="url(#colorGradient)" 
+                    name="Jumlah Kunjungan"
+                    radius={[8, 8, 0, 0]}
+                  />
+                  <defs>
+                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-96">
+                <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <BarChart3 className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Tidak Ada Data</h3>
+                <p className="text-gray-500">Data kunjungan per bulan belum tersedia</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Modern Doctor Rooms Section */}
-        <div className="space-y-6">
+        {/* <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -583,10 +677,10 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
         {/* Enhanced Queue Section */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+        {/* <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-blue-100">
             <div className="flex items-center justify-between">
               <div>
@@ -611,9 +705,9 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
-          <div className="p-6">
+          {/* <div className="p-6">
             {upcomingQueue.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -623,9 +717,9 @@ export default function Dashboard() {
                 <p className="text-gray-500">Saat ini tidak ada pasien dalam antrian kunjungan</p>
               </div>
             ) : (
-              <>
+              <> */}
                 {/* Desktop Table View - Large screens only */}
-                <div className="hidden xl:block">
+                {/* <div className="hidden xl:block">
                   <div className="overflow-hidden rounded-xl border border-gray-200">
                     <table className="w-full">
                       <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
@@ -670,10 +764,10 @@ export default function Dashboard() {
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Tablet Table View - Medium to Large screens */}
-                <div className="hidden md:block xl:hidden">
+                {/* <div className="hidden md:block xl:hidden">
                   <div className="overflow-hidden rounded-xl border border-gray-200">
                     <table className="w-full">
                       <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
@@ -722,10 +816,10 @@ export default function Dashboard() {
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Mobile Card View - Small screens */}
-                <div className="md:hidden space-y-4">
+                {/* <div className="md:hidden space-y-4">
                   {upcomingQueue.map((item, index) => (
                     <div
                       key={item.id}
@@ -758,32 +852,10 @@ export default function Dashboard() {
                         >
                           {item.status}
                         </span>
-                      </div>
+                      </div> */}
 
                       {/* Progress indicator for mobile */}
-                      <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-500 ${
-                              item.status === "Sedang Dilayani"
-                                ? "bg-gradient-to-r from-blue-500 to-blue-600 w-full"
-                                : "bg-gray-400 w-1/3"
-                            }`}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500 font-medium">
-                          {item.status === "Sedang Dilayani"
-                            ? "Sedang proses"
-                            : "Menunggu"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                      ?
       </div>
     </DashboardLayout>
   );

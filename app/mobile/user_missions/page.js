@@ -49,7 +49,7 @@ export default function UserMissionsPage() {
         throw new Error(data.message || 'Gagal memuat data user missions');
       }
     } catch (err) {
-      console.error('Error fetching user missions:', err);
+
       setError(err.message);
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function UserMissionsPage() {
         throw new Error(data.message || 'Gagal menghapus user mission');
       }
     } catch (err) {
-      console.error('Error deleting user mission:', err);
+
       alert(err.message);
     }
   };
@@ -123,7 +123,7 @@ export default function UserMissionsPage() {
         throw new Error(data.message || 'Gagal menyimpan user mission');
       }
     } catch (err) {
-      console.error('Error saving user mission:', err);
+
       alert(err.message);
     }
   };

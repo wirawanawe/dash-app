@@ -25,7 +25,7 @@ export default function PatientSearch({ onSelect }) {
       const data = await response.json();
       setSearchResults(data);
     } catch (error) {
-      console.error("Error searching patients:", error);
+
     } finally {
       setIsLoading(false);
     }

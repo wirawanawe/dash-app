@@ -29,7 +29,7 @@ export async function GET(request) {
 
     return NextResponse.json(patients);
   } catch (error) {
-    console.error("Error searching patients:", error);
+
     return NextResponse.json(
       { error: "Failed to search patients" },
       { status: 500 }

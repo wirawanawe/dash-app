@@ -81,7 +81,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error fetching sleep tracking data:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -162,7 +162,7 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating sleep tracking data:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

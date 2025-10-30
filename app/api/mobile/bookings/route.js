@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET /api/mobile/bookings - get all bookings for a user
 export async function GET(request) {
   try {
@@ -86,7 +85,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error getting mobile bookings:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -144,7 +143,7 @@ export async function POST(request) {
       data: { id: result.insertId },
     });
   } catch (error) {
-    console.error("Error creating mobile booking:", error);
+
     return NextResponse.json(
       {
         success: false,

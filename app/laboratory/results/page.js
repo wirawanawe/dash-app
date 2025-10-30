@@ -27,7 +27,7 @@ export default function LaboratoryResultsPage() {
       const data = await response.json();
       setResults(data);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data hasil laboratorium");
     } finally {
       setLoading(false);

@@ -86,7 +86,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error fetching user missions:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -175,7 +175,7 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating user mission:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
     });
     
   } catch (error) {
-    console.error('Error fetching wellness activity:', error);
+
     return NextResponse.json(
       { success: false, message: 'Failed to fetch wellness activity' },
       { status: 500 }
@@ -95,7 +95,7 @@ export async function PUT(request, { params }) {
     });
     
   } catch (error) {
-    console.error('Error updating wellness activity:', error);
+
     return NextResponse.json(
       { success: false, message: 'Failed to update wellness activity' },
       { status: 500 }
@@ -127,7 +127,7 @@ export async function DELETE(request, { params }) {
     });
     
   } catch (error) {
-    console.error('Error deleting wellness activity:', error);
+
     return NextResponse.json(
       { success: false, message: 'Failed to delete wellness activity' },
       { status: 500 }

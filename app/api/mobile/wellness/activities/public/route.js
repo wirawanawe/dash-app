@@ -38,7 +38,7 @@ export async function GET(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in public wellness activities endpoint:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: error.message,

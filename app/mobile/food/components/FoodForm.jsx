@@ -120,7 +120,7 @@ export default function FoodForm({ food, categories, onSubmit, onClose }) {
         alert(`Error: ${errorMessage}`);
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
+
       alert(`Network error: Gagal ${food ? 'memperbarui' : 'menambahkan'} makanan. Please check your connection.`);
     } finally {
       setLoading(false);

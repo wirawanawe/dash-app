@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get sync information
 export async function GET(request) {
   try {
@@ -90,7 +89,7 @@ export async function GET(request) {
       statistics,
     });
   } catch (error) {
-    console.error("Error fetching sync information:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -197,7 +196,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error creating sync:", error);
+
     return NextResponse.json(
       {
         success: false,

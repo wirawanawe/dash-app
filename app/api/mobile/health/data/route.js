@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get health data
 export async function GET(request) {
   try {
@@ -135,7 +134,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching health data:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -205,7 +204,7 @@ export async function POST(request) {
       data: { id: result.insertId },
     });
   } catch (error) {
-    console.error("Error creating health data:", error);
+
     return NextResponse.json(
       {
         success: false,

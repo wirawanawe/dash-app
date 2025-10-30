@@ -17,20 +17,16 @@ async function getUserFromToken(request) {
       token = cookieToken.value;
     }
   }
-  
-  console.log("🔍 Auth header:", authHeader);
-  console.log("🔍 Token extracted:", token ? token.substring(0, 20) + "..." : "null");
-  console.log("🔍 JWT_SECRET available:", !!process.env.JWT_SECRET);
-  
+
   if (!token) return null;
 
   try {
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secretKey);
-    console.log("✅ Token verified successfully:", payload);
+
     return payload;
   } catch (error) {
-    console.error("❌ Error verifying token:", error);
+
     return null;
   }
 }
@@ -54,17 +50,15 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const date = searchParams.get("date");
     const activity_type = searchParams.get("activity_type");
-    
-    console.log("🔍 GET /tracking/fitness - Parameters:", { date, activity_type, userId: userPayload.id });
 
     // Check database schema first to determine which columns exist
     let hasNewSchema = false;
     try {
       const schemaCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'workout_type'");
       hasNewSchema = schemaCheck.length > 0;
-      console.log("🔍 Database schema check for GET - has new schema:", hasNewSchema);
+
     } catch (error) {
-      console.log("🔍 Database schema check failed for GET, using old schema:", error.message);
+
       hasNewSchema = false;
     }
     
@@ -73,9 +67,9 @@ export async function GET(request) {
     try {
       const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
       hasExerciseMinutes = exerciseMinutesCheck.length > 0;
-      console.log("🔍 Database has exercise_minutes column for GET:", hasExerciseMinutes);
+
     } catch (error) {
-      console.log("🔍 Exercise minutes column check failed for GET:", error.message);
+
       hasExerciseMinutes = false;
     }
 
@@ -149,20 +143,14 @@ export async function GET(request) {
       sql += " ORDER BY tracking_date DESC, tracking_time DESC";
     }
 
-    console.log("📊 Executing GET query:", sql);
-    console.log("📝 GET Parameters:", params);
-
     fitnessData = await query(sql, params);
-    
-    console.log("📋 Retrieved fitness data count:", fitnessData.length);
-    console.log("📋 Sample fitness data:", fitnessData.slice(0, 2));
 
     return NextResponse.json({
       success: true,
       data: fitnessData
     });
   } catch (error) {
-    console.error("❌ Error fetching fitness tracking:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -191,9 +179,7 @@ export async function POST(request) {
     }
 
     const requestData = await request.json();
-    
-    console.log("📥 Fitness tracking request data:", requestData);
-    
+
     // Handle both old and new field formats
     let activity_type, activity_name, duration_minutes, calories_burned, distance_km, intensity, notes, tracking_date, tracking_time, steps;
     
@@ -222,18 +208,6 @@ export async function POST(request) {
       steps = requestData.steps || 0;
     }
 
-    console.log("🔧 Processed fitness data:", {
-      activity_type,
-      activity_name,
-      duration_minutes,
-      calories_burned,
-      distance_km,
-      steps,
-      notes,
-      tracking_date,
-      tracking_time
-    });
-
     if (!activity_type || !activity_name || duration_minutes === undefined || duration_minutes === null) {
       return NextResponse.json(
         {
@@ -249,9 +223,9 @@ export async function POST(request) {
     try {
       const schemaCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'workout_type'");
       hasNewSchema = schemaCheck.length > 0;
-      console.log("🔍 Database schema check - has new schema:", hasNewSchema);
+
     } catch (error) {
-      console.log("🔍 Database schema check failed, using old schema:", error.message);
+
       hasNewSchema = false;
     }
     
@@ -260,18 +234,18 @@ export async function POST(request) {
     try {
       const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
       hasExerciseMinutes = exerciseMinutesCheck.length > 0;
-      console.log("🔍 Database has exercise_minutes column:", hasExerciseMinutes);
+
     } catch (error) {
-      console.log("🔍 Exercise minutes column check failed:", error.message);
+
       hasExerciseMinutes = false;
     }
 
     // Debug: Log the actual database schema for troubleshooting
     try {
       const allColumns = await query("SHOW COLUMNS FROM fitness_tracking");
-      console.log("🔍 All fitness_tracking columns:", allColumns.map(col => col.Field));
+
     } catch (error) {
-      console.log("🔍 Error getting all columns:", error.message);
+
     }
 
     let sql, params;
@@ -319,8 +293,7 @@ export async function POST(request) {
         tracking_date || new Date().toISOString().split('T')[0],
         tracking_time || new Date().toTimeString().split(' ')[0],
       ];
-      
-      console.log("🔧 Using updated old schema with exercise_minutes column");
+
     } else {
       // Use old schema (activity_type, activity_name, duration_minutes)
       sql = `
@@ -343,19 +316,11 @@ export async function POST(request) {
         tracking_date || new Date().toISOString().split('T')[0],
         tracking_time || new Date().toTimeString().split(' ')[0],
       ];
-      
-      console.log("🔧 Using old schema without exercise_minutes column");
-    }
-    
-    console.log("💾 Executing SQL:", sql);
-    console.log("📝 Parameters:", params);
-    
-    const result = await query(sql, params);
-    
-    console.log("✅ Fitness tracking entry created successfully, ID:", result.insertId);
-    
 
-    
+    }
+
+    const result = await query(sql, params);
+
     return NextResponse.json({
       success: true,
       message: "Fitness tracking entry created successfully",
@@ -366,7 +331,7 @@ export async function POST(request) {
     });
     
   } catch (error) {
-    console.error("❌ Error creating fitness tracking:", error);
+
     return NextResponse.json(
       {
         success: false,

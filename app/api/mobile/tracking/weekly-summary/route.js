@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get weekly summary data (accumulated daily data for 7 days)
 export async function GET(request) {
   try {
@@ -217,7 +216,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching weekly summary:", error);
+
     return NextResponse.json(
       {
         success: false,

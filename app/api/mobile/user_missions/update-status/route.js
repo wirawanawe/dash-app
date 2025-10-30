@@ -5,9 +5,6 @@ export async function POST(request) {
   try {
     // Get current date in YYYY-MM-DD format
     const currentDate = new Date().toISOString().split('T')[0];
-    
-    console.log(`[${new Date().toISOString()}] Starting user missions status update via API`);
-    console.log(`Current date: ${currentDate}`);
 
     // Find active user_missions where created_at date is different from current date
     const updateQuery = `
@@ -25,7 +22,6 @@ export async function POST(request) {
     const result = await query(updateQuery, [currentDate, currentDate]);
     
     const updatedCount = result.affectedRows;
-    console.log(`Updated ${updatedCount} user missions from active to completed`);
 
     // Get details of updated missions for response
     let updatedMissions = [];
@@ -61,8 +57,6 @@ export async function POST(request) {
     `;
 
     const stats = await query(statsQuery);
-    
-    console.log(`[${new Date().toISOString()}] User missions status update completed successfully`);
 
     return NextResponse.json({
       success: true,
@@ -76,7 +70,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Error updating user missions status via API:', error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -134,7 +128,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error getting user missions status info:', error);
+
     return NextResponse.json(
       { 
         success: false,

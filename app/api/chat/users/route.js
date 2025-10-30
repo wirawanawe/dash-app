@@ -26,7 +26,7 @@ export async function GET(request) {
           };
         }
       } catch (error) {
-        console.error("Error verifying internal token:", error);
+
       }
     }
 
@@ -63,7 +63,7 @@ export async function GET(request) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -159,7 +159,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error in GET /api/chat/users:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

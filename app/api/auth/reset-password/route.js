@@ -86,7 +86,7 @@ export async function POST(request) {
       message: "Password berhasil direset. Silakan login dengan password baru Anda.",
     });
   } catch (error) {
-    console.error("Reset password error:", error);
+
     return NextResponse.json(
       {
         success: false,

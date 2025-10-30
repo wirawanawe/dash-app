@@ -33,7 +33,7 @@ export default function PolyclinicsPage() {
       const data = await response.json();
       setPolyclinics(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data poli");
       setPolyclinics([]);
     } finally {
@@ -61,7 +61,7 @@ export default function PolyclinicsPage() {
         toast.success("Poli berhasil dihapus");
         fetchPolyclinics();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error(error.message || "Gagal menghapus poli");
       }
     }

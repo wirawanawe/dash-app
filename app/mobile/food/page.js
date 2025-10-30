@@ -56,7 +56,7 @@ export default function FoodManagementPage() {
       }
     } catch (err) {
       setError("Gagal memuat data makanan");
-      console.error("Error fetching foods:", err);
+
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function FoodManagementPage() {
         setCategories(data.data);
       }
     } catch (err) {
-      console.error("Error fetching categories:", err);
+
     }
   };
 
@@ -118,7 +118,7 @@ export default function FoodManagementPage() {
         alert(data.message || "Gagal menghapus makanan");
       }
     } catch (err) {
-      console.error("Error deleting food:", err);
+
       alert("Gagal menghapus makanan");
     }
   };

@@ -6,14 +6,11 @@ export const dynamic = 'force-dynamic';
 // GET - Get user's missions (v2) - Optimized for Performance
 export async function GET(request) {
   try {
-    console.log("=== MY-MISSIONS V2 (OPTIMIZED) ===");
-    
+
     // Get parameters from URL
     const url = new URL(request.url);
     const user_id = url.searchParams.get("user_id");
-    
-    console.log("User ID from URL:", user_id);
-    
+
     if (!user_id) {
       return NextResponse.json(
         {
@@ -35,8 +32,6 @@ export async function GET(request) {
         { status: 400 }
       );
     }
-
-    console.log("Parsed user ID:", userId);
 
     // Single optimized query with all data and summary calculation
     const optimizedQuery = `
@@ -71,11 +66,8 @@ export async function GET(request) {
       WHERE um.user_id = ?
       ORDER BY um.created_at DESC
     `;
-    
-    console.log("Optimized query executed for user:", userId);
-    
+
     const userMissions = await query(optimizedQuery, [userId]);
-    console.log("Query result count:", userMissions.length);
 
     // Extract summary from first row (all rows have same summary values)
     const summary = userMissions.length > 0 ? {
@@ -131,9 +123,6 @@ export async function GET(request) {
       };
     });
 
-    console.log("Processed user missions:", processedUserMissions.length, "missions");
-    console.log("Summary:", summary);
-
     return NextResponse.json({
       success: true,
       data: processedUserMissions,
@@ -146,7 +135,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error in my-missions v2 (optimized):", error);
+
     return NextResponse.json(
       {
         success: false,

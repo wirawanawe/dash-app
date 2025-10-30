@@ -128,7 +128,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
+
     return NextResponse.json(
       {
         success: false,

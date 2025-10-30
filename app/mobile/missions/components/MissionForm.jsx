@@ -66,7 +66,7 @@ export default function MissionForm({ mission, onSubmit, onClose }) {
         alert(`Error: ${errorMessage}`);
       }
     } catch (error) {
-      console.error('Error saving mission:', error);
+
       alert('Network error: Failed to save mission. Please check your connection.');
     } finally {
       setLoading(false);

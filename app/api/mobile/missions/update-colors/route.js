@@ -29,7 +29,7 @@ export async function POST(request) {
       updatedMissions: missions
     });
   } catch (error) {
-    console.error('Error updating missions:', error);
+
     return NextResponse.json(
       { error: 'Failed to update missions' },
       { status: 500 }

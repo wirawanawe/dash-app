@@ -41,7 +41,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error getting PIN status:', error);
+
     return NextResponse.json({
       success: false,
       message: 'Internal server error'
@@ -104,7 +104,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Error enabling PIN:', error);
+
     return NextResponse.json({
       success: false,
       message: 'Internal server error'
@@ -182,7 +182,7 @@ export async function PUT(request) {
     });
 
   } catch (error) {
-    console.error('Error updating PIN:', error);
+
     return NextResponse.json({
       success: false,
       message: 'Internal server error'
@@ -235,7 +235,7 @@ export async function DELETE(request) {
     });
 
   } catch (error) {
-    console.error('Error disabling PIN:', error);
+
     return NextResponse.json({
       success: false,
       message: 'Internal server error'

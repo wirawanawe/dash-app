@@ -15,7 +15,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { error: "Failed to fetch doctor" },
       { status: 500 }
@@ -54,7 +54,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Error updating doctor:", error);
+
     return NextResponse.json(
       { error: "Failed to update doctor" },
       { status: 500 }
@@ -68,7 +68,7 @@ export async function DELETE(request, { params }) {
     await query("DELETE FROM doctors WHERE id = ?", [parseInt(params.id)]);
     return NextResponse.json({ message: "Doctor deleted successfully" });
   } catch (error) {
-    console.error("Error deleting doctor:", error);
+
     return NextResponse.json(
       { error: "Failed to delete doctor" },
       { status: 500 }

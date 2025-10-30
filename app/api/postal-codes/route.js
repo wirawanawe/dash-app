@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const villageId = searchParams.get("villageId");
@@ -23,7 +22,7 @@ export async function GET(request) {
 
     return NextResponse.json({ code: postalCode?.code || "" });
   } catch (error) {
-    console.error("Error getting postal code:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil kode pos" },
       { status: 500 }
@@ -61,7 +60,7 @@ export async function POST(request) {
 
     return NextResponse.json(postalCode);
   } catch (error) {
-    console.error("Error creating postal code:", error);
+
     return NextResponse.json(
       { error: "Gagal membuat kode pos" },
       { status: 500 }

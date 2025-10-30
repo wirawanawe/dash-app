@@ -12,7 +12,7 @@ export async function GET() {
       status: 'healthy'
     });
   } catch (error) {
-    console.error('Test connection error:', error);
+
     return NextResponse.json(
       {
         success: false,
@@ -27,11 +27,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    console.log('🔍 Mobile connection test POST endpoint called');
-    
+
     const body = await request.json();
-    console.log('📝 Received data:', body);
-    
+
     return NextResponse.json({
       success: true,
       message: 'Mobile app POST test successful',
@@ -39,7 +37,7 @@ export async function POST(request) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Error in POST test:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'POST test failed' 

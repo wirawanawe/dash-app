@@ -55,8 +55,6 @@ export async function POST(request) {
     const body = await request.json();
     const { reason } = body;
 
-    console.log(`🛑 User ${userId} requesting to stop wellness program. Reason: ${reason || 'No reason provided'}`);
-
     // Check if user has an active wellness program
     const userQuery = `
       SELECT 
@@ -130,8 +128,6 @@ export async function POST(request) {
       `;
       
       await query(resetQuery, [reason || 'User stopped program', userId]);
-      
-      console.log(`✅ Successfully stopped wellness program for user ID: ${userId}`);
 
       return NextResponse.json({
         success: true,
@@ -145,7 +141,7 @@ export async function POST(request) {
       });
 
     } catch (error) {
-      console.error(`❌ Error stopping wellness program for user ${userId}:`, error);
+
       return NextResponse.json({ 
         success: false, 
         error: 'Internal server error',
@@ -154,7 +150,7 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error('❌ Error in stop wellness program:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',
@@ -267,7 +263,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('❌ Error getting wellness program stop history:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',
@@ -279,8 +275,7 @@ export async function GET(request) {
 // Helper function to mark program as stopped and save to history
 async function markProgramAsStopped(userId, userData, reason) {
   try {
-    console.log(`📝 Marking program as stopped for user ID: ${userId}`);
-    
+
     // Get wellness progress data for the stopped program
     const progressQuery = `
       SELECT 
@@ -352,11 +347,9 @@ async function markProgramAsStopped(userId, userData, reason) {
       completionRate,
       `Program dihentikan oleh user. Alasan: ${reason || 'Tidak ada alasan'}. Selesai pada hari ke-${daysCompleted} dari ${userData.wellness_program_duration} hari.`
     ]);
-    
-    console.log(`✅ Program marked as stopped for user ID: ${userId}`);
-    
+
   } catch (error) {
-    console.error(`❌ Error marking program as stopped for user ${userId}:`, error);
+
     throw error;
   }
 }

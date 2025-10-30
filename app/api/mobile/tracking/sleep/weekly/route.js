@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get weekly sleep data
 export async function GET(request) {
   try {
@@ -98,7 +97,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching weekly sleep data:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get user's missions
 export async function GET(request) {
   try {
@@ -36,7 +35,6 @@ export async function GET(request) {
       );
 
       const userId = payload.userId;
-      console.log("Authenticated user ID:", userId);
 
       // Simple query first to check if user has any missions
       let simpleQuery = "SELECT COUNT(*) as count FROM user_missions WHERE user_id = ?";
@@ -46,16 +44,12 @@ export async function GET(request) {
         simpleQuery += " AND mission_date = ?";
         simpleParams.push(targetDate);
       }
-      
-      console.log("Simple query:", simpleQuery);
-      console.log("Params:", simpleParams);
-      
+
       const simpleResult = await query(simpleQuery, simpleParams);
-      console.log("Simple result:", simpleResult);
 
       // If user has no missions for the specified date, return empty response
       if (simpleResult[0]?.count === 0) {
-        console.log(`User has no missions for date ${targetDate}, returning empty response`);
+
         return NextResponse.json({
           success: true,
           data: [],
@@ -113,12 +107,8 @@ export async function GET(request) {
       }
       
       complexQuery += " ORDER BY um.created_at DESC";
-      
-      console.log("Complex query:", complexQuery);
-      console.log("Complex params:", complexParams);
-      
+
       const userMissions = await query(complexQuery, complexParams);
-      console.log("Complex result count:", userMissions.length);
 
       // Process user missions to ensure correct progress calculation
       const processedUserMissions = userMissions.map(mission => {
@@ -145,15 +135,6 @@ export async function GET(request) {
           }
         };
       });
-
-      console.log("Processed user missions:", processedUserMissions.map(m => ({
-        id: m.user_mission_id,
-        title: m.title,
-        current_value: m.current_value,
-        target_value: m.target_value,
-        progress: m.progress,
-        status: m.status
-      })));
 
       // Get total count
       let countQuery = `
@@ -206,7 +187,6 @@ export async function GET(request) {
         summary.completion_rate = (summary.completed_missions / summary.total_missions) * 100;
       }
 
-      console.log("Returning successful response with data");
       return NextResponse.json({
         success: true,
         data: processedUserMissions,
@@ -221,7 +201,7 @@ export async function GET(request) {
         },
       });
     } catch (jwtError) {
-      console.error("JWT verification error:", jwtError);
+
       return NextResponse.json(
         {
           success: false,
@@ -231,7 +211,7 @@ export async function GET(request) {
       );
     }
   } catch (error) {
-    console.error("Error in my-missions:", error);
+
     return NextResponse.json(
       {
         success: false,

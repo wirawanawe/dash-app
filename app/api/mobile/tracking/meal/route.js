@@ -128,7 +128,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching meal tracking:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -152,14 +152,6 @@ export async function POST(request) {
     } = await request.json();
 
     // Debug logging
-    console.log('🍽️ Received meal data:', {
-      user_id,
-      meal_type,
-      foods_count: foods?.length,
-      foods: foods,
-      notes,
-      recorded_at
-    });
 
     if (!user_id || !meal_type || !foods || !Array.isArray(foods)) {
       return NextResponse.json(
@@ -174,7 +166,6 @@ export async function POST(request) {
     try {
       // Convert Indonesian meal type to English for database storage
       const englishMealType = convertMealTypeToEnglish(meal_type);
-      console.log('🍽️ Meal type conversion:', { original: meal_type, converted: englishMealType });
 
       // Format datetime for MySQL
       const formattedDate = recorded_at ? 
@@ -240,19 +231,7 @@ export async function POST(request) {
         insertedIds.push(result.insertId);
 
         // Debug logging for each food
-        console.log('🍎 Saved food:', {
-          id: result.insertId,
-          user_id,
-          meal_type: englishMealType,
-          food_id: food.food_id,
-          food_name: foodName,
-          quantity,
-          unit: food.unit || 'serving',
-          calories: validatedCalories,
-          protein: validatedProtein,
-          carbs: validatedCarbs,
-          fat: validatedFat
-        });
+
       }
 
       return NextResponse.json({
@@ -261,11 +240,11 @@ export async function POST(request) {
         data: { ids: insertedIds },
       });
     } catch (error) {
-      console.error("Error inserting meal data:", error);
+
       throw error;
     }
   } catch (error) {
-    console.error("Error creating meal tracking:", error);
+
     return NextResponse.json(
       {
         success: false,

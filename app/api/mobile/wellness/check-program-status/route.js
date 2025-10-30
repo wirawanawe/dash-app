@@ -48,8 +48,6 @@ export async function GET(request) {
       );
     }
 
-    console.log('🔍 Checking wellness program status for user ID:', userId);
-
     // Get user wellness program data
     const userQuery = `
       SELECT 
@@ -162,7 +160,7 @@ export async function GET(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Error in wellness program status check:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',
@@ -174,8 +172,7 @@ export async function GET(request) {
 // Helper function to mark program as completed and save to history
 async function markProgramAsCompleted(userId, userData) {
   try {
-    console.log(`📝 Marking program as completed for user ID: ${userId}`);
-    
+
     // Get wellness progress data for the completed program
     const progressQuery = `
       SELECT 
@@ -256,11 +253,9 @@ async function markProgramAsCompleted(userId, userData) {
     `;
     
     await query(updateQuery, [userId]);
-    
-    console.log(`✅ Program marked as completed for user ID: ${userId}`);
-    
+
   } catch (error) {
-    console.error(`❌ Error marking program as completed for user ${userId}:`, error);
+
     throw error;
   }
 }
@@ -268,8 +263,7 @@ async function markProgramAsCompleted(userId, userData) {
 // Helper function to reset expired program
 async function resetExpiredProgram(userId) {
   try {
-    console.log(`🔄 Resetting expired program for user ID: ${userId}`);
-    
+
     // Reset wellness_program_joined to 0 and clear program data
     const resetQuery = `
       UPDATE mobile_users 
@@ -282,11 +276,9 @@ async function resetExpiredProgram(userId) {
     `;
     
     await query(resetQuery, [userId]);
-    
-    console.log(`✅ Successfully reset program for user ID: ${userId}`);
-    
+
   } catch (error) {
-    console.error(`❌ Error resetting program for user ${userId}:`, error);
+
     throw error;
   }
 }

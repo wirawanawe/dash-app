@@ -12,7 +12,7 @@ export async function PUT(request, { params }) {
     
     // Validate userMissionId parameter
     if (!userMissionId || isNaN(parseInt(userMissionId))) {
-      console.log(`❌ Invalid userMissionId: ${userMissionId}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -28,7 +28,7 @@ export async function PUT(request, { params }) {
     try {
       requestBody = await request.json();
     } catch (error) {
-      console.log("❌ Invalid JSON in request body");
+
       return NextResponse.json(
         {
           success: false,
@@ -41,11 +41,9 @@ export async function PUT(request, { params }) {
 
     const { current_value, notes } = requestBody;
 
-    console.log(`📈 Updating mission progress: ${userMissionId} to ${current_value}`);
-
     // Validate required fields
     if (current_value === undefined || current_value === null) {
-      console.log("❌ current_value is required");
+
       return NextResponse.json(
         {
           success: false,
@@ -57,7 +55,7 @@ export async function PUT(request, { params }) {
     }
 
     if (typeof current_value !== 'number' || current_value < 0) {
-      console.log(`❌ Invalid current_value: ${current_value}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -80,11 +78,11 @@ export async function PUT(request, { params }) {
         user = await verifyJwtToken(token);
         if (user) {
           isAuthenticated = true;
-          console.log(`✅ User authenticated: ${user.id}`);
+
         }
       }
     } catch (authError) {
-      console.log('⚠️ Authentication failed, trying mobile user detection:', authError.message);
+
     }
     
     // If not authenticated, try to get user from mobile request
@@ -93,21 +91,21 @@ export async function PUT(request, { params }) {
         user = await getMobileUserFromRequest(request);
         if (user) {
           isAuthenticated = true;
-          console.log(`✅ Mobile user detected: ${user.id}`);
+
         }
       } catch (mobileAuthError) {
-        console.log('⚠️ Mobile user detection failed:', mobileAuthError.message);
+
       }
     }
     
     // If still not authenticated, use default user ID for testing
     if (!isAuthenticated) {
-      console.log('⚠️ No authentication found, using default user ID for testing');
+
       user = { id: 1 }; // Use Super Admin user ID for testing
     }
 
     // Check if user mission exists and get mission details
-    console.log(`🔍 Checking user mission: ${userMissionId}`);
+
     const userMissionCheck = await query(
       `SELECT 
         um.id, um.user_id, um.status, um.progress, um.current_value, 
@@ -122,7 +120,7 @@ export async function PUT(request, { params }) {
     );
 
     if (userMissionCheck.length === 0) {
-      console.log(`❌ User mission not found: ${userMissionId}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -134,11 +132,10 @@ export async function PUT(request, { params }) {
     }
 
     const userMission = userMissionCheck[0];
-    console.log(`✅ Found user mission: ${userMission.title} (${userMission.status})`);
 
     // Validate mission status
     if (userMission.status === "completed") {
-      console.log(`❌ Mission already completed: ${userMissionId}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -150,7 +147,7 @@ export async function PUT(request, { params }) {
     }
 
     if (userMission.status === "cancelled" || userMission.status === "abandoned") {
-      console.log(`❌ Mission cancelled/abandoned: ${userMissionId}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -163,7 +160,7 @@ export async function PUT(request, { params }) {
 
     // Validate mission is active
     if (!userMission.is_active) {
-      console.log(`❌ Mission is not active: ${userMissionId}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -176,7 +173,6 @@ export async function PUT(request, { params }) {
 
     // Calculate new progress
     const newProgress = Math.min(Math.round((current_value / userMission.target_value) * 100), 100);
-    console.log(`📊 Progress calculation: ${current_value}/${userMission.target_value} = ${newProgress}%`);
 
     // Determine new status
     let newStatus = userMission.status;
@@ -187,8 +183,6 @@ export async function PUT(request, { params }) {
     } else {
       newStatus = "active";
     }
-
-    console.log(`🔄 Status change: ${userMission.status} → ${newStatus}`);
 
     // Update user mission in database
     const updateSql = `
@@ -211,7 +205,6 @@ export async function PUT(request, { params }) {
       userMissionId
     ];
 
-    console.log(`💾 Updating database with params:`, updateParams);
     await query(updateSql, updateParams);
 
     // Get updated user mission data
@@ -227,7 +220,7 @@ export async function PUT(request, { params }) {
     );
 
     if (updatedUserMission.length === 0) {
-      console.log(`❌ Failed to retrieve updated user mission: ${userMissionId}`);
+
       return NextResponse.json(
         {
           success: false,
@@ -270,14 +263,10 @@ export async function PUT(request, { params }) {
       response.data.points_earned = userMission.points;
     }
 
-    console.log(`✅ Mission progress updated successfully: ${newProgress}% (${newStatus})`);
-    console.log(`📤 Response:`, response);
-
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error("❌ Error updating mission progress:", error);
-    
+
     // Handle specific database errors
     if (error.code === 'ER_NO_REFERENCED_ROW_2') {
       return NextResponse.json(
@@ -379,7 +368,7 @@ export async function GET(request, { params }) {
     });
 
   } catch (error) {
-    console.error("❌ Error getting mission progress:", error);
+
     return NextResponse.json(
       {
         success: false,

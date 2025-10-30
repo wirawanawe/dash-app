@@ -49,12 +49,12 @@ export default function ActivitiesPage() {
         setTotalPages(data.pagination?.totalPages || 1);
         setCurrentPage(data.pagination?.page || 1);
       } else {
-        console.error('Failed to fetch activities:', data.error || data.message);
+
         setActivities([]);
         setError(data.error || data.message || 'Failed to fetch activities');
       }
     } catch (error) {
-      console.error('Error fetching activities:', error);
+
       setActivities([]);
       setError(error.message);
     } finally {
@@ -93,7 +93,7 @@ export default function ActivitiesPage() {
       
       toast.success('Activity berhasil dihapus');
     } catch (err) {
-      console.error('Error deleting activity:', err);
+
       toast.error('Failed to delete activity');
     }
   };
@@ -156,7 +156,7 @@ export default function ActivitiesPage() {
   };
 
   const activitiesArray = activities || [];
-  console.log('Activities array length:', activitiesArray.length);
+
   const stats = [
     {
       label: "Total Activities",
@@ -218,7 +218,7 @@ export default function ActivitiesPage() {
                 Habit <span className="text-yellow-300">Activities</span>
               </h1>
               <p className="text-xl text-blue-100 max-w-2xl">
-                Kelola aktivitas kesehatan dan tracking kesehatan pengguna mobile PHC
+                Kelola aktivitas kebiasaan harian dan tracking kesehatan pengguna mobile PHC
               </p>
             </div>
             <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">

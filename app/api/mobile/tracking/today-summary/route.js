@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get summary for a specific date (defaults to today if no date provided)
 export async function GET(request) {
   try {
@@ -23,7 +22,7 @@ export async function GET(request) {
         );
         userId = payload.id || payload.userId;
       } catch (jwtError) {
-        console.error("JWT verification error:", jwtError);
+
         return NextResponse.json(
           {
             success: false,
@@ -49,9 +48,9 @@ export async function GET(request) {
     }
 
     // Ensure userId is a number
-    console.log("🔍 Today Summary - userId before parsing:", userId);
+
     userId = parseInt(userId);
-    console.log("🔍 Today Summary - userId after parsing:", userId);
+
     if (isNaN(userId)) {
       return NextResponse.json(
         {
@@ -66,8 +65,6 @@ export async function GET(request) {
     const searchParams = new URL(request.url).searchParams;
     const dateParam = searchParams.get("date");
     const date = dateParam || new Date().toISOString().split('T')[0];
-
-
 
     // Validate date format (YYYY-MM-DD)
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -193,14 +190,12 @@ export async function GET(request) {
       points_earned: 0, // Placeholder
     };
 
-
-
     return NextResponse.json({
       success: true,
       data: summary,
     });
   } catch (error) {
-    console.error("Error fetching summary for date:", error);
+
     return NextResponse.json(
       {
         success: false,

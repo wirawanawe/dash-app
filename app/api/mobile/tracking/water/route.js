@@ -17,20 +17,16 @@ async function getUserFromToken(request) {
       token = cookieToken.value;
     }
   }
-  
-  console.log("🔍 Auth header:", authHeader);
-  console.log("🔍 Token extracted:", token ? token.substring(0, 20) + "..." : "null");
-  console.log("🔍 JWT_SECRET available:", !!process.env.JWT_SECRET);
-  
+
   if (!token) return null;
 
   try {
     const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secretKey);
-    console.log("✅ Token verified successfully:", payload);
+
     return payload;
   } catch (error) {
-    console.error("❌ Error verifying token:", error);
+
     return null;
   }
 }
@@ -75,7 +71,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching water tracking:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -153,8 +149,6 @@ export async function POST(request) {
       totalWaterIntake = amount_ml;
     }
 
-
-
     return NextResponse.json({
       success: true,
       message: "Water tracking entry created successfully",
@@ -164,7 +158,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error creating water tracking:", error);
+
     return NextResponse.json(
       {
         success: false,

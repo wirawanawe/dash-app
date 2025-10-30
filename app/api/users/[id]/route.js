@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query, rawQuery } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { jwtVerify } from "jose";
 
 // Role hierarchy: Superadmin > Admin > Doctor > Staff
 const roleHierarchy = {
@@ -20,10 +21,37 @@ const canManageRole = (userRole, targetRole) => {
   return userLevel > targetLevel; // Can only manage roles below their own level
 };
 
+// Function to get user from token
+async function getUserFromToken(request) {
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get("authorization");
+  let token = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  } else {
+    // Fallback to cookies
+    const cookieToken = request.cookies.get("token");
+    if (cookieToken) {
+      token = cookieToken.value;
+    }
+  }
+  
+  if (!token) return null;
+
+  try {
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(token, secretKey);
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
 // GET single user
 export async function GET(request, { params }) {
   try {
-    const [user] = await query(
+    const users = await query(
       `SELECT 
         u.id, 
         u.name, 
@@ -51,7 +79,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("Error fetching user:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data pengguna" },
       { status: 500 }
@@ -62,17 +90,17 @@ export async function GET(request, { params }) {
 // PUT update user
 export async function PUT(request, { params }) {
   try {
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
+
     const body = await request.json();
-    
-    console.log('[Users API] PUT request for user ID:', params.id);
-    console.log('[Users API] Request body:', JSON.stringify(body, null, 2));
-    
+
     // Trim and validate required fields
     const name = body.name?.trim();
     const email = body.email?.trim();
     
     if (!name || !email) {
-      console.error('[Users API] Validation failed:', { name: !!name, email: !!email });
+
       return NextResponse.json(
         { error: `Nama dan email wajib diisi. ${!name ? 'Nama kosong. ' : ''}${!email ? 'Email kosong.' : ''}` },
         { status: 400 }
@@ -88,9 +116,9 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Check if user exists
+    // Check if user exists and get their current role
     const [existingUser] = await query(
-      "SELECT id FROM users WHERE id = ?",
+      "SELECT id, role FROM users WHERE id = ?",
       [params.id]
     );
 
@@ -99,6 +127,29 @@ export async function PUT(request, { params }) {
         { error: "User tidak ditemukan" },
         { status: 404 }
       );
+    }
+
+    // Check if current user is trying to edit a superadmin
+    // Only superadmin can edit superadmin users
+    if (existingUser.role?.toUpperCase() === 'SUPERADMIN') {
+      if (!userPayload || userPayload.role?.toUpperCase() !== 'SUPERADMIN') {
+        return NextResponse.json(
+          { error: "Hanya Superadmin yang dapat mengedit pengguna Superadmin" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Check if trying to change role to SUPERADMIN
+    // Only superadmin can set role to superadmin
+    const newRole = body.role ? body.role.toUpperCase() : existingUser.role?.toUpperCase();
+    if (newRole === 'SUPERADMIN') {
+      if (!userPayload || userPayload.role?.toUpperCase() !== 'SUPERADMIN') {
+        return NextResponse.json(
+          { error: "Hanya Superadmin yang dapat mengatur role Superadmin" },
+          { status: 403 }
+        );
+      }
     }
 
     // Check if email is already used by another user
@@ -134,8 +185,6 @@ export async function PUT(request, { params }) {
     
     const result = await query(updateQuery, queryParams);
 
-    console.log('[Users API] Update result:', result);
-
     if (result.affectedRows === 0) {
       return NextResponse.json(
         { error: "Gagal mengupdate user" },
@@ -167,7 +216,7 @@ export async function PUT(request, { params }) {
       user: updatedUser,
     });
   } catch (error) {
-    console.error("[Users API] Error updating user:", error);
+
     return NextResponse.json(
       { error: error.message || "Gagal mengupdate user" },
       { status: 500 }
@@ -178,9 +227,12 @@ export async function PUT(request, { params }) {
 // DELETE user
 export async function DELETE(request, { params }) {
   try {
-    // Check if user exists
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
+
+    // Check if user exists and get their role
     const [existingUser] = await query(
-      "SELECT id FROM users WHERE id = ?",
+      "SELECT id, role FROM users WHERE id = ?",
       [params.id]
     );
 
@@ -191,14 +243,22 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // In a real app, you'd check if the current user can delete this user
-    // For now, we'll allow deletion
+    // Only superadmin can delete superadmin
+    // All other roles are blocked from deleting superadmin
+    if (existingUser.role?.toUpperCase() === 'SUPERADMIN') {
+      if (!userPayload || userPayload.role?.toUpperCase() !== 'SUPERADMIN') {
+        return NextResponse.json(
+          { error: "Hanya Superadmin yang dapat menghapus pengguna Superadmin" },
+          { status: 403 }
+        );
+      }
+    }
 
     await query("DELETE FROM users WHERE id = ?", [params.id]);
 
     return NextResponse.json({ message: "Pengguna berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting user:", error);
+
     return NextResponse.json(
       { error: "Gagal menghapus pengguna" },
       { status: 500 }

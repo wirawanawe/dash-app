@@ -22,7 +22,7 @@ export async function GET(req) {
 
     return NextResponse.json(treatment);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data tindakan" },
       { status: 500 }
@@ -51,7 +51,7 @@ export async function PUT(req) {
 
     return NextResponse.json(treatment);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengupdate tindakan" },
       { status: 500 }
@@ -73,7 +73,7 @@ export async function DELETE(req) {
 
     return NextResponse.json({ message: "Tindakan berhasil dihapus" });
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus tindakan" },
       { status: 500 }

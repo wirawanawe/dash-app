@@ -28,13 +28,13 @@ export default function ExaminationsPage() {
         if (!response.ok) {
           // Try to get error details from response
           const errorData = await response.json().catch(() => ({}));
-          console.error("Server error:", response.status, errorData);
+
           throw new Error(
             `HTTP error! Status: ${response.status}. ${errorData.message || ""}`
           );
         }
       } catch (networkError) {
-        console.error("Network error:", networkError);
+
         // Use empty array as fallback when API fails
         setExaminations([]);
         setIsLoading(false);
@@ -63,13 +63,13 @@ export default function ExaminationsPage() {
         setExaminations(Array.isArray(data) ? data : []);
         setIsLoading(false);
       } catch (parseError) {
-        console.error("JSON parsing error:", parseError);
+
         setExaminations([]);
         setIsLoading(false);
         toast.error("Gagal memproses data dari server");
       }
     } catch (error) {
-      console.error("Error in fetchExaminations:", error);
+
       setExaminations([]);
       setIsLoading(false);
       toast.error("Gagal mengambil data pemeriksaan");
@@ -96,7 +96,7 @@ export default function ExaminationsPage() {
       );
       setShowForm(false);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal menyimpan pemeriksaan");
     }
   };
@@ -114,7 +114,7 @@ export default function ExaminationsPage() {
         
         toast.success("Pemeriksaan berhasil dihapus");
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus pemeriksaan");
       }
     }

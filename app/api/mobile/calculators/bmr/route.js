@@ -105,7 +105,7 @@ export async function POST(request) {
       data: result,
     });
   } catch (error) {
-    console.error("Error calculating BMR:", error);
+
     return NextResponse.json(
       {
         success: false,

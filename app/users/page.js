@@ -112,7 +112,7 @@ export default function UsersPage() {
       setMetadata(result.pagination || {});
       setTotalPages(result.pagination?.totalPages || 0);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setUsers([]);
       setMetadata({});
@@ -139,9 +139,7 @@ export default function UsersPage() {
       }
 
       const data = await response.json();
-      console.log('[Users Page] Clinics data received:', data);
-      console.log('[Users Page] Is array?', Array.isArray(data));
-      
+
       // Ensure data is an array
       if (Array.isArray(data)) {
         setClinics(data);
@@ -149,11 +147,11 @@ export default function UsersPage() {
         // If API returns { clinics: [...] }
         setClinics(data.clinics);
       } else {
-        console.warn('[Users Page] Clinics data is not an array:', data);
+
         setClinics([]);
       }
     } catch (error) {
-      console.error("Error fetching clinics:", error);
+
       toast.error("Gagal memuat data klinik");
       setClinics([]); // Set empty array on error
     }
@@ -200,8 +198,13 @@ export default function UsersPage() {
   };
 
   // Handle edit user
-  const handleEditUser = (user) => {
-    setEditingUser(user);
+  const handleEditUser = (targetUser) => {
+    // Check if non-superadmin is trying to edit superadmin
+    if (user?.role?.toUpperCase() !== 'SUPERADMIN' && targetUser?.role?.toUpperCase() === 'SUPERADMIN') {
+      toast.error("Hanya Superadmin yang dapat mengedit pengguna Superadmin");
+      return;
+    }
+    setEditingUser(targetUser);
     setShowForm(true);
   };
 
@@ -217,8 +220,13 @@ export default function UsersPage() {
   };
 
   // Handle show permissions modal
-  const handleShowPermissions = (user) => {
-    setPermissionUser(user);
+  const handleShowPermissions = (targetUser) => {
+    // Check if non-superadmin is trying to manage superadmin permissions
+    if (user?.role?.toUpperCase() !== 'SUPERADMIN' && targetUser?.role?.toUpperCase() === 'SUPERADMIN') {
+      toast.error("Hanya Superadmin yang dapat mengelola akses menu Superadmin");
+      return;
+    }
+    setPermissionUser(targetUser);
     setShowPermissionsModal(true);
   };
 
@@ -228,7 +236,13 @@ export default function UsersPage() {
   };
 
   // Handle delete user
-  const handleDeleteUser = async (id) => {
+  const handleDeleteUser = async (id, targetUser) => {
+    // Check if non-superadmin is trying to delete superadmin
+    if (user?.role?.toUpperCase() !== 'SUPERADMIN' && targetUser?.role?.toUpperCase() === 'SUPERADMIN') {
+      toast.error("Hanya Superadmin yang dapat menghapus pengguna Superadmin");
+      return;
+    }
+
     if (!confirm("Apakah Anda yakin ingin menghapus pengguna ini?")) {
       return;
     }
@@ -244,9 +258,10 @@ export default function UsersPage() {
       }
 
       toast.success("Pengguna berhasil dihapus");
+      fetchUsers(); // Refresh the list after deletion
     } catch (error) {
-      console.error("Error deleting user:", error);
-      toast.error("Gagal menghapus pengguna");
+
+      toast.error(error.message || "Gagal menghapus pengguna");
     }
   };
 
@@ -526,7 +541,7 @@ export default function UsersPage() {
               <select
                 value={roleFilter}
                 onChange={(e) => handleRoleFilterChange(e.target.value)}
-                className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm"
+                className="px-4 py-3 text-black rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm"
               >
                 {roles.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -653,8 +668,8 @@ export default function UsersPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    {users.map((tableUser) => (
+                      <tr key={tableUser.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
@@ -663,8 +678,8 @@ export default function UsersPage() {
                               </div>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                              <div className="text-sm text-gray-500">{user.email}</div>
+                              <div className="text-sm font-medium text-gray-900">{tableUser.name}</div>
+                              <div className="text-sm text-gray-500">{tableUser.email}</div>
                             </div>
                           </div>
                         </td>
@@ -672,25 +687,25 @@ export default function UsersPage() {
                           <div className="text-sm text-gray-900">
                             <div className="flex items-center">
                               <Mail className="h-3 w-3 mr-1 text-gray-400" />
-                              {user.email}
+                              {tableUser.email}
                             </div>
-                            {user.phone && (
+                            {tableUser.phone && (
                               <div className="flex items-center mt-1">
                                 <Phone className="h-3 w-3 mr-1 text-gray-400" />
-                                {user.phone}
+                                {tableUser.phone}
                               </div>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getRoleBadge(user.role)}
+                          {getRoleBadge(tableUser.role)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {user.clinic_name ? (
+                            {tableUser.clinic_name ? (
                               <div className="flex items-center">
                                 <Building2 className="h-3 w-3 mr-1 text-gray-400" />
-                                {user.clinic_name}
+                                {tableUser.clinic_name}
                               </div>
                             ) : (
                               <span className="text-gray-400">-</span>
@@ -698,41 +713,50 @@ export default function UsersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(user.is_active)}
+                          {getStatusBadge(tableUser.is_active)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(user.created_at)}
+                          {formatDate(tableUser.created_at)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                      <div className="flex items-center justify-end space-x-2">
                              <button
-                               onClick={() => handleShowDetail(user)}
+                               onClick={() => handleShowDetail(tableUser)}
                                className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                                title="Lihat Detail"
                              >
                                <Eye className="h-4 w-4" />
                              </button>
-                             <button
-                               onClick={() => handleShowPermissions(user)}
-                               className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-50 transition-colors"
-                               title="Kelola Akses Menu"
-                             >
-                               <Lock className="h-4 w-4" />
-                             </button>
-                             <button
-                               onClick={() => handleEditUser(user)}
-                               className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
-                               title="Edit Pengguna"
-                             >
-                               <Edit className="h-4 w-4" />
-                             </button>
-                             <button
-                               onClick={() => handleDeleteUser(user.id)}
-                               className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                               title="Hapus Pengguna"
-                             >
-                               <Trash2 className="h-4 w-4" />
-                             </button>
+                             {/* Hide permissions button for superadmin if current user is not superadmin */}
+                             {!(user?.role?.toUpperCase() !== 'SUPERADMIN' && tableUser?.role?.toUpperCase() === 'SUPERADMIN') && (
+                               <button
+                                 onClick={() => handleShowPermissions(tableUser)}
+                                 className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-50 transition-colors"
+                                 title="Kelola Akses Menu"
+                               >
+                                 <Lock className="h-4 w-4" />
+                               </button>
+                             )}
+                             {/* Hide edit button for superadmin if current user is not superadmin */}
+                             {!(user?.role?.toUpperCase() !== 'SUPERADMIN' && tableUser?.role?.toUpperCase() === 'SUPERADMIN') && (
+                               <button
+                                 onClick={() => handleEditUser(tableUser)}
+                                 className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                                 title="Edit Pengguna"
+                               >
+                                 <Edit className="h-4 w-4" />
+                               </button>
+                             )}
+                             {/* Hide delete button for superadmin if current user is not superadmin */}
+                             {!(user?.role?.toUpperCase() !== 'SUPERADMIN' && tableUser?.role?.toUpperCase() === 'SUPERADMIN') && (
+                               <button
+                                 onClick={() => handleDeleteUser(tableUser.id, tableUser)}
+                                 className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                 title="Hapus Pengguna"
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </button>
+                             )}
                            </div>
                         </td>
                       </tr>
@@ -743,16 +767,16 @@ export default function UsersPage() {
             ) : (
               /* Grid View */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {users.map((user) => (
-                  <div key={user.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                {users.map((gridUser) => (
+                  <div key={gridUser.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center">
                         <div className="p-2 bg-blue-100 rounded-lg">
                           <User className="h-6 w-6 text-blue-600" />
                         </div>
                         <div className="ml-3">
-                          <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-                          <p className="text-sm text-gray-500">{user.email}</p>
+                          <h3 className="text-lg font-semibold text-gray-900">{gridUser.name}</h3>
+                          <p className="text-sm text-gray-500">{gridUser.email}</p>
                         </div>
                       </div>
                       <div className="relative">
@@ -765,66 +789,75 @@ export default function UsersPage() {
                     <div className="space-y-3">
                       <div className="flex items-center">
                         <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-sm text-gray-600">{gridUser.email}</p>
                       </div>
                       
-                      {user.phone && (
+                      {gridUser.phone && (
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                          <p className="text-sm text-gray-600">{user.phone}</p>
+                          <p className="text-sm text-gray-600">{gridUser.phone}</p>
                         </div>
                       )}
                       
                       <div className="flex items-center">
                         <Shield className="h-4 w-4 text-gray-400 mr-2" />
-                        {getRoleBadge(user.role)}
+                        {getRoleBadge(gridUser.role)}
                       </div>
                       
-                      {user.clinic_name && (
+                      {gridUser.clinic_name && (
                         <div className="flex items-center">
                           <Building2 className="h-4 w-4 text-gray-400 mr-2" />
-                          <p className="text-sm text-gray-600">{user.clinic_name}</p>
+                          <p className="text-sm text-gray-600">{gridUser.clinic_name}</p>
                         </div>
                       )}
                       
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                        <p className="text-sm text-gray-500">Dibuat: {formatDate(user.created_at)}</p>
+                        <p className="text-sm text-gray-500">Dibuat: {formatDate(gridUser.created_at)}</p>
                       </div>
                       
                       <div className="flex items-center">
-                        {getStatusBadge(user.is_active)}
+                        {getStatusBadge(gridUser.is_active)}
                       </div>
                     </div>
                     
                                          <div className="mt-4 pt-4 border-t border-gray-200">
                        <div className="flex gap-2 mb-2">
                          <button
-                           onClick={() => handleShowDetail(user)}
+                           onClick={() => handleShowDetail(gridUser)}
                            className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                          >
                            Detail
                          </button>
-                         <button
-                           onClick={() => handleShowPermissions(user)}
-                           className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-                         >
-                           Akses
-                         </button>
+                         {/* Hide permissions button for superadmin if current user is not superadmin */}
+                         {!(user?.role?.toUpperCase() !== 'SUPERADMIN' && gridUser?.role?.toUpperCase() === 'SUPERADMIN') && (
+                           <button
+                             onClick={() => handleShowPermissions(gridUser)}
+                             className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                           >
+                             Akses
+                           </button>
+                         )}
                        </div>
                        <div className="flex gap-2">
-                         <button
-                           onClick={() => handleEditUser(user)}
-                           className="flex-1 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                         >
-                           Edit
-                         </button>
-                         <button
-                           onClick={() => handleDeleteUser(user.id)}
-                           className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                         >
-                           Hapus
-                         </button>
+                         {/* Hide edit button for superadmin if current user is not superadmin */}
+                         {!(user?.role?.toUpperCase() !== 'SUPERADMIN' && gridUser?.role?.toUpperCase() === 'SUPERADMIN') && (
+                           <button
+                             onClick={() => handleEditUser(gridUser)}
+                             className="flex-1 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                           >
+                             Edit
+                           </button>
+                         )}
+                         {/* Hide delete button for superadmin if current user is not superadmin */}
+                         {!(user?.role?.toUpperCase() !== 'SUPERADMIN' && gridUser?.role?.toUpperCase() === 'SUPERADMIN') && (
+                           <button
+                             onClick={() => handleDeleteUser(gridUser.id, gridUser)}
+                             className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                           >
+                             Hapus
+                           </button>
+                         )}
                        </div>
                      </div>
                   </div>

@@ -17,11 +17,11 @@ export async function GET(request, { params }) {
         user = await verifyJwtToken(token);
         if (user) {
           isAuthenticated = true;
-          console.log(`✅ User authenticated: ${user.id}`);
+
         }
       }
     } catch (authError) {
-      console.log('⚠️ Authentication failed, trying mobile user detection:', authError.message);
+
     }
     
     // If not authenticated, try to get user from mobile request
@@ -30,16 +30,16 @@ export async function GET(request, { params }) {
         user = await getMobileUserFromRequest(request);
         if (user) {
           isAuthenticated = true;
-          console.log(`✅ Mobile user detected: ${user.id}`);
+
         }
       } catch (mobileAuthError) {
-        console.log('⚠️ Mobile user detection failed:', mobileAuthError.message);
+
       }
     }
     
     // If still not authenticated, use default user ID for testing
     if (!isAuthenticated) {
-      console.log('⚠️ No authentication found, using default user ID for testing');
+
       user = { id: 1 }; // Use Super Admin user ID for testing
     }
 
@@ -78,7 +78,7 @@ export async function GET(request, { params }) {
     const userMissions = await query(sql, queryParams);
 
     if (userMissions.length === 0) {
-      console.log(`❌ User mission not found: ${id}`);
+
       return NextResponse.json(
         { 
           success: false, 
@@ -90,7 +90,6 @@ export async function GET(request, { params }) {
     }
 
     const userMission = userMissions[0];
-    console.log(`✅ Found user mission: ${userMission.mission_title} (ID: ${userMission.id})`);
 
     // Format the response to match the expected structure
     const formattedUserMission = {
@@ -122,7 +121,6 @@ export async function GET(request, { params }) {
       }
     };
 
-    console.log(`📤 Returning user mission data for ID: ${id}`);
     return NextResponse.json({
       success: true,
       data: formattedUserMission,
@@ -130,7 +128,7 @@ export async function GET(request, { params }) {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching user mission:', error);
+
     return NextResponse.json(
       { 
         success: false, 

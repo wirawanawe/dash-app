@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get user feedback
 export async function GET(request) {
   try {
@@ -99,7 +98,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching feedback:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -183,7 +182,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error submitting feedback:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get user notifications
 export async function GET(request) {
   try {
@@ -123,7 +122,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching notifications:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -174,7 +173,7 @@ export async function POST(request) {
       message: "Notification berhasil ditandai sebagai dibaca",
     });
   } catch (error) {
-    console.error("Error marking notification as read:", error);
+
     return NextResponse.json(
       {
         success: false,

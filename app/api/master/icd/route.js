@@ -11,7 +11,7 @@ export async function GET() {
     });
     return NextResponse.json(icds);
   } catch (error) {
-    console.error("Error fetching ICDs:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data ICD" },
       { status: 500 }
@@ -34,7 +34,7 @@ export async function POST(request) {
     });
     return NextResponse.json(icd);
   } catch (error) {
-    console.error("Error creating ICD:", error);
+
     return NextResponse.json(
       { error: "Gagal menambahkan ICD" },
       { status: 500 }

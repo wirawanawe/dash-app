@@ -3,8 +3,7 @@ import { query, rawQuery } from '@/lib/db';
 
 export async function GET(request) {
   try {
-    console.log('API endpoint called: /api/mobile/activities-api');
-    
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 20;
@@ -29,8 +28,6 @@ export async function GET(request) {
     const countSql = `SELECT COUNT(*) as total FROM available_habit_activities ${whereClause}`;
     const countResult = await query(countSql, params);
     const total = countResult[0].total;
-
-    console.log('Total activities found:', total);
 
     // Get activities with pagination
     const sql = `
@@ -65,8 +62,6 @@ export async function GET(request) {
     
     const activities = await rawQuery(finalQuery);
 
-    console.log('Activities fetched:', activities.length);
-
     // Return in the format expected by frontend
     return NextResponse.json({
       success: true,
@@ -79,7 +74,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching activities:', error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -133,7 +128,7 @@ export async function POST(request) {
       id: result.insertId
     });
   } catch (error) {
-    console.error('Error creating activity:', error);
+
     return NextResponse.json(
       { 
         success: false,
@@ -186,7 +181,7 @@ export async function PUT(request) {
       message: 'Activity updated successfully'
     });
   } catch (error) {
-    console.error('Error updating activity:', error);
+
     return NextResponse.json(
       { 
         success: false,

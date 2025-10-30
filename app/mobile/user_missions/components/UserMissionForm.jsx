@@ -51,7 +51,7 @@ export default function UserMissionForm({ userMission, onSubmit, onClose }) {
       setUsers(usersData.users || []);
       setMissions(missionsData.missions || []);
     } catch (error) {
-      console.error('Error fetching users and missions:', error);
+
     } finally {
       setLoadingData(false);
     }
@@ -72,7 +72,7 @@ export default function UserMissionForm({ userMission, onSubmit, onClose }) {
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error('Error submitting form:', error);
+
     } finally {
       setLoading(false);
     }

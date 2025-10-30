@@ -91,7 +91,7 @@ export async function PUT(request) {
           formattedDateOfBirth = date.toISOString().split('T')[0];
         }
       } catch (error) {
-        console.error("Error parsing date_of_birth:", error);
+
         return NextResponse.json(
           {
             success: false,
@@ -270,7 +270,7 @@ export async function PUT(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Profile update error:", error);
+
     return NextResponse.json(
       {
         success: false,

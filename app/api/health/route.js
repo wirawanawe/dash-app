@@ -13,8 +13,7 @@ export async function GET() {
       server: 'running'
     });
   } catch (error) {
-    console.error('Health check failed:', error);
-    
+
     return NextResponse.json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),

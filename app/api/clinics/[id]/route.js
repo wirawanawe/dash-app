@@ -4,7 +4,6 @@ import { jwtVerify } from "jose";
 
 export const dynamic = 'force-dynamic';
 
-
 // Function to get user from token
 async function getUserFromToken(request) {
   // Try to get token from Authorization header first
@@ -28,7 +27,7 @@ async function getUserFromToken(request) {
     const { payload } = await jwtVerify(token, secretKey);
     return payload;
   } catch (error) {
-    console.error("Error verifying token:", error);
+
     return null;
   }
 }
@@ -65,7 +64,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(clinicWithPolyclinics);
   } catch (error) {
-    console.error("Error getting clinic:", error);
+
     return NextResponse.json({ error: "Failed to get clinic" }, { status: 500 });
   }
 }
@@ -121,7 +120,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json({ message: "Clinic updated successfully" });
   } catch (error) {
-    console.error("Error updating clinic:", error);
+
     return NextResponse.json({ error: "Failed to update clinic" }, { status: 500 });
   }
 }
@@ -153,7 +152,7 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json({ message: "Clinic deleted successfully" });
   } catch (error) {
-    console.error("Error deleting clinic:", error);
+
     return NextResponse.json({ error: "Failed to delete clinic" }, { status: 500 });
   }
 }

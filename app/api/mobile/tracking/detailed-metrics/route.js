@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get detailed metrics for a user
 export async function GET(request) {
   try {
@@ -178,7 +177,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching detailed metrics:", error);
+
     return NextResponse.json(
       {
         success: false,

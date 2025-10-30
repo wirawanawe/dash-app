@@ -3,14 +3,11 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const userId = searchParams.get('user_id');
-
-    console.log(`🎯 Getting missions for date: ${targetDate}, user: ${userId}`);
 
     if (!userId) {
       return NextResponse.json(
@@ -115,7 +112,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching missions by date:', error);
+
     return NextResponse.json(
       {
         success: false,

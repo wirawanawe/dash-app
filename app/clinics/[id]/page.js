@@ -66,7 +66,7 @@ export default function ClinicDetailPage() {
         router.push("/clinics");
       }
     } catch (error) {
-      console.error("Error fetching clinic:", error);
+
       toast.error("Gagal mengambil data klinik");
       router.push("/clinics");
     } finally {
@@ -83,7 +83,7 @@ export default function ClinicDetailPage() {
         setPolyclinics(data);
       }
     } catch (error) {
-      console.error('Error fetching polyclinics:', error);
+
     } finally {
       setLoadingPolyclinics(false);
     }
@@ -148,7 +148,7 @@ export default function ClinicDetailPage() {
         }, 300);
       }
     } catch (error) {
-      console.error("Error updating polyclinics:", error);
+
       toast.error("Gagal memperbarui poli");
     } finally {
       setLoadingPolyclinics(false);

@@ -3,7 +3,6 @@ import { query, rawQuery } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Search foods
 export async function GET(request) {
   try {
@@ -61,7 +60,7 @@ export async function GET(request) {
       data: foods
     });
   } catch (error) {
-    console.error("Error searching foods:", error);
+
     return NextResponse.json(
       {
         success: false,

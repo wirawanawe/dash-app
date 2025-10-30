@@ -69,7 +69,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching mobile users:', error);
+
     return NextResponse.json(
       { error: 'Failed to fetch mobile users' },
       { status: 500 }
@@ -141,7 +141,7 @@ export async function POST(request) {
       userId: result.insertId
     });
   } catch (error) {
-    console.error('Error creating mobile user:', error);
+
     return NextResponse.json(
       { error: 'Failed to create mobile user' },
       { status: 500 }

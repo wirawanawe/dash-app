@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get fitness data
 export async function GET(request) {
   try {
@@ -130,7 +129,7 @@ export async function GET(request) {
       statistics: fitnessStats,
     });
   } catch (error) {
-    console.error("Error fetching fitness data:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -210,7 +209,7 @@ export async function POST(request) {
       data: { id: result.insertId },
     });
   } catch (error) {
-    console.error("Error creating fitness data:", error);
+
     return NextResponse.json(
       {
         success: false,

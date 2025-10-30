@@ -70,7 +70,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error getting consultations:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -179,7 +179,7 @@ export async function POST(request) {
       data: consultation[0],
     });
   } catch (error) {
-    console.error("Error booking consultation:", error);
+
     return NextResponse.json(
       {
         success: false,

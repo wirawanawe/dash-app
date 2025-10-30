@@ -4,7 +4,6 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
     // Get authorization header
@@ -44,7 +43,7 @@ export async function GET(request) {
 
     // Validate userId
     if (!userId) {
-      console.error('Error: userId is undefined in JWT payload');
+
       return NextResponse.json(
         {
           success: false,
@@ -53,8 +52,6 @@ export async function GET(request) {
         { status: 401 }
       );
     }
-
-    console.log('🔍 Wellness status: Checking user ID:', userId);
 
     // Get user profile data
     const userQuery = `
@@ -69,8 +66,7 @@ export async function GET(request) {
       FROM mobile_users 
       WHERE id = ?
     `;
-    
-    console.log('🔍 Wellness status: Executing user query with userId:', userId);
+
     const userResult = await query(userQuery, [userId]);
     const user = userResult[0];
     
@@ -90,11 +86,9 @@ export async function GET(request) {
       FROM user_missions 
       WHERE user_id = ? AND status IN ('active', 'completed')
     `;
-    
-    console.log('🔍 Wellness status: Executing missions query with userId:', userId);
+
     const missionsResult = await query(missionsQuery, [userId]);
     const missionCount = missionsResult[0]?.mission_count || 0;
-    console.log('🔍 Wellness status: Mission count:', missionCount);
 
     // Calculate age from date_of_birth if available
     let age = null;
@@ -125,7 +119,7 @@ export async function GET(request) {
         const diffTime = Math.abs(today.getTime() - joinDate.getTime());
         daysSinceJoining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       } catch (error) {
-        console.error('Error calculating days since joining wellness program:', error);
+
       }
     }
 
@@ -156,12 +150,7 @@ export async function GET(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Error in wellness status endpoint:', error);
-    console.error('❌ Error details:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack
-    });
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',

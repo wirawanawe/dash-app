@@ -33,15 +33,16 @@ export default function MissionsPage() {
       const response = await fetch(`/api/mobile/missions?${params}`);
       const data = await response.json();
 
-      if (response.ok) {
-        setMissions(data.missions);
-        setTotalPages(data.pagination.totalPages);
-        setCurrentPage(data.pagination.page);
+      if (response.ok && data.success) {
+        setMissions(data.missions || []);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setCurrentPage(data.pagination?.page || 1);
       } else {
-        console.error('Failed to fetch missions:', data.error);
+        console.error('Failed to fetch missions:', data.error || 'Unknown error');
+        setMissions([]);
       }
     } catch (error) {
-      console.error('Error fetching missions:', error);
+
     } finally {
       setLoading(false);
     }
@@ -77,7 +78,7 @@ export default function MissionsPage() {
         alert(data.error || 'Failed to delete mission');
       }
     } catch (error) {
-      console.error('Error deleting mission:', error);
+
       alert('Failed to delete mission');
     }
   };
@@ -116,18 +117,22 @@ export default function MissionsPage() {
 
   const getCategoryBadge = (category) => {
     const categoryColors = {
-      'Fitness': 'bg-blue-100 text-blue-800',
-      'Nutrition': 'bg-green-100 text-green-800',
-      'Wellness': 'bg-purple-100 text-purple-800',
-      'Mindfulness': 'bg-yellow-100 text-yellow-800',
-      'Health': 'bg-red-100 text-red-800'
+      'fitness': 'bg-blue-100 text-blue-800',
+      'nutrition': 'bg-green-100 text-green-800',
+      'wellness': 'bg-purple-100 text-purple-800',
+      'mental_health': 'bg-yellow-100 text-yellow-800',
+      'sleep': 'bg-indigo-100 text-indigo-800',
+      'health_tracking': 'bg-red-100 text-red-800',
+      'education': 'bg-pink-100 text-pink-800',
+      'consultation': 'bg-teal-100 text-teal-800',
+      'daily_habit': 'bg-orange-100 text-orange-800'
     };
 
     const colorClass = categoryColors[category] || 'bg-gray-100 text-gray-800';
 
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
-        {category}
+        {getCategoryLabel(category)}
       </span>
     );
   };
@@ -167,7 +172,22 @@ export default function MissionsPage() {
     }
   ];
 
-  const categories = ['Fitness', 'Nutrition', 'Wellness', 'Mindfulness', 'Health'];
+  const categories = ['fitness', 'nutrition', 'wellness', 'mental_health', 'sleep', 'health_tracking', 'education', 'consultation', 'daily_habit'];
+  
+  const getCategoryLabel = (category) => {
+    const labels = {
+      'fitness': 'Fitness',
+      'nutrition': 'Nutrition',
+      'wellness': 'Wellness',
+      'mental_health': 'Mental Health',
+      'sleep': 'Sleep',
+      'health_tracking': 'Health Tracking',
+      'education': 'Education',
+      'consultation': 'Consultation',
+      'daily_habit': 'Daily Habit'
+    };
+    return labels[category] || category;
+  };
 
   return (
     <DashboardLayout>
@@ -315,7 +335,7 @@ export default function MissionsPage() {
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {category}
+                  {getCategoryLabel(category)}
                 </button>
               ))}
             </div>
@@ -326,7 +346,7 @@ export default function MissionsPage() {
               <p className="text-sm text-orange-700">
                 <span className="font-medium">Hasil pencarian:</span> 
                 {searchTerm && ` "${searchTerm}"`}
-                {categoryFilter && ` Kategori: ${categoryFilter}`}
+                {categoryFilter && ` Kategori: ${getCategoryLabel(categoryFilter)}`}
               </p>
             </div>
           )}
@@ -360,6 +380,21 @@ export default function MissionsPage() {
                 <p className="text-xl font-medium text-gray-700 mb-2">Memuat Data Misi</p>
                 <p className="text-gray-500">Mengambil informasi terkini...</p>
               </div>
+            ) : missions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Target className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-xl font-medium text-gray-700 mb-2">Tidak Ada Data Misi</p>
+                <p className="text-gray-500 mb-4">Belum ada misi yang tersedia di database</p>
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Tambah Misi Pertama
+                </button>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white rounded-lg">
@@ -372,7 +407,7 @@ export default function MissionsPage() {
                         Category
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Duration
+                        Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -403,13 +438,13 @@ export default function MissionsPage() {
                           {getCategoryBadge(mission.category)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {mission.duration || '-'}
+                          {mission.type ? mission.type : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(mission.is_active)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDate(mission.createdAt)}
+                          {mission.createdAt ? formatDate(mission.createdAt) : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">

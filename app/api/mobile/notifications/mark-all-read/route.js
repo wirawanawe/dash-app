@@ -33,7 +33,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error marking all notifications as read:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -48,7 +48,7 @@ export async function GET(request) {
       data: versionInfo,
     });
   } catch (error) {
-    console.error("Error fetching app version:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -4,7 +4,6 @@ import { jwtVerify } from "jose";
 
 export const dynamic = 'force-dynamic';
 
-
 // Function to get user from token
 async function getUserFromToken(request) {
   // Try to get token from Authorization header first
@@ -28,7 +27,7 @@ async function getUserFromToken(request) {
     const { payload } = await jwtVerify(token, secretKey);
     return payload;
   } catch (error) {
-    console.error("Error verifying token:", error);
+
     return null;
   }
 }
@@ -61,8 +60,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    console.log("🗑️ Deleting fitness entry:", entryId, "for user:", userPayload.id);
-
     // First, check if the entry exists and belongs to the user
     const checkSql = `
       SELECT id, user_id, activity_type, duration_minutes, calories_burned, distance_km, steps
@@ -82,8 +79,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    console.log("✅ Entry found, proceeding with deletion");
-
     // Delete the entry
     const deleteSql = `
       DELETE FROM fitness_tracking
@@ -91,9 +86,7 @@ export async function DELETE(request, { params }) {
     `;
     
     const result = await query(deleteSql, [entryId, userPayload.id]);
-    
-    console.log("✅ Fitness entry deleted successfully");
-    
+
     return NextResponse.json({
       success: true,
       message: "Fitness entry deleted successfully",
@@ -101,7 +94,7 @@ export async function DELETE(request, { params }) {
     });
     
   } catch (error) {
-    console.error("❌ Error deleting fitness entry:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -141,8 +134,6 @@ export async function GET(request, { params }) {
       );
     }
 
-    console.log("📋 Getting fitness entry:", entryId, "for user:", userPayload.id);
-
     // Check database schema first to determine which columns exist
     let hasNewSchema = false;
     let hasExerciseMinutes = false;
@@ -150,18 +141,18 @@ export async function GET(request, { params }) {
     try {
       const schemaCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'workout_type'");
       hasNewSchema = schemaCheck.length > 0;
-      console.log("🔍 GET entry - has new schema:", hasNewSchema);
+
     } catch (error) {
-      console.log("🔍 GET entry - schema check failed:", error.message);
+
       hasNewSchema = false;
     }
     
     try {
       const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
       hasExerciseMinutes = exerciseMinutesCheck.length > 0;
-      console.log("🔍 GET entry - has exercise_minutes column:", hasExerciseMinutes);
+
     } catch (error) {
-      console.log("🔍 GET entry - exercise minutes check failed:", error.message);
+
       hasExerciseMinutes = false;
     }
 
@@ -197,9 +188,6 @@ export async function GET(request, { params }) {
       params = [entryId, userPayload.id];
     }
 
-    console.log("📊 Executing GET entry query:", sql);
-    console.log("📝 GET entry Parameters:", params);
-
     const [fitnessEntry] = await query(sql, params);
     
     if (fitnessEntry.length === 0) {
@@ -212,15 +200,13 @@ export async function GET(request, { params }) {
       );
     }
 
-    console.log("✅ Fitness entry retrieved successfully");
-
     return NextResponse.json({
       success: true,
       data: fitnessEntry[0],
     });
     
   } catch (error) {
-    console.error("❌ Error fetching fitness entry:", error);
+
     return NextResponse.json(
       {
         success: false,

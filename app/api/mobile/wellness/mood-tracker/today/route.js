@@ -6,15 +6,13 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
-    console.log('🔍 Wellness mood tracker today endpoint called');
-    
+
     // Get authorization header
     const authHeader = request.headers.get("authorization");
     let userId;
     
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-      console.log('🔍 Token received:', token.substring(0, 20) + '...');
 
       // Verify JWT token
       try {
@@ -22,10 +20,10 @@ export async function GET(request) {
           token,
           new TextEncoder().encode(process.env.JWT_SECRET)
         );
-        console.log('✅ JWT verified, userId:', payload.userId);
+
         userId = payload.userId;
       } catch (jwtError) {
-        console.error('❌ JWT verification failed:', jwtError);
+
         return NextResponse.json(
           {
             success: false,
@@ -40,7 +38,7 @@ export async function GET(request) {
       userId = searchParams.get("user_id");
       
       if (!userId) {
-        console.log('❌ No authorization header or user_id parameter');
+
         return NextResponse.json(
           {
             success: false,
@@ -49,11 +47,9 @@ export async function GET(request) {
           { status: 401 }
         );
       }
-      console.log('🔍 Using user_id from query params:', userId);
+
     }
     const today = new Date().toISOString().split('T')[0];
-
-    console.log('🔍 Processing request for userId:', userId, 'date:', today);
 
     // Get today's mood entry
     const moodQuery = `
@@ -76,19 +72,16 @@ export async function GET(request) {
       LIMIT 1
     `;
     const [moodResult] = await query(moodQuery, [userId, today]);
-    console.log('✅ Today mood query result:', moodResult);
 
     const response = {
       success: true,
       data: moodResult[0] || null
     };
 
-    console.log('✅ Returning response');
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Error in wellness mood tracker today endpoint:', error);
-    console.error('❌ Error stack:', error.stack);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 

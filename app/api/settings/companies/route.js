@@ -11,7 +11,7 @@ export async function GET() {
     });
     return NextResponse.json(companies);
   } catch (error) {
-    console.error("Error fetching companies:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data perusahaan" },
       { status: 500 }
@@ -34,7 +34,7 @@ export async function POST(request) {
     });
     return NextResponse.json(company);
   } catch (error) {
-    console.error("Error creating company:", error);
+
     return NextResponse.json(
       { error: "Gagal menambahkan perusahaan" },
       { status: 500 }

@@ -3,7 +3,6 @@ import { getMobileUserFromRequest } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Test endpoint to check current user
 export async function GET(request) {
   try {
@@ -27,7 +26,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error("Error checking user:", error);
+
     return NextResponse.json(
       { 
         success: false,

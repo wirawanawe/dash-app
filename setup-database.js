@@ -106,8 +106,7 @@ async function main() {
     console.log('\n💡 Troubleshooting tips:');
     console.log('1. Make sure MySQL is running');
     console.log('2. Check your database credentials');
-    console.log('3. If using Docker, run: docker compose up -d mysql');
-    console.log('4. Set environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME');
+    console.log('3. Set environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME');
     process.exit(1);
   }
   

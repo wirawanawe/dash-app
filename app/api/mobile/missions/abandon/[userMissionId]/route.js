@@ -80,7 +80,7 @@ export async function PUT(request, { params }) {
       },
     });
   } catch (error) {
-    console.error("Error abandoning mission:", error);
+
     return NextResponse.json(
       {
         success: false,

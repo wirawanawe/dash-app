@@ -64,7 +64,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Server error:", errorData);
+
         throw new Error(errorData.message || "Gagal menyimpan data");
       }
 
@@ -75,7 +75,7 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
       );
       onSubmit(result);
     } catch (error) {
-      console.error("Error saving polyclinic:", error);
+
       toast.error(error.message || "Gagal menyimpan data");
     } finally {
       setIsLoading(false);

@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Error fetching doctor:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data dokter" },
       { status: 500 }
@@ -53,7 +53,7 @@ export async function PUT(request, { params }) {
     });
     return NextResponse.json(doctor);
   } catch (error) {
-    console.error("Error updating doctor:", error);
+
     return NextResponse.json(
       { error: "Gagal mengupdate dokter" },
       { status: 500 }
@@ -71,7 +71,7 @@ export async function DELETE(request, { params }) {
     });
     return NextResponse.json({ message: "Dokter berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting doctor:", error);
+
     return NextResponse.json(
       { error: "Gagal menghapus dokter" },
       { status: 500 }

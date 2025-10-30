@@ -111,9 +111,9 @@ export default function PatientsPage() {
       setMetadata({ total: totalData });
       setTotalPages(totalPagesCalculated);
       
-      // Calculate stats
-      const maleCount = result.data.filter(p => p.gender?.toLowerCase() === 'laki-laki' || p.gender?.toLowerCase() === 'l').length;
-      const femaleCount = result.data.filter(p => p.gender?.toLowerCase() === 'perempuan' || p.gender?.toLowerCase() === 'p').length;
+      // Calculate stats (API returns MALE/FEMALE)
+      const maleCount = result.data.filter(p => p.gender === 'MALE').length;
+      const femaleCount = result.data.filter(p => p.gender === 'FEMALE').length;
       
       setStats({
         total: totalData,
@@ -122,9 +122,7 @@ export default function PatientsPage() {
         active: totalData, // All patients are considered active
       });
       
-      console.log(`[Patients] Total data: ${totalData}, Page: ${page}, Showing: ${paginatedData.length}`);
     } catch (error) {
-      console.error("Error:", error);
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setAllPatients([]);
       setPatients([]);
@@ -154,7 +152,6 @@ export default function PatientsPage() {
       setPatients(paginatedData);
       setTotalPages(totalPagesCalculated);
       
-      console.log(`[Pagination] Page: ${page}, Limit: ${limit}, Showing: ${paginatedData.length} of ${totalData}`);
     }
   }, [page, limit, allPatients]);
 
@@ -189,6 +186,20 @@ export default function PatientsPage() {
     setSelectedPatient(null);
     setShowDetailModal(false);
   };
+
+  // Handle custom event to open patient detail from family members
+  useEffect(() => {
+    const handleOpenPatientDetail = (event) => {
+      const patientData = event.detail;
+      handleShowDetail(patientData);
+    };
+
+    window.addEventListener('openPatientDetail', handleOpenPatientDetail);
+
+    return () => {
+      window.removeEventListener('openPatientDetail', handleOpenPatientDetail);
+    };
+  }, []);
 
   // Generate page numbers for pagination
   const getPageNumbers = () => {

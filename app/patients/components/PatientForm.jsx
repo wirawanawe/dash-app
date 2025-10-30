@@ -110,7 +110,7 @@ export default function PatientForm({ patient, isEdit = false }) {
       );
       router.push("/patients");
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message);
     } finally {
       setIsLoading(false);

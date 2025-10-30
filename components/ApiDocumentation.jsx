@@ -1467,7 +1467,7 @@ const ApiDocumentation = ({ pageType }) => {
       setCopiedEndpoint(endpoint);
       setTimeout(() => setCopiedEndpoint(null), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+
     }
   };
 

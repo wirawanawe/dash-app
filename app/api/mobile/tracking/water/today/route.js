@@ -52,7 +52,7 @@ export async function GET(request) {
         },
       });
     } catch (jwtError) {
-      console.error("Water tracking: JWT verification error:", jwtError);
+
       return NextResponse.json(
         {
           success: false,
@@ -62,7 +62,7 @@ export async function GET(request) {
       );
     }
   } catch (error) {
-    console.error("Error fetching today's water tracking:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -115,7 +115,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error creating today's water tracking:", error);
+
     return NextResponse.json(
       {
         success: false,

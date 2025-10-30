@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: "standalone", // Enable standalone output for Docker
+  output: "standalone", // Enable standalone output for production deployment
   // Bind to all interfaces for mobile app access
   experimental: {
     serverComponentsExternalPackages: ['mysql2'],

@@ -79,8 +79,6 @@ export async function GET(request) {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    console.log(`Optimized mission stats query for user ${userId}, period: ${period}, date range: ${startDateStr} to ${endDateStr}`);
-
     const statsResult = await query(optimizedStatsQuery, [userId, startDateStr, endDateStr]);
     const stats = statsResult[0];
 
@@ -142,17 +140,10 @@ export async function GET(request) {
       }
     };
 
-    console.log(`Mission stats loaded successfully for user ${userId}:`, {
-      total: stats.total_missions,
-      completed: stats.completed_missions,
-      active: stats.active_missions,
-      points: stats.total_points_earned
-    });
-
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error("Error in mission stats (optimized):", error);
+
     return NextResponse.json(
       {
         success: false,

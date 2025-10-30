@@ -5,7 +5,6 @@ import { jwtVerify } from "jose";
 
 export const dynamic = 'force-dynamic';
 
-
 // Function to get user from token
 async function getUserFromToken(request) {
   // Try to get token from Authorization header first
@@ -29,7 +28,7 @@ async function getUserFromToken(request) {
     const { payload } = await jwtVerify(token, secretKey);
     return payload;
   } catch (error) {
-    console.error("Error verifying token:", error);
+
     return null;
   }
 }
@@ -48,7 +47,7 @@ export async function GET(request) {
 
     // Add clinic filtering based on user role and clinic_id
     let clinicFilter = "";
-    let filterValues = [`%${search}%`, `%${search}%`, `%${search}%`];
+    let filterValues = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`];
 
     // Superadmin can see all clinics
     if (userPayload && userPayload.role === "SUPERADMIN") {
@@ -79,7 +78,8 @@ export async function GET(request) {
       WHERE 
         (LOWER(name) LIKE LOWER(?) OR
         LOWER(address) LIKE LOWER(?) OR
-        LOWER(city) LIKE LOWER(?))
+        LOWER(city) LIKE LOWER(?) OR
+        LOWER(code) LIKE LOWER(?))
         ${clinicFilter}
     `;
 
@@ -89,7 +89,7 @@ export async function GET(request) {
     // Get paginated results
     const clinicsQuery = `
       SELECT 
-        id, name, address, city, phone, email,
+        id, external_id, name, code, client_id, address, city, phone, email,
         rating, total_reviews, latitude, longitude,
         operating_hours, description, image_url,
         is_active, created_at, updated_at
@@ -97,9 +97,10 @@ export async function GET(request) {
       WHERE 
         (LOWER(name) LIKE LOWER(?) OR
         LOWER(address) LIKE LOWER(?) OR
-        LOWER(city) LIKE LOWER(?))
+        LOWER(city) LIKE LOWER(?) OR
+        LOWER(code) LIKE LOWER(?))
         ${clinicFilter}
-      ORDER BY c.name ASC
+      ORDER BY name ASC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
@@ -136,7 +137,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error getting clinics:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data klinik" },
       { status: 500 }
@@ -203,7 +204,7 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating clinic:", error);
+
     return NextResponse.json(
       { error: "Gagal membuat klinik" },
       { status: 500 }

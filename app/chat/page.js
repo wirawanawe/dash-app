@@ -83,11 +83,11 @@ export default function ChatPage() {
       if (response.ok) {
         setChats(data.chats);
       } else {
-        console.error('Failed to fetch chats:', data.message);
+
         toast.error("Gagal memuat daftar chat");
       }
     } catch (error) {
-      console.error('Error fetching chats:', error);
+
       toast.error("Terjadi kesalahan saat memuat chat");
     } finally {
       setLoading(false);
@@ -102,11 +102,11 @@ export default function ChatPage() {
       if (response.ok) {
         setMessages(data.messages);
       } else {
-        console.error('Failed to fetch messages:', data.message);
+
         toast.error("Gagal memuat pesan");
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+
       toast.error("Terjadi kesalahan saat memuat pesan");
     }
   };
@@ -139,7 +139,7 @@ export default function ChatPage() {
         toast.error(data.message || "Gagal mengirim pesan");
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+
       toast.error("Terjadi kesalahan saat mengirim pesan");
     }
   };
@@ -167,7 +167,7 @@ export default function ChatPage() {
         toast.error(data.message || "Gagal menutup chat");
       }
     } catch (error) {
-      console.error('Error closing chat:', error);
+
       toast.error("Terjadi kesalahan saat menutup chat");
     }
   };
@@ -193,7 +193,7 @@ export default function ChatPage() {
         toast.error(data.message || "Gagal membuka kembali chat");
       }
     } catch (error) {
-      console.error('Error reopening chat:', error);
+
       toast.error("Terjadi kesalahan saat membuka kembali chat");
     }
   };

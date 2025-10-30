@@ -130,7 +130,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching anthropometry progress:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -218,7 +218,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Error creating anthropometry progress:", error);
+
     return NextResponse.json(
       {
         success: false,

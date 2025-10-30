@@ -4,7 +4,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get today's summary for a user
 export async function GET(request) {
   try {
@@ -149,7 +148,7 @@ export async function GET(request) {
         data: summary,
       });
     } catch (jwtError) {
-      console.error("JWT verification error:", jwtError);
+
       return NextResponse.json(
         {
           success: false,
@@ -159,7 +158,7 @@ export async function GET(request) {
       );
     }
   } catch (error) {
-    console.error("Error fetching today summary:", error);
+
     return NextResponse.json(
       {
         success: false,

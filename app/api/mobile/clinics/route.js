@@ -114,7 +114,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error getting mobile clinics:", error);
+
     return NextResponse.json(
       {
         success: false,

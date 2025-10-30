@@ -31,7 +31,7 @@ export async function POST(request) {
       );
       payload = result.payload;
     } catch (jwtError) {
-      console.error('JWT verification failed:', jwtError.message);
+
       return NextResponse.json(
         {
           success: false,
@@ -43,8 +43,6 @@ export async function POST(request) {
 
     const userId = payload.userId;
     const { activity_id, record_id } = await request.json();
-
-    console.log(`🔄 Resetting wellness activities for user: ${userId}${record_id ? `, record: ${record_id}` : activity_id ? `, activity: ${activity_id}` : ''}`);
 
     if (!userId) {
       return NextResponse.json(
@@ -83,7 +81,6 @@ export async function POST(request) {
     }
 
     const result = await query(sql, params);
-    console.log(`✅ Reset ${result.affectedRows} wellness activity(ies) for user ${userId}`);
 
     return NextResponse.json({
       success: true,
@@ -98,7 +95,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error("❌ Error resetting wellness activities:", error);
+
     return NextResponse.json(
       {
         success: false,

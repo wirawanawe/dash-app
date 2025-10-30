@@ -116,7 +116,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error("Error fetching medical visits:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -220,7 +220,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error("Error creating medical visit:", error);
+
     return NextResponse.json(
       {
         success: false,

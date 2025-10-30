@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const districtId = searchParams.get("districtId");
@@ -29,7 +28,7 @@ export async function GET(request) {
 
     return NextResponse.json(villages);
   } catch (error) {
-    console.error("Error in villages API:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data kelurahan" },
       { status: 500 }

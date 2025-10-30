@@ -23,7 +23,7 @@ export default function EditPatientPage() {
 
         setPatient(data);
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error(error.message);
       } finally {
         setLoading(false);

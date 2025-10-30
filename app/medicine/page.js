@@ -84,7 +84,7 @@ export default function MedicinePage() {
         setClinics(result.data || []);
       }
     } catch (error) {
-      console.error('Error fetching clinics:', error);
+
     }
   };
 
@@ -97,37 +97,30 @@ export default function MedicinePage() {
         url += `&clinic_id=${encodeURIComponent(selectedClinicId)}`;
       }
 
-      console.log('Fetching medicines from:', url);
-
       const response = await fetch(url);
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Response error:', errorText);
+
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const contentType = response.headers.get("content-type");
-      console.log('Content type:', contentType);
-      
+
       if (!contentType || !contentType.includes("application/json")) {
         const responseText = await response.text();
-        console.error('Non-JSON response:', responseText);
+
         throw new Error("Invalid response format - expected JSON");
       }
 
       const result = await response.json();
-      console.log('API response:', result);
 
       if (!result.success) {
         throw new Error(result.message || "API returned error");
       }
 
       if (!result.data) {
-        console.warn('No data property in response:', result);
+
         setMedicines([]);
         setMetadata(result.pagination || {});
         setTotalPages(result.pagination?.totalPages || 0);
@@ -137,12 +130,9 @@ export default function MedicinePage() {
       setMedicines(result.data);
       setMetadata(result.pagination || {});
       setTotalPages(result.pagination?.totalPages || 0);
-      
-      console.log('Medicines set:', result.data.length);
-      console.log('Metadata:', result.pagination);
-      
+
     } catch (error) {
-      console.error("Error fetching medicines:", error);
+
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setMedicines([]);
       setMetadata({});

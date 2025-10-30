@@ -81,7 +81,7 @@ export async function GET(request) {
     });
     
   } catch (error) {
-    console.error('Error fetching wellness activities:', error);
+
     return NextResponse.json(
       { success: false, message: 'Failed to fetch wellness activities' },
       { status: 500 }
@@ -129,7 +129,7 @@ export async function POST(request) {
     });
     
   } catch (error) {
-    console.error('Error creating wellness activity:', error);
+
     return NextResponse.json(
       { success: false, message: 'Failed to create wellness activity' },
       { status: 500 }

@@ -32,16 +32,11 @@ export async function GET(request) {
           if (user.id && user.name && user.email) {
             return NextResponse.json(user);
           } else {
-            console.error("Invalid user data from token:", user);
-            console.error("Missing fields:", {
-              id: !user.id,
-              name: !user.name,
-              email: !user.email,
-            });
+
           }
         }
       } catch (error) {
-        console.error("Error verifying token:", error);
+
       }
     }
 
@@ -85,15 +80,15 @@ export async function GET(request) {
           if (user.id && user.name && user.name !== "Unknown" && user.email) {
             return NextResponse.json(user);
           } else {
-            console.error("Invalid user data from external API:", user);
+
           }
         } else {
-          console.error("External API response not ok:", apiResponse.status);
+
         }
       } catch (error) {
         // Jika timeout atau error lainnya, lanjutkan ke fallback
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -101,7 +96,7 @@ export async function GET(request) {
     // If we reach here, all methods failed
     return NextResponse.json(null, { status: 200 });
   } catch (error) {
-    console.error("Error in /api/auth/me:", error);
+
     return NextResponse.json(null, { status: 200 });
   }
 }

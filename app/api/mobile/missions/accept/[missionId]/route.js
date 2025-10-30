@@ -7,8 +7,6 @@ export async function POST(request, { params }) {
     const { missionId } = params;
     const { user_id, mission_date } = await request.json();
 
-    console.log(`🎯 Accepting mission: ${missionId} for user: ${user_id} on date: ${mission_date}`);
-
     if (!user_id || !missionId) {
       return NextResponse.json(
         {
@@ -29,7 +27,7 @@ export async function POST(request, { params }) {
     );
 
     if (missionCheck.length === 0) {
-      console.log(`❌ Mission ${missionId} not found or not active`);
+
       return NextResponse.json(
         {
           success: false,
@@ -40,7 +38,6 @@ export async function POST(request, { params }) {
     }
 
     const mission = missionCheck[0];
-    console.log(`✅ Mission found: ${mission.title}`);
 
     // Check if user has already accepted this mission for the same date
     const existingAcceptance = await query(
@@ -50,8 +47,7 @@ export async function POST(request, { params }) {
 
     if (existingAcceptance.length > 0) {
       const existing = existingAcceptance[0];
-      console.log(`🔄 User already has mission for this date with status: ${existing.status}`);
-      
+
       if (existing.status === "completed") {
         return NextResponse.json(
           {
@@ -82,7 +78,6 @@ export async function POST(request, { params }) {
           WHERE id = ?
         `;
         await query(updateSql, [existing.id]);
-        console.log(`✅ Re-activated cancelled mission: ${existing.id}`);
 
         return NextResponse.json({
           success: true,
@@ -105,7 +100,6 @@ export async function POST(request, { params }) {
     `;
 
     const result = await query(acceptSql, [user_id, missionId, targetDate]);
-    console.log(`✅ Mission accepted successfully. User mission ID: ${result.insertId}`);
 
     return NextResponse.json({
       success: true,
@@ -119,7 +113,7 @@ export async function POST(request, { params }) {
       },
     });
   } catch (error) {
-    console.error("❌ Error accepting mission:", error);
+
     return NextResponse.json(
       {
         success: false,

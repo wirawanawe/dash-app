@@ -5,32 +5,24 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
-import ClinicForm from "./components/ClinicForm";
 import ApiDocumentation from "@/components/ApiDocumentation";
 import {
-  Plus,
   Search,
-  Edit,
-  Trash2,
   Building2,
   MapPin,
   Phone,
   Mail,
   Star,
   Calendar,
-  Filter,
   MoreVertical,
-  RefreshCw,
   Eye,
   EyeOff,
   Users,
   Award,
   Activity,
   Heart,
-  Shield,
   TrendingUp,
   FileText,
-  BarChart3,
   Cloud
 } from "lucide-react";
 
@@ -47,8 +39,6 @@ export default function ClinicsPage() {
     total: 0,
     totalPages: 0,
   });
-  const [showForm, setShowForm] = useState(false);
-  const [editingClinic, setEditingClinic] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -88,7 +78,7 @@ export default function ClinicsPage() {
         toast.error(data.error || "Gagal mengambil data klinik");
       }
     } catch (error) {
-      console.error("Error fetching clinics:", error);
+
       toast.error("Gagal mengambil data klinik");
     } finally {
       setLoading(false);
@@ -108,76 +98,6 @@ export default function ClinicsPage() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const handleEdit = (clinic) => {
-    setEditingClinic(clinic);
-    setSelectedPolyclinics(clinic.polyclinics?.map(p => p.id) || []);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (clinicId) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus klinik ini?")) return;
-
-    try {
-      const response = await fetch(`/api/clinics/${clinicId}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Klinik berhasil dihapus");
-        fetchClinics(true);
-      } else {
-        const data = await response.json();
-        toast.error(data.error || "Gagal menghapus klinik");
-      }
-    } catch (error) {
-      console.error("Error deleting clinic:", error);
-      toast.error("Gagal menghapus klinik");
-    }
-  };
-
-  // Handle form submit
-  const handleFormSubmit = async (formData) => {
-    try {
-      const url = editingClinic
-        ? `/api/clinics/${editingClinic.id}`
-        : "/api/clinics";
-      const method = editingClinic ? "PUT" : "POST";
-
-      const token = localStorage.getItem("token");
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to save clinic");
-      }
-
-      // Close form immediately
-      setShowForm(false);
-      setEditingClinic(null);
-      setSelectedPolyclinics([]);
-      
-      // Show success message
-      toast.success(
-        editingClinic
-          ? "Klinik berhasil diperbarui"
-          : "Klinik berhasil ditambahkan"
-      );
-      setShowForm(false);
-      setEditingClinic(null);
-      fetchClinics(true);
-    } catch (error) {
-      console.error("Error saving clinic:", error);
-      toast.error("Gagal menyimpan klinik");
-    }
-  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("id-ID");
@@ -242,7 +162,7 @@ export default function ClinicsPage() {
         throw new Error(result.message || 'Gagal melakukan sinkronisasi');
       }
     } catch (error) {
-      console.error('Error syncing clinics:', error);
+
       toast.error(error.message || 'Gagal melakukan sinkronisasi klinik', { id: loadingToast });
     } finally {
       setIsSyncing(false);
@@ -280,40 +200,24 @@ export default function ClinicsPage() {
                 Daftar <span className="text-yellow-300">Klinik</span>
               </h1>
               <p className="text-xl text-blue-100 max-w-2xl">
-                Kelola data klinik, informasi layanan kesehatan, dan fasilitas medis dalam sistem terintegrasi
+                Data klinik/faskes disinkronisasi otomatis dari API Master. Klik tombol untuk update data terbaru.
               </p>
             </div>
-            <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => fetchClinics(true)}
-                className="group flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl shadow-lg hover:bg-white/30 hover:scale-105 transition-all duration-300 font-semibold border border-white/30"
-              >
-                <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-300" />
-                Refresh Data
-              </button>
+            <div className="mt-6 lg:mt-0">
               <button
                 onClick={handleSyncFromAPI}
                 disabled={isSyncing}
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group flex items-center px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Cloud className={`w-5 h-5 mr-2 ${isSyncing ? 'animate-pulse' : ''}`} />
-                {isSyncing ? 'Sinkronisasi...' : 'Sinkronisasi dari API'}
+                <Cloud className={`w-6 h-6 mr-3 ${isSyncing ? 'animate-pulse' : ''}`} />
+                {isSyncing ? 'Sedang Sinkronisasi...' : 'Update Data dari API'}
               </button>
-              {isSuperadmin && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="flex items-center px-6 py-3 bg-white text-blue-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  Tambah Klinik
-                </button>
-              )}
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
@@ -416,7 +320,7 @@ export default function ClinicsPage() {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Search Section */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
@@ -490,16 +394,6 @@ export default function ClinicsPage() {
                   Daftar lengkap klinik yang terdaftar dalam sistem
                 </p>
               </div>
-              <div className="hidden lg:flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Aktif</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">Premium</span>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -522,19 +416,8 @@ export default function ClinicsPage() {
                 <p className="text-gray-500">
                   {searchQuery
                     ? "Tidak ada klinik yang sesuai dengan pencarian Anda."
-                    : "Belum ada klinik yang ditambahkan."}
+                    : "Belum ada data klinik. Klik tombol 'Update Data dari API' untuk mengambil data."}
                 </p>
-                {isSuperadmin && (
-                  <div className="mt-6">
-                    <button
-                      onClick={() => setShowForm(true)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tambah Klinik Pertama
-                    </button>
-                  </div>
-                )}
               </div>
             ) : viewMode === 'table' ? (
               /* Table View */
@@ -550,9 +433,6 @@ export default function ClinicsPage() {
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Kontak
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Rating
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -575,11 +455,11 @@ export default function ClinicsPage() {
                             </div>
                             <div>
                               <div className="text-sm font-semibold text-gray-900">{clinic.name}</div>
-                              <div className="text-sm text-gray-500 flex items-center mt-1">
-                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                  {clinic.city || 'N/A'}
-                                </span>
-                              </div>
+                              {clinic.code && (
+                                <div className="text-xs font-medium text-blue-600 mt-1">
+                                  Kode: {clinic.code}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -611,42 +491,14 @@ export default function ClinicsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            <div className="flex items-center">
-                              <Star className="h-3 w-3 mr-1 text-yellow-400" />
-                              {formatRating(clinic.rating)}
-                            </div>
-                            {clinic.total_reviews > 0 && (
-                              <div className="text-xs text-gray-500">
-                                {clinic.total_reviews} ulasan
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(clinic.is_active)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(clinic.created_at)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleEdit(clinic)}
-                              className="text-blue-600 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors"
-                              title="Edit Klinik"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            {isSuperadmin && (
-                              <button
-                                onClick={() => handleDelete(clinic.id)}
-                                className="text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                title="Hapus Klinik"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
+                          <div className="flex justify-end">
+                            <span className="text-xs text-gray-400 italic">Data dari API</span>
                           </div>
                         </td>
                       </tr>
@@ -666,6 +518,9 @@ export default function ClinicsPage() {
                         </div>
                         <div className="ml-3">
                           <h3 className="text-lg font-semibold text-gray-900">{clinic.name}</h3>
+                          {clinic.code && (
+                            <p className="text-xs font-medium text-blue-600 mt-1">Kode: {clinic.code}</p>
+                          )}
                           {getStatusBadge(clinic.is_active)}
                         </div>
                       </div>
@@ -705,21 +560,8 @@ export default function ClinicsPage() {
                     </div>
                     
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(clinic)}
-                          className="text-blue-600 hover:text-blue-900 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                        {isSuperadmin && (
-                          <button
-                            onClick={() => handleDelete(clinic.id)}
-                            className="text-red-600 hover:text-red-900 text-sm font-medium"
-                          >
-                            Hapus
-                          </button>
-                        )}
+                      <div className="flex justify-end">
+                        <span className="text-xs text-gray-400 italic">Data dari API</span>
                       </div>
                     </div>
                   </div>
@@ -759,17 +601,6 @@ export default function ClinicsPage() {
         )}
       </div>
 
-      {/* Form Modal */}
-      {showForm && (
-        <ClinicForm
-          clinic={editingClinic}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingClinic(null);
-          }}
-          onSubmit={handleFormSubmit}
-        />
-      )}
 
       {/* API Documentation */}
       <ApiDocumentation pageType="clinics" />

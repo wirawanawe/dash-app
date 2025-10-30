@@ -26,7 +26,7 @@ export default function TreatmentsPage() {
       setTreatments(Array.isArray(data) ? data : []);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data tindakan");
       setTreatments([]);
       setIsLoading(false);
@@ -50,7 +50,7 @@ export default function TreatmentsPage() {
         toast.success("Tindakan berhasil dihapus");
         fetchTreatments();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus tindakan");
       }
     }

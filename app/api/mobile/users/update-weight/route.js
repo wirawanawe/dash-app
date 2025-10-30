@@ -33,8 +33,6 @@ export async function PUT(request) {
     
     await query(updateSql, [weight, user.id]);
 
-    console.log(`Weight updated for user ${user.id}: ${weight} kg`);
-
     return NextResponse.json({
       success: true,
       message: 'Weight updated successfully',
@@ -42,7 +40,7 @@ export async function PUT(request) {
     });
 
   } catch (error) {
-    console.error('Error updating user weight:', error);
+
     return NextResponse.json(
       { 
         success: false, 

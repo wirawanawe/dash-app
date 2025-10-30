@@ -28,20 +28,23 @@ export async function GET(request) {
     const countResult = await query(countSql, params);
     const total = countResult[0].total;
 
-    // Get missions with pagination
+    // Get missions with pagination - flexible query to handle different column names
     const sql = `
       SELECT 
         id,
         title,
         description,
         category,
+        type,
         points,
-        duration_days,
         target_value,
-        target_unit,
+        unit,
+        difficulty,
+        icon,
+        color,
         is_active,
-        created_at,
-        updated_at
+        created_at as createdAt,
+        updated_at as updatedAt
       FROM missions 
       ${whereClause}
       ORDER BY created_at DESC 
@@ -63,6 +66,7 @@ export async function GET(request) {
     const missions = await rawQuery(finalQuery);
 
     return NextResponse.json({
+      success: true,
       missions,
       pagination: {
         page,
@@ -72,7 +76,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching missions:', error);
+
     return NextResponse.json(
       { error: 'Failed to fetch missions' },
       { status: 500 }
@@ -87,41 +91,53 @@ export async function POST(request) {
       title,
       description,
       category,
-      points,
-      duration_days,
+      type = 'daily',
+      points = 10,
       target_value,
-      target_unit,
+      unit,
+      difficulty = 'easy',
+      icon,
+      color,
       is_active = true
     } = body;
 
     // Validate required fields
-    if (!title || !description || !category || !points) {
+    if (!title || !description || !category || !type || !target_value) {
       return NextResponse.json(
-        { error: 'Title, description, category, and points are required' },
+        { 
+          success: false,
+          error: 'Title, description, category, type, and target_value are required' 
+        },
         { status: 400 }
       );
     }
 
     const sql = `
       INSERT INTO missions (
-        title, description, category, points, duration_days,
-        target_value, target_unit, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        title, description, category, type, points,
+        target_value, unit, difficulty, icon, color, is_active, 
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
     const result = await query(sql, [
-      title, description, category, points, duration_days,
-      target_value, target_unit, is_active
+      title, description, category, type, points,
+      target_value, unit, difficulty, icon, color, is_active
     ]);
 
     return NextResponse.json({
+      success: true,
       message: 'Mission created successfully',
       missionId: result.insertId
     });
   } catch (error) {
     console.error('Error creating mission:', error);
     return NextResponse.json(
-      { error: 'Failed to create mission' },
+      { 
+        success: false,
+        error: 'Failed to create mission',
+        details: error.message 
+      },
       { status: 500 }
     );
   }

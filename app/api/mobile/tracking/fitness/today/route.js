@@ -4,7 +4,6 @@ import { getMobileUserFromRequest } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get today's fitness summary
 export async function GET(request) {
   try {
@@ -45,18 +44,18 @@ export async function GET(request) {
     try {
       const schemaCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'workout_type'");
       hasNewSchema = schemaCheck.length > 0;
-      console.log("🔍 Today endpoint - has new schema:", hasNewSchema);
+
     } catch (error) {
-      console.log("🔍 Today endpoint - schema check failed:", error.message);
+
       hasNewSchema = false;
     }
     
     try {
       const exerciseMinutesCheck = await query("SHOW COLUMNS FROM fitness_tracking LIKE 'exercise_minutes'");
       hasExerciseMinutes = exerciseMinutesCheck.length > 0;
-      console.log("🔍 Today endpoint - has exercise_minutes column:", hasExerciseMinutes);
+
     } catch (error) {
-      console.log("🔍 Today endpoint - exercise minutes check failed:", error.message);
+
       hasExerciseMinutes = false;
     }
     
@@ -170,7 +169,7 @@ export async function GET(request) {
       data: fitnessSummary,
     });
   } catch (error) {
-    console.error("Error fetching today fitness:", error);
+
     return NextResponse.json(
       {
         success: false,

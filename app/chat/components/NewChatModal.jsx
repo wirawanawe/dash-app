@@ -38,11 +38,11 @@ export default function NewChatModal({ onClose, onChatCreated }) {
       if (response.ok) {
         setUsers(data.users);
       } else {
-        console.error('Failed to fetch users:', data.message);
+
         toast.error("Gagal memuat daftar user");
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
+
       toast.error("Terjadi kesalahan saat memuat user");
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ export default function NewChatModal({ onClose, onChatCreated }) {
         toast.error(data.message || "Gagal membuat chat");
       }
     } catch (error) {
-      console.error('Error creating chat:', error);
+
       toast.error("Terjadi kesalahan saat membuat chat");
     } finally {
       setCreatingChat(false);

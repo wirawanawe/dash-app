@@ -127,7 +127,6 @@ export async function POST(request) {
         ]);
       }
 
-      console.log(`✅ Updated habit completion: ${habit.title}, frequency: ${newFrequency}/${habit.target_frequency}`);
     } else {
       // Create new completion
       const frequencyMultiplier = Math.min(frequency / habit.target_frequency, 1);
@@ -183,7 +182,6 @@ export async function POST(request) {
         ]);
       }
 
-      console.log(`✅ Created new habit completion: ${habit.title}, frequency: ${frequency}/${habit.target_frequency}`);
     }
 
     const response = {
@@ -204,7 +202,7 @@ export async function POST(request) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error completing habit activity:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error',

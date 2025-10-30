@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET polyclinics for a specific clinic
 export async function GET(request, { params }) {
   try {
@@ -21,7 +20,7 @@ export async function GET(request, { params }) {
     
     return NextResponse.json(polyclinics);
   } catch (error) {
-    console.error("Error fetching clinic polyclinics:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data poli klinik" },
       { status: 500 }
@@ -58,7 +57,7 @@ export async function POST(request, { params }) {
     
     return NextResponse.json({ message: "Poli berhasil ditambahkan ke klinik" });
   } catch (error) {
-    console.error("Error adding polyclinic to clinic:", error);
+
     return NextResponse.json(
       { message: "Gagal menambahkan poli ke klinik" },
       { status: 500 }
@@ -88,7 +87,7 @@ export async function DELETE(request, { params }) {
     
     return NextResponse.json({ message: "Poli berhasil dihapus dari klinik" });
   } catch (error) {
-    console.error("Error removing polyclinic from clinic:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus poli dari klinik" },
       { status: 500 }

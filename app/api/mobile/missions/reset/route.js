@@ -6,8 +6,6 @@ export async function POST(request) {
   try {
     const { user_id, mission_id } = await request.json();
 
-    console.log(`🔄 Resetting missions for user: ${user_id}${mission_id ? `, mission: ${mission_id}` : ''}`);
-
     if (!user_id) {
       return NextResponse.json(
         {
@@ -39,7 +37,6 @@ export async function POST(request) {
     }
 
     const result = await query(sql, params);
-    console.log(`✅ Reset ${result.affectedRows} mission(s) for user ${user_id}`);
 
     return NextResponse.json({
       success: true,
@@ -52,7 +49,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error("❌ Error resetting missions:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -29,7 +29,7 @@ export default function UsersPage() {
       const data = await response.json();
       setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal mengambil data pengguna");
       setUsers([]);
     } finally {
@@ -64,7 +64,7 @@ export default function UsersPage() {
         toast.success("Pengguna berhasil dihapus");
         fetchUsers();
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error(error.message);
       }
     }

@@ -74,7 +74,7 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-    console.error('Error fetching mood tracking data:', error);
+
     return NextResponse.json(
       { error: 'Failed to fetch mood tracking data' },
       { status: 500 }
@@ -121,7 +121,7 @@ export async function POST(request) {
       id: result.insertId
     });
   } catch (error) {
-    console.error('Error creating mood tracking data:', error);
+
     return NextResponse.json(
       { error: 'Failed to create mood tracking data' },
       { status: 500 }

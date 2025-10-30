@@ -6,10 +6,9 @@ import { getMobileUserFromRequest } from "@/lib/auth";
 export async function DELETE(request, { params }) {
   try {
     const user = await getMobileUserFromRequest(request);
-    console.log("🔍 DELETE Quick Food - User:", user);
-    
+
     if (!user) {
-      console.log("❌ DELETE Quick Food - No user authenticated");
+
       return NextResponse.json(
         { 
           success: false,
@@ -21,11 +20,9 @@ export async function DELETE(request, { params }) {
 
     const userId = user.id;
     const { foodId } = params;
-    
-    console.log("🔍 DELETE Quick Food - User ID:", userId, "Food ID:", foodId);
 
     if (!foodId) {
-      console.log("❌ DELETE Quick Food - No food ID provided");
+
       return NextResponse.json(
         { 
           success: false,
@@ -40,8 +37,6 @@ export async function DELETE(request, { params }) {
       "SELECT id, name FROM food_database WHERE id = ?", 
       [foodId]
     );
-    
-    console.log("🔍 DELETE Quick Food - Food database check:", foodCheck);
 
     if (foodCheck.length === 0) {
       return NextResponse.json(
@@ -59,8 +54,6 @@ export async function DELETE(request, { params }) {
       "SELECT id, user_id, food_id FROM user_quick_foods WHERE user_id = ? AND food_id = ?", 
       [userId, foodId]
     );
-    
-    console.log("🔍 DELETE Quick Food - User quick food check:", quickFoodCheck);
 
     if (quickFoodCheck.length === 0) {
       // Let's also check if the quick food exists for any user
@@ -68,15 +61,13 @@ export async function DELETE(request, { params }) {
         "SELECT id, user_id, food_id FROM user_quick_foods WHERE food_id = ?", 
         [foodId]
       );
-      console.log("🔍 DELETE Quick Food - Any user check:", anyUserCheck);
-      
+
       // Check what quick foods this user actually has
       const userQuickFoods = await query(
         "SELECT id, user_id, food_id FROM user_quick_foods WHERE user_id = ?", 
         [userId]
       );
-      console.log("🔍 DELETE Quick Food - User's actual quick foods:", userQuickFoods);
-      
+
       return NextResponse.json(
         { 
           success: false,
@@ -96,8 +87,6 @@ export async function DELETE(request, { params }) {
       "DELETE FROM user_quick_foods WHERE user_id = ? AND food_id = ?", 
       [userId, foodId]
     );
-    
-    console.log("✅ DELETE Quick Food - Successfully removed");
 
     return NextResponse.json({
       success: true,
@@ -106,7 +95,7 @@ export async function DELETE(request, { params }) {
     });
     
   } catch (error) {
-    console.error("❌ DELETE Quick Food - Error:", error);
+
     return NextResponse.json(
       { 
         success: false,

@@ -16,7 +16,7 @@ export async function GET() {
     const polyclinics = await query(sql);
     return NextResponse.json(polyclinics);
   } catch (error) {
-    console.error("Error fetching polyclinics:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data poli" },
       { status: 500 }
@@ -60,7 +60,7 @@ export async function POST(request) {
 
     return NextResponse.json(newPolyclinic, { status: 201 });
   } catch (error) {
-    console.error("Error creating polyclinic:", error);
+
     return NextResponse.json(
       { error: "Gagal menambahkan poli" },
       { status: 500 }

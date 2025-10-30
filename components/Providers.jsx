@@ -40,7 +40,7 @@ export function Providers({ children }) {
         setUser(null);
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
+
       setUser(null);
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ export function Providers({ children }) {
       toast.error("Sua sessão expirou. Faça login novamente.");
       router.push("/login");
     } catch (error) {
-      console.error("Logout failed:", error);
+
       // Even if there's an error, clear the user state and redirect to login
       setUser(null);
       toast.error("Sua sessão expirou. Faça login novamente.");
@@ -85,7 +85,7 @@ export function Providers({ children }) {
       setUser(null);
       router.push("/login");
     } catch (error) {
-      console.error("Logout failed:", error);
+
       // Even if there's an error, clear the user state and redirect to login
       setUser(null);
       router.push("/login");

@@ -99,7 +99,7 @@ export default function UserForm({ user, onSubmit, onCancel }) {
       );
       onSubmit();
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message || "Gagal menyimpan data pengguna");
     } finally {
       setIsLoading(false);

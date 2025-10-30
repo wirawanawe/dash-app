@@ -22,7 +22,7 @@ export async function GET(req) {
 
     return NextResponse.json(company);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data perusahaan" },
       { status: 500 }
@@ -52,7 +52,7 @@ export async function PUT(req) {
 
     return NextResponse.json(company);
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal mengupdate perusahaan" },
       { status: 500 }
@@ -74,7 +74,7 @@ export async function DELETE(req) {
 
     return NextResponse.json({ message: "Perusahaan berhasil dihapus" });
   } catch (error) {
-    console.error("Error:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus perusahaan" },
       { status: 500 }

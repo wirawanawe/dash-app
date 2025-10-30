@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
         toast.error(data.message);
       }
     } catch (error) {
-      console.error("Forgot password error:", error);
+
       toast.error("Terjadi kesalahan. Silakan coba lagi.");
     } finally {
       setIsLoading(false);

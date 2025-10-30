@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(icd);
   } catch (error) {
-    console.error("Error fetching ICD:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data ICD" },
       { status: 500 }
@@ -45,7 +45,7 @@ export async function PUT(request, { params }) {
     });
     return NextResponse.json(icd);
   } catch (error) {
-    console.error("Error updating ICD:", error);
+
     return NextResponse.json(
       { error: "Gagal mengupdate ICD" },
       { status: 500 }
@@ -63,7 +63,7 @@ export async function DELETE(request, { params }) {
     });
     return NextResponse.json({ message: "ICD berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting ICD:", error);
+
     return NextResponse.json({ error: "Gagal menghapus ICD" }, { status: 500 });
   }
 }

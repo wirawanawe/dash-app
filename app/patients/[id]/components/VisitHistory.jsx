@@ -53,7 +53,7 @@ export default function VisitHistory({ mrNumber, patientId }) {
           setTotalVisits(0);
         }
       } catch (error) {
-        console.error("Error fetching visit history:", error);
+
         setError("Gagal mengambil riwayat kunjungan");
         toast.error("Gagal mengambil riwayat kunjungan");
       } finally {

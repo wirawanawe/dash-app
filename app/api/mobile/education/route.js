@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 // GET - Get education content
 export async function GET(request) {
   try {
@@ -111,7 +110,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching education content:", error);
+
     return NextResponse.json(
       {
         success: false,

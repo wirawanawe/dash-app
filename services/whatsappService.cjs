@@ -36,14 +36,12 @@ class WhatsAppService {
         }
       });
 
-      console.log('WhatsApp message sent successfully:', response.data);
       return {
         success: true,
         data: response.data
       };
 
     } catch (error) {
-      console.error('WhatsApp API error:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data || error.message
@@ -133,7 +131,6 @@ Tim PHC Mobile`;
       return await this.sendMessage(phoneNumber, message);
 
     } catch (error) {
-      console.error('Send OTP error:', error);
       return {
         success: false,
         error: error.message
@@ -180,14 +177,12 @@ Tim PHC Mobile`;
         }
       });
 
-      console.log('WhatsApp template message sent successfully:', response.data);
       return {
         success: true,
         data: response.data
       };
 
     } catch (error) {
-      console.error('WhatsApp template API error:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data || error.message

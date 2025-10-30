@@ -3,7 +3,6 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-
 export async function GET(request) {
   try {
     const searchParams = new URL(request.url).searchParams;
@@ -108,7 +107,7 @@ export async function GET(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Profile fetch error:", error);
+
     return NextResponse.json(
       {
         success: false,

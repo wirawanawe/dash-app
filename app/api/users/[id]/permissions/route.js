@@ -1,10 +1,64 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { jwtVerify } from "jose";
+
+// Function to get user from token
+async function getUserFromToken(request) {
+  // Try to get token from Authorization header first
+  const authHeader = request.headers.get("authorization");
+  let token = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  } else {
+    // Fallback to cookies
+    const cookieToken = request.cookies.get("token");
+    if (cookieToken) {
+      token = cookieToken.value;
+    }
+  }
+  
+  if (!token) return null;
+
+  try {
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(token, secretKey);
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
 
 // GET user permissions
 export async function GET(request, { params }) {
   try {
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
+    
     const { id } = params;
+
+    // Check if target user is superadmin
+    const [targetUser] = await query(
+      "SELECT role FROM users WHERE id = ?",
+      [id]
+    );
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { error: "User tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    // Only superadmin can view superadmin permissions
+    if (targetUser.role?.toUpperCase() === 'SUPERADMIN') {
+      if (!userPayload || userPayload.role?.toUpperCase() !== 'SUPERADMIN') {
+        return NextResponse.json(
+          { error: "Hanya Superadmin yang dapat melihat permission Superadmin" },
+          { status: 403 }
+        );
+      }
+    }
 
     // Get user permissions
     const permissions = await query(
@@ -22,7 +76,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(permissionsObj);
   } catch (error) {
-    console.error("Error fetching user permissions:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data permission" },
       { status: 500 }
@@ -33,8 +87,34 @@ export async function GET(request, { params }) {
 // PUT update user permissions
 export async function PUT(request, { params }) {
   try {
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
+    
     const { id } = params;
     const permissions = await request.json();
+
+    // Check if target user is superadmin
+    const [targetUser] = await query(
+      "SELECT role FROM users WHERE id = ?",
+      [id]
+    );
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { error: "User tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    // Only superadmin can update superadmin permissions
+    if (targetUser.role?.toUpperCase() === 'SUPERADMIN') {
+      if (!userPayload || userPayload.role?.toUpperCase() !== 'SUPERADMIN') {
+        return NextResponse.json(
+          { error: "Hanya Superadmin yang dapat mengubah permission Superadmin" },
+          { status: 403 }
+        );
+      }
+    }
 
     // Delete existing permissions for this user
     await query(
@@ -65,7 +145,7 @@ export async function PUT(request, { params }) {
       message: "Permission berhasil diperbarui" 
     });
   } catch (error) {
-    console.error("Error updating user permissions:", error);
+
     return NextResponse.json(
       { error: "Gagal memperbarui permission" },
       { status: 500 }

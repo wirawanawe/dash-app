@@ -60,7 +60,7 @@ export async function GET() {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Database test failed:', error);
+
     return NextResponse.json(
       { 
         success: false, 

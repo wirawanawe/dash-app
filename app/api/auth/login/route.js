@@ -209,7 +209,6 @@ export async function POST(request) {
 
       return response;
     } catch (dbError) {
-      console.error("Database error during login:", dbError);
 
       return NextResponse.json(
         {
@@ -220,7 +219,7 @@ export async function POST(request) {
       );
     }
   } catch (error) {
-    console.error("Login error:", error);
+
     return NextResponse.json(
       {
         success: false,

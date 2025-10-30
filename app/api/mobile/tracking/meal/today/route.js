@@ -115,7 +115,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching today's meals:", error);
+
     return NextResponse.json(
       {
         success: false,

@@ -62,7 +62,7 @@ export default function TreatmentForm({ treatment, onSubmit, onCancel }) {
       );
       onSubmit();
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error("Gagal menyimpan data tindakan");
     } finally {
       setIsLoading(false);

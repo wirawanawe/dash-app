@@ -4,8 +4,7 @@ import { query } from '@/lib/db';
 // GET - Get all medicines for a clinic
 export async function GET(request) {
   try {
-    console.log('Medicine API called');
-    
+
     // Parse search parameters
     const { searchParams } = new URL(request.url);
     const clinicId = searchParams.get('clinic_id');
@@ -13,8 +12,6 @@ export async function GET(request) {
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 10;
     const offset = (page - 1) * limit;
-
-    console.log('Search params:', { clinicId, search, page, limit, offset });
 
     // Build query with filters
     let medicinesQuery = `
@@ -69,11 +66,7 @@ export async function GET(request) {
     // Add ordering and pagination
     medicinesQuery += ` ORDER BY m.ElementDetailKey DESC LIMIT ${limit} OFFSET ${offset}`;
 
-    console.log('Medicines query:', medicinesQuery);
-    console.log('Count query:', countQuery);
-
     const medicines = await query(medicinesQuery);
-    console.log('Medicines result count:', medicines.length);
 
     const totalCount = await query(countQuery);
     const total = totalCount[0]?.total || 0;
@@ -90,8 +83,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error fetching medicines:', error);
-    console.error('Error stack:', error.stack);
+
     return NextResponse.json(
       { 
         success: false, 
@@ -178,7 +170,7 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating medicine:', error);
+
     return NextResponse.json(
       { success: false, message: 'Failed to create medicine' },
       { status: 500 }

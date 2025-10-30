@@ -47,7 +47,7 @@ const Navbar = () => {
           // User data will be updated through the Providers context
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+
       }
     };
 
@@ -91,25 +91,6 @@ const Navbar = () => {
     );
   }
 
-  // Handle click outside to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [isDropdownOpen]);
-
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
@@ -130,7 +111,7 @@ const Navbar = () => {
     try {
       await logout();
     } catch (error) {
-      console.error("Logout failed:", error);
+
     }
   };
 
@@ -153,10 +134,7 @@ const Navbar = () => {
           {/* Right section - User menu with enhanced mobile support */}
           <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
             {/* Notification icon - Enhanced for mobile with better touch targets */}
-            <button className="p-2.5 sm:p-3 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all duration-200 relative touch-manipulation min-h-[48px] min-w-[48px] flex items-center justify-center">
-              <FaBell className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></span>
-            </button>
+            
 
             {/* User dropdown - Enhanced for mobile with better touch targets */}
             <div className="relative" ref={dropdownRef}>

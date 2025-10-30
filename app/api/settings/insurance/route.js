@@ -11,7 +11,7 @@ export async function GET() {
     });
     return NextResponse.json(insurances);
   } catch (error) {
-    console.error("Error fetching insurances:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data asuransi" },
       { status: 500 }
@@ -43,7 +43,7 @@ export async function POST(request) {
 
     return NextResponse.json(insurance);
   } catch (error) {
-    console.error("Error creating insurance:", error.message || error);
+
     return NextResponse.json(
       { error: "Gagal menambahkan asuransi" },
       { status: 500 }

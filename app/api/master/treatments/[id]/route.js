@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(treatment);
   } catch (error) {
-    console.error("Error fetching treatment:", error);
+
     return NextResponse.json(
       { error: "Gagal mengambil data tindakan" },
       { status: 500 }
@@ -45,7 +45,7 @@ export async function PUT(request, { params }) {
     });
     return NextResponse.json(treatment);
   } catch (error) {
-    console.error("Error updating treatment:", error);
+
     return NextResponse.json(
       { error: "Gagal mengupdate tindakan" },
       { status: 500 }
@@ -63,7 +63,7 @@ export async function DELETE(request, { params }) {
     });
     return NextResponse.json({ message: "Tindakan berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting treatment:", error);
+
     return NextResponse.json(
       { error: "Gagal menghapus tindakan" },
       { status: 500 }

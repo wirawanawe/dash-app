@@ -58,7 +58,7 @@ export default function DoctorsPage() {
         setClinics(result.data || result);
       }
     } catch (error) {
-      console.error("Error fetching clinics:", error);
+
     }
   };
 
@@ -70,7 +70,7 @@ export default function DoctorsPage() {
         setPolyclinics(data);
       }
     } catch (error) {
-      console.error("Error fetching polyclinics:", error);
+
     }
   };
 
@@ -98,13 +98,13 @@ export default function DoctorsPage() {
         response = await fetch(url);
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error("Server error:", response.status, errorData);
+
           throw new Error(
             `HTTP error! Status: ${response.status}. ${errorData.message || ""}`
           );
         }
       } catch (networkError) {
-        console.error("Network error:", networkError);
+
         setDoctors([]);
         setIsLoading(false);
 
@@ -129,7 +129,7 @@ export default function DoctorsPage() {
       setDoctors(Array.isArray(data) ? data : []);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error in fetchDoctors:", error);
+
       setDoctors([]);
       setIsLoading(false);
       toast.error("Gagal mengambil data dokter");
@@ -156,7 +156,7 @@ export default function DoctorsPage() {
       );
       setShowForm(false);
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message || "Gagal menyimpan dokter");
     }
   };
@@ -174,7 +174,7 @@ export default function DoctorsPage() {
         
         toast.success("Dokter berhasil dihapus");
       } catch (error) {
-        console.error("Error:", error);
+
         toast.error("Gagal menghapus dokter");
       }
     }
@@ -245,7 +245,7 @@ export default function DoctorsPage() {
         throw new Error(result.message || 'Gagal melakukan sinkronisasi');
       }
     } catch (error) {
-      console.error('Error syncing doctors:', error);
+
       toast.error(error.message || 'Gagal melakukan sinkronisasi dokter', { id: loadingToast });
     } finally {
       setIsSyncing(false);
@@ -283,19 +283,11 @@ export default function DoctorsPage() {
         throw new Error(result.message || 'Gagal melakukan reset dan sinkronisasi');
       }
     } catch (error) {
-      console.error('Error resetting and syncing doctors:', error);
+
       toast.error(error.message || 'Gagal melakukan reset dan sinkronisasi dokter', { id: loadingToast });
     } finally {
       setIsResetting(false);
     }
-  };
-
-  // Calculate doctor statistics
-  const doctorStats = {
-    total: doctors.length,
-    specialists: doctors.filter(d => d.specialist).length,
-    active: doctors.length, // Assuming all doctors are active
-    averageExperience: Math.round(doctors.reduce((acc, d) => acc + (d.experience_years || 0), 0) / Math.max(1, doctors.length))
   };
 
   return (
@@ -328,33 +320,7 @@ export default function DoctorsPage() {
                 <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-300" />
                 Refresh Data
               </button>
-              <button
-                onClick={handleSyncFromAPI}
-                disabled={isSyncing || isResetting}
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Cloud className={`w-5 h-5 mr-2 ${isSyncing ? 'animate-pulse' : ''}`} />
-                {isSyncing ? 'Sinkronisasi...' : 'Sinkronisasi dari API'}
-              </button>
-              <button
-                onClick={handleResetAndSync}
-                disabled={isSyncing || isResetting}
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Hapus semua data dokter dan ganti dengan data dari API"
-              >
-                <RotateCcw className={`w-5 h-5 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
-                {isResetting ? 'Reset & Sync...' : 'Reset & Sync dari API'}
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedDoctor(null);
-                  setShowForm(true);
-                }}
-                className="flex items-center px-6 py-3 bg-white text-blue-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
-              >
-                <UserPlus className="w-5 h-5 mr-2" />
-                Tambah Dokter
-              </button>
+              
             </div>
           </div>
         </div>

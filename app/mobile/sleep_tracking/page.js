@@ -49,7 +49,7 @@ export default function SleepTrackingPage() {
         throw new Error(data.message || 'Gagal memuat data sleep tracking');
       }
     } catch (err) {
-      console.error('Error fetching sleep data:', err);
+
       setError(err.message);
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export default function SleepTrackingPage() {
         throw new Error(data.message || 'Gagal menghapus data tidur');
       }
     } catch (err) {
-      console.error('Error deleting sleep data:', err);
+
       alert(err.message);
     }
   };
@@ -123,7 +123,7 @@ export default function SleepTrackingPage() {
         throw new Error(data.message || 'Gagal menyimpan data tidur');
       }
     } catch (err) {
-      console.error('Error saving sleep data:', err);
+
       alert(err.message);
     }
   };

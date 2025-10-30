@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-
 const postalCodesData = {
   // Jakarta Pusat
   "TANAH ABANG": {

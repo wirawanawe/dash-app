@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
           };
         }
       } catch (error) {
-        console.error("Error verifying internal token:", error);
+
       }
     }
 
@@ -63,7 +63,7 @@ export async function GET(request, { params }) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -169,7 +169,7 @@ export async function GET(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error in GET /api/chat/[id]:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -201,7 +201,7 @@ export async function POST(request, { params }) {
           };
         }
       } catch (error) {
-        console.error("Error verifying internal token:", error);
+
       }
     }
 
@@ -238,7 +238,7 @@ export async function POST(request, { params }) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -336,7 +336,7 @@ export async function POST(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error in POST /api/chat/[id]:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -368,7 +368,7 @@ export async function PUT(request, { params }) {
           };
         }
       } catch (error) {
-        console.error("Error verifying internal token:", error);
+
       }
     }
 
@@ -405,7 +405,7 @@ export async function PUT(request, { params }) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -465,7 +465,7 @@ export async function PUT(request, { params }) {
     });
 
   } catch (error) {
-    console.error('Error in PUT /api/chat/[id]:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

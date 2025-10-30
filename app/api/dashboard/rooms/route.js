@@ -40,7 +40,7 @@ export async function GET(request) {
       total: transformedRooms.length
     });
   } catch (error) {
-    console.error("Error fetching clinic rooms:", error);
+
     return NextResponse.json(
       {
         success: false,

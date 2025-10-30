@@ -123,7 +123,7 @@ export default function UserPermissionsModal({ user, onClose, onSaved }) {
       
       setPermissions(defaultPermissions);
     } catch (error) {
-      console.error("Error fetching permissions:", error);
+
       toast.error("Gagal memuat permission");
       
       // Set default empty permissions
@@ -184,7 +184,7 @@ export default function UserPermissionsModal({ user, onClose, onSaved }) {
       
       onClose();
     } catch (error) {
-      console.error("Error saving permissions:", error);
+
       toast.error("Gagal menyimpan permission");
     } finally {
       setSaving(false);

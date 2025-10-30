@@ -25,8 +25,7 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 // POST /api/doctors/sync - Sync doctors from external API
 export async function POST(request) {
   try {
-    console.log('[Doctors Sync] Starting sync from external API...');
-    
+
     // Step 1: Get total count from visits API
     const countResponse = await fetchWithRetry(
       `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=1&limit=1`,
@@ -42,18 +41,14 @@ export async function POST(request) {
     
     const countData = await countResponse.json();
     const externalTotal = countData["total pasien"] || countData.total || 0;
-    
-    console.log(`[Doctors Sync] Total visits in external DB: ${externalTotal}`);
-    
+
     // Step 2: Fetch multiple pages to get all unique doctors
     const desiredRecords = 10000;
     const recordsPerPage = 1000;
     const pagesToFetch = Math.ceil(Math.min(desiredRecords, externalTotal) / recordsPerPage);
     const totalPagesInExternal = Math.ceil(externalTotal / recordsPerPage);
     const startPage = Math.max(1, totalPagesInExternal - pagesToFetch + 1);
-    
-    console.log(`[Doctors Sync] Fetching ${pagesToFetch} pages from page ${startPage} to ${totalPagesInExternal}`);
-    
+
     // Fetch multiple pages in parallel
     const pageFetchPromises = [];
     for (let pageNum = startPage; pageNum <= totalPagesInExternal; pageNum++) {
@@ -76,68 +71,137 @@ export async function POST(request) {
         rawVisits = rawVisits.concat(pageData.data);
       }
     });
-    
-    console.log(`[Doctors Sync] Fetched ${rawVisits.length} visits from external API`);
-    
-    // Step 3: Extract unique doctors from visits
+
+    // Step 3: Extract unique doctors from visits with their clinics
     const doctorsMap = new Map();
+    const clinicsMap = new Map(); // To track unique clinics
     
     rawVisits.forEach(visit => {
       const doctorName = visit.Dokter;
+      const clinicName = visit.Klinik; // e.g., "UMUM", "GIGI", etc.
+      const facilityCode = visit.Fasilitas_Kesehatan?.[0]?.Kode || null;
+      const facilityName = visit.Fasilitas_Kesehatan?.[0]?.Nama_Faskes || null;
       
-      if (doctorName && doctorName !== "-" && !doctorsMap.has(doctorName)) {
-        doctorsMap.set(doctorName, {
-          name: doctorName,
+      // Track clinics
+      if (clinicName && clinicName !== "-" && !clinicsMap.has(clinicName)) {
+        clinicsMap.set(clinicName, {
+          name: clinicName,
+          facilityCode: facilityCode,
+          facilityName: facilityName,
         });
+      }
+      
+      // Track doctors with their clinic
+      if (doctorName && doctorName !== "-") {
+        if (!doctorsMap.has(doctorName)) {
+          doctorsMap.set(doctorName, {
+            name: doctorName,
+            clinics: new Set(),
+          });
+        }
+        
+        // Add clinic to doctor's clinics
+        if (clinicName && clinicName !== "-") {
+          doctorsMap.get(doctorName).clinics.add(clinicName);
+        }
       }
     });
     
-    const uniqueDoctors = Array.from(doctorsMap.values());
-    console.log(`[Doctors Sync] Found ${uniqueDoctors.length} unique doctors`);
+    const uniqueDoctors = Array.from(doctorsMap.values()).map(doctor => ({
+      ...doctor,
+      clinics: Array.from(doctor.clinics),
+    }));
     
-    // Step 4: Save doctors to database (skip if already exists)
+    const uniqueClinics = Array.from(clinicsMap.values());
+
+    // Step 4: Create or find clinics in database
+    const clinicIdMap = new Map(); // clinic name -> clinic id
+    
+    for (const clinic of uniqueClinics) {
+      try {
+        // Check if clinic already exists by name
+        const existing = await query(
+          'SELECT id FROM clinics WHERE name = ? LIMIT 1',
+          [clinic.name]
+        );
+        
+        if (existing.length > 0) {
+          clinicIdMap.set(clinic.name, existing[0].id);
+        } else {
+          // Create new clinic
+          const result = await query(
+            `INSERT INTO clinics (name, code, address, city, phone, is_active, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+            [
+              clinic.facilityName || clinic.name,
+              clinic.facilityCode || null,
+              '-',
+              '-',
+              '-'
+            ]
+          );
+          clinicIdMap.set(clinic.name, result.insertId);
+        }
+      } catch (error) {
+        console.error(`Error creating/finding clinic ${clinic.name}:`, error);
+      }
+    }
+
+    // Step 5: Save doctors to database with clinic association
     let addedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     
     for (const doctor of uniqueDoctors) {
       try {
+        // Get clinic_id for the doctor's primary clinic (first clinic in the list)
+        const primaryClinicName = doctor.clinics[0];
+        const clinicId = primaryClinicName ? clinicIdMap.get(primaryClinicName) : null;
+        
         // Check if doctor already exists
         const existing = await query(
-          'SELECT id FROM doctors WHERE name = ? LIMIT 1',
+          'SELECT id, clinic_id FROM doctors WHERE name = ? LIMIT 1',
           [doctor.name]
         );
         
         if (existing.length > 0) {
-          skippedCount++;
-          continue;
+          // Update doctor with clinic_id if it's null or different
+          if (!existing[0].clinic_id && clinicId) {
+            await query(
+              `UPDATE doctors SET clinic_id = ?, updated_at = NOW() WHERE id = ?`,
+              [clinicId, existing[0].id]
+            );
+            updatedCount++;
+          } else {
+            skippedCount++;
+          }
+        } else {
+          // Insert new doctor with clinic_id
+          await query(
+            `INSERT INTO doctors (name, specialist, license_number, clinic_id, created_at, updated_at) 
+             VALUES (?, NULL, NULL, ?, NOW(), NOW())`,
+            [doctor.name, clinicId]
+          );
+          addedCount++;
         }
-        
-        // Insert new doctor
-        await query(
-          `INSERT INTO doctors (name, specialist, license_number, created_at, updated_at) 
-           VALUES (?, NULL, NULL, NOW(), NOW())`,
-          [doctor.name]
-        );
-        
-        addedCount++;
       } catch (error) {
-        console.error(`[Doctors Sync] Error saving doctor ${doctor.name}:`, error);
+        console.error(`Error saving doctor ${doctor.name}:`, error);
       }
     }
-    
-    console.log(`[Doctors Sync] Completed: ${addedCount} added, ${skippedCount} skipped (already exist)`);
-    
+
     return NextResponse.json({
       success: true,
-      message: `Sinkronisasi selesai: ${addedCount} dokter baru ditambahkan, ${skippedCount} dokter sudah ada`,
+      message: `Sinkronisasi selesai: ${addedCount} dokter baru ditambahkan, ${updatedCount} dokter diperbarui dengan klinik, ${skippedCount} dokter sudah ada`,
       stats: {
-        total: uniqueDoctors.length,
+        totalDoctors: uniqueDoctors.length,
+        totalClinics: uniqueClinics.length,
         added: addedCount,
+        updated: updatedCount,
         skipped: skippedCount,
       },
     });
   } catch (error) {
-    console.error('[Doctors Sync] Error:', error);
+
     return NextResponse.json(
       {
         success: false,

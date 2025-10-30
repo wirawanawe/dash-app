@@ -83,7 +83,7 @@ export async function GET(request) {
       });
     }
   } catch (error) {
-    console.error("Error fetching visits:", error);
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

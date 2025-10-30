@@ -51,7 +51,7 @@ export async function GET(request, { params }) {
     
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Error fetching polyclinic:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data poli" },
       { status: 500 }
@@ -90,7 +90,7 @@ export async function PUT(request, { params }) {
     
     return NextResponse.json(updatedPolyclinic[0]);
   } catch (error) {
-    console.error("Error updating polyclinic:", error);
+
     return NextResponse.json(
       { message: "Gagal mengupdate poli" },
       { status: 500 }
@@ -134,7 +134,7 @@ export async function DELETE(request, { params }) {
     
     return NextResponse.json({ message: "Poli berhasil dihapus" });
   } catch (error) {
-    console.error("Error deleting polyclinic:", error);
+
     return NextResponse.json(
       { message: "Gagal menghapus poli" },
       { status: 500 }

@@ -48,9 +48,7 @@ export async function POST(request) {
     try {
       // Check if email configuration is available or if we're in development mode
       if (!process.env.SMTP_USER || !process.env.SMTP_PASS || process.env.NODE_ENV === 'development') {
-        console.log("📧 Email configuration not available or in development mode, skipping email send");
-        console.log("📧 OTP for development:", otp);
-        
+
         return NextResponse.json({
           success: true,
           message: "Kode OTP telah dikirim ke email Anda. Silakan cek email dan masukkan kode OTP.",
@@ -100,8 +98,7 @@ export async function POST(request) {
         message: "Kode OTP telah dikirim ke email Anda. Silakan cek email dan masukkan kode OTP.",
       });
     } catch (emailError) {
-      console.error("Email sending error:", emailError);
-      
+
       // Remove OTP if email fails
       await query(
         "UPDATE mobile_users SET reset_otp = NULL, reset_otp_expiry = NULL WHERE id = ?",
@@ -117,7 +114,7 @@ export async function POST(request) {
       );
     }
   } catch (error) {
-    console.error("Mobile forgot password error:", error);
+
     return NextResponse.json(
       {
         success: false,

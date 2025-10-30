@@ -48,7 +48,7 @@ export async function PUT(request, { params }) {
       message: 'Mood tracking data updated successfully'
     });
   } catch (error) {
-    console.error('Error updating mood tracking data:', error);
+
     return NextResponse.json(
       { error: 'Failed to update mood tracking data' },
       { status: 500 }
@@ -75,7 +75,7 @@ export async function DELETE(request, { params }) {
       message: 'Mood tracking data deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting mood tracking data:', error);
+
     return NextResponse.json(
       { error: 'Failed to delete mood tracking data' },
       { status: 500 }

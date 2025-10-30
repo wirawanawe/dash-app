@@ -43,7 +43,7 @@ export default function RoleManagementPage() {
         toast.error("Gagal memuat data pengguna");
       }
     } catch (error) {
-      console.error("Error fetching users:", error);
+
       toast.error("Gagal memuat data pengguna");
     } finally {
       setLoading(false);
@@ -82,11 +82,11 @@ export default function RoleManagementPage() {
         setShowCreateModal(false);
         fetchUsers();
       } else {
-        console.error("❌ API Error:", data);
+
         toast.error(data.message || "Gagal membuat pengguna");
       }
     } catch (error) {
-      console.error("❌ Error creating user:", error);
+
       toast.error("Gagal membuat pengguna - koneksi error");
     }
   };
@@ -110,7 +110,7 @@ export default function RoleManagementPage() {
         toast.error(data.error || "Gagal memperbarui role");
       }
     } catch (error) {
-      console.error("Error updating role:", error);
+
       toast.error("Gagal memperbarui role");
     }
   };
@@ -133,7 +133,7 @@ export default function RoleManagementPage() {
         toast.error(data.error || "Gagal menghapus pengguna");
       }
     } catch (error) {
-      console.error("Error deleting user:", error);
+
       toast.error("Gagal menghapus pengguna");
     }
   };

@@ -25,18 +25,14 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 // POST /api/doctors/reset-sync - Reset and sync doctors from external API
 export async function POST(request) {
   try {
-    console.log('[Doctors Reset-Sync] Starting reset and sync from external API...');
-    
+
     // Step 1: Get count of existing doctors
     const existingDoctors = await query('SELECT COUNT(*) as count FROM doctors');
     const existingCount = existingDoctors[0].count;
-    
-    console.log(`[Doctors Reset-Sync] Found ${existingCount} existing doctors, will be deleted`);
-    
+
     // Step 2: Delete all existing doctors
     await query('DELETE FROM doctors');
-    console.log('[Doctors Reset-Sync] All existing doctors deleted');
-    
+
     // Step 3: Fetch data from external API
     const countResponse = await fetchWithRetry(
       `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=1&limit=1`,
@@ -52,18 +48,14 @@ export async function POST(request) {
     
     const countData = await countResponse.json();
     const externalTotal = countData["total pasien"] || countData.total || 0;
-    
-    console.log(`[Doctors Reset-Sync] Total visits in external DB: ${externalTotal}`);
-    
+
     // Step 4: Calculate pages to fetch
     const desiredRecords = 10000;
     const recordsPerPage = 1000;
     const pagesToFetch = Math.ceil(Math.min(desiredRecords, externalTotal) / recordsPerPage);
     const totalPagesInExternal = Math.ceil(externalTotal / recordsPerPage);
     const startPage = Math.max(1, totalPagesInExternal - pagesToFetch + 1);
-    
-    console.log(`[Doctors Reset-Sync] Fetching ${pagesToFetch} pages from page ${startPage} to ${totalPagesInExternal}`);
-    
+
     // Step 5: Fetch multiple pages in parallel
     const pageFetchPromises = [];
     for (let pageNum = startPage; pageNum <= totalPagesInExternal; pageNum++) {
@@ -86,59 +78,119 @@ export async function POST(request) {
         rawVisits = rawVisits.concat(pageData.data);
       }
     });
-    
-    console.log(`[Doctors Reset-Sync] Fetched ${rawVisits.length} visits from external API`);
-    
-    // Step 7: Extract unique doctors from visits
+
+    // Step 7: Extract unique doctors from visits with their clinics
     const doctorsMap = new Map();
+    const clinicsMap = new Map(); // To track unique clinics
     
     rawVisits.forEach(visit => {
       const doctorName = visit.Dokter;
+      const clinicName = visit.Klinik; // e.g., "UMUM", "GIGI", etc.
+      const facilityCode = visit.Fasilitas_Kesehatan?.[0]?.Kode || null;
+      const facilityName = visit.Fasilitas_Kesehatan?.[0]?.Nama_Faskes || null;
       
-      if (doctorName && doctorName !== "-" && !doctorsMap.has(doctorName)) {
-        doctorsMap.set(doctorName, {
-          name: doctorName,
+      // Track clinics
+      if (clinicName && clinicName !== "-" && !clinicsMap.has(clinicName)) {
+        clinicsMap.set(clinicName, {
+          name: clinicName,
+          facilityCode: facilityCode,
+          facilityName: facilityName,
         });
+      }
+      
+      // Track doctors with their clinic
+      if (doctorName && doctorName !== "-") {
+        if (!doctorsMap.has(doctorName)) {
+          doctorsMap.set(doctorName, {
+            name: doctorName,
+            clinics: new Set(),
+          });
+        }
+        
+        // Add clinic to doctor's clinics
+        if (clinicName && clinicName !== "-") {
+          doctorsMap.get(doctorName).clinics.add(clinicName);
+        }
       }
     });
     
-    const uniqueDoctors = Array.from(doctorsMap.values());
-    console.log(`[Doctors Reset-Sync] Found ${uniqueDoctors.length} unique doctors`);
+    const uniqueDoctors = Array.from(doctorsMap.values()).map(doctor => ({
+      ...doctor,
+      clinics: Array.from(doctor.clinics),
+    }));
     
-    // Step 8: Save all doctors to database
+    const uniqueClinics = Array.from(clinicsMap.values());
+
+    // Step 8: Create or find clinics in database
+    const clinicIdMap = new Map(); // clinic name -> clinic id
+    
+    for (const clinic of uniqueClinics) {
+      try {
+        // Check if clinic already exists by name
+        const existing = await query(
+          'SELECT id FROM clinics WHERE name = ? LIMIT 1',
+          [clinic.name]
+        );
+        
+        if (existing.length > 0) {
+          clinicIdMap.set(clinic.name, existing[0].id);
+        } else {
+          // Create new clinic
+          const result = await query(
+            `INSERT INTO clinics (name, code, address, city, phone, is_active, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+            [
+              clinic.facilityName || clinic.name,
+              clinic.facilityCode || null,
+              '-',
+              '-',
+              '-'
+            ]
+          );
+          clinicIdMap.set(clinic.name, result.insertId);
+        }
+      } catch (error) {
+        console.error(`Error creating/finding clinic ${clinic.name}:`, error);
+      }
+    }
+
+    // Step 9: Save all doctors to database with clinic association
     let addedCount = 0;
     let errorCount = 0;
     
     for (const doctor of uniqueDoctors) {
       try {
-        // Insert new doctor
+        // Get clinic_id for the doctor's primary clinic (first clinic in the list)
+        const primaryClinicName = doctor.clinics[0];
+        const clinicId = primaryClinicName ? clinicIdMap.get(primaryClinicName) : null;
+        
+        // Insert new doctor with clinic_id
         await query(
-          `INSERT INTO doctors (name, specialist, license_number, created_at, updated_at) 
-           VALUES (?, NULL, NULL, NOW(), NOW())`,
-          [doctor.name]
+          `INSERT INTO doctors (name, specialist, license_number, clinic_id, created_at, updated_at) 
+           VALUES (?, NULL, NULL, ?, NOW(), NOW())`,
+          [doctor.name, clinicId]
         );
         
         addedCount++;
       } catch (error) {
-        console.error(`[Doctors Reset-Sync] Error saving doctor ${doctor.name}:`, error);
+        console.error(`Error saving doctor ${doctor.name}:`, error);
         errorCount++;
       }
     }
-    
-    console.log(`[Doctors Reset-Sync] Completed: ${existingCount} deleted, ${addedCount} added, ${errorCount} errors`);
-    
+
     return NextResponse.json({
       success: true,
-      message: `Reset dan sinkronisasi selesai: ${existingCount} dokter lama dihapus, ${addedCount} dokter baru ditambahkan`,
+      message: `Reset dan sinkronisasi selesai: ${existingCount} dokter lama dihapus, ${addedCount} dokter baru ditambahkan dengan data klinik`,
       stats: {
         deleted: existingCount,
-        total: uniqueDoctors.length,
+        totalDoctors: uniqueDoctors.length,
+        totalClinics: uniqueClinics.length,
         added: addedCount,
         errors: errorCount,
       },
     });
   } catch (error) {
-    console.error('[Doctors Reset-Sync] Error:', error);
+
     return NextResponse.json(
       {
         success: false,

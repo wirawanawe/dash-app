@@ -83,7 +83,7 @@ export default function ICDForm({ icd, onSubmit, onCancel }) {
       toast.success(icd ? "ICD berhasil diupdate" : "ICD berhasil ditambahkan");
       onSubmit();
     } catch (error) {
-      console.error("Error:", error);
+
       toast.error(error.message || "Gagal menyimpan data ICD");
     } finally {
       setIsLoading(false);

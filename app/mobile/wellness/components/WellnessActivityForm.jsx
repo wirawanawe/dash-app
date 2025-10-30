@@ -106,7 +106,7 @@ export default function WellnessActivityForm({ activity, onSubmit, onClose }) {
         alert(`Error: ${errorMessage}`);
       }
     } catch (error) {
-      console.error('Error saving activity:', error);
+
       alert('Network error: Failed to save activity. Please check your connection.');
     } finally {
       setLoading(false);
@@ -286,8 +286,6 @@ export default function WellnessActivityForm({ activity, onSubmit, onClose }) {
               )}
             </div>
           </div>
-
-
 
           {/* Active Status */}
           <div className="flex items-center">

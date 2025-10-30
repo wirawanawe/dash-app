@@ -10,7 +10,7 @@ export async function GET() {
     );
     return NextResponse.json(users);
   } catch (error) {
-    console.error("Error fetching users:", error);
+
     return NextResponse.json(
       { message: "Gagal mengambil data pengguna" },
       { status: 500 }
@@ -39,7 +39,7 @@ export async function POST(request) {
 
     return NextResponse.json(newUser);
   } catch (error) {
-    console.error("Error creating user:", error);
+
     return NextResponse.json(
       { message: "Gagal menambahkan pengguna" },
       { status: 500 }

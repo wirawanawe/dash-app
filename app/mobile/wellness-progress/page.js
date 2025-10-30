@@ -66,7 +66,7 @@ export default function WellnessProgressPage() {
         setError(data.message || 'Gagal memuat data pengguna');
       }
     } catch (err) {
-      console.error('Error fetching users:', err);
+
       setError('Gagal memuat data pengguna: ' + err.message);
     } finally {
       setLoading(false);
@@ -94,7 +94,7 @@ export default function WellnessProgressPage() {
       }
 
     } catch (err) {
-      console.error('Error fetching user progress:', err);
+
       setError('Gagal memuat progress pengguna: ' + err.message);
     } finally {
       setLoading(false);

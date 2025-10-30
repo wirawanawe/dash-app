@@ -78,7 +78,7 @@ export default function ResetPasswordPage() {
         }
       }
     } catch (error) {
-      console.error("Reset password error:", error);
+
       toast.error("Terjadi kesalahan. Silakan coba lagi.");
     } finally {
       setIsLoading(false);

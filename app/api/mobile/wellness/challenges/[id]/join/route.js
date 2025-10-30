@@ -4,7 +4,6 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-
 export async function POST(request, { params }) {
   try {
     // Get authorization header
@@ -67,7 +66,7 @@ export async function POST(request, { params }) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('Error in wellness challenge join:', error);
+
     return NextResponse.json({ 
       success: false, 
       error: 'Internal server error' 

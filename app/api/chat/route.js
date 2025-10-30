@@ -26,7 +26,7 @@ export async function GET(request) {
           };
         }
       } catch (error) {
-        console.error("Error verifying internal token:", error);
+
       }
     }
 
@@ -63,7 +63,7 @@ export async function GET(request) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -214,8 +214,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error in GET /api/chat:', error);
-    console.error('Error stack:', error.stack);
+
     return NextResponse.json(
       { 
         message: 'Internal server error', 
@@ -251,7 +250,7 @@ export async function POST(request) {
           };
         }
       } catch (error) {
-        console.error("Error verifying internal token:", error);
+
       }
     }
 
@@ -288,7 +287,7 @@ export async function POST(request) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          console.error("Error fetching from external API:", error);
+
         }
       }
     }
@@ -403,7 +402,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Error in POST /api/chat:', error);
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

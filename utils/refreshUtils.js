@@ -32,7 +32,7 @@ export const withAutoRefresh = async (operation, refreshFunction, options = {}) 
     
     return result;
   } catch (error) {
-    console.error('Error in withAutoRefresh:', error);
+
     throw error;
   } finally {
     // Clear loading state if it was set
@@ -82,7 +82,7 @@ export const fetchWithRetry = async (url, options = {}, retries = 2) => {
     return response;
   } catch (error) {
     if (retries > 0) {
-      console.log(`Fetch failed, retrying... (${retries} retries left)`);
+
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
       return fetchWithRetry(url, options, retries - 1);
     }

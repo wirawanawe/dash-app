@@ -88,8 +88,7 @@ export async function POST(request) {
         { status: 200 }
       );
     } catch (jwtError) {
-      console.error("JWT verification error:", jwtError);
-      
+
       // Provide more specific error messages based on the error type
       let errorMessage = "Invalid refresh token";
       if (jwtError.code === 'ERR_JWS_INVALID') {
@@ -109,7 +108,7 @@ export async function POST(request) {
       );
     }
   } catch (error) {
-    console.error("Token refresh error:", error);
+
     return NextResponse.json(
       {
         success: false,

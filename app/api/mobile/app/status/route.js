@@ -45,7 +45,7 @@ export async function GET(request) {
       data: statusInfo,
     });
   } catch (error) {
-    console.error("Error fetching app status:", error);
+
     return NextResponse.json(
       {
         success: false,
