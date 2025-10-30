@@ -27,41 +27,6 @@ export function Providers({ children }) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    // Always check auth on mount - no need to check cookies since they're httpOnly
-    checkAuth();
-
-    // Reset timer a cada atividade
-    const resetTimer = () => {
-      setLastActivity(Date.now());
-    };
-
-    // Event listeners para atividade do usuário
-    window.addEventListener("mousemove", resetTimer);
-    window.addEventListener("keypress", resetTimer);
-    window.addEventListener("click", resetTimer);
-    window.addEventListener("scroll", resetTimer);
-
-    // Verificar session timeout a cada 60 segundos (increased from 30 seconds to reduce server load)
-    const interval = setInterval(() => {
-      const now = Date.now();
-      if (now - lastActivity >= SESSION_TIMEOUT && user) {
-        handleSessionTimeout();
-      }
-    }, 60000); // Increased from 30000 to 60000ms
-
-    // Cleanup event listeners
-    return () => {
-      window.removeEventListener("mousemove", resetTimer);
-      window.removeEventListener("keypress", resetTimer);
-      window.removeEventListener("click", resetTimer);
-      window.removeEventListener("scroll", resetTimer);
-      clearInterval(interval);
-    };
-  }, [mounted]); // Add mounted dependency
-
   const checkAuth = async () => {
     try {
       const response = await fetch("/api/auth/me", {
@@ -126,6 +91,47 @@ export function Providers({ children }) {
       router.push("/login");
     }
   };
+
+  // Check auth on mount
+  useEffect(() => {
+    if (!mounted) return;
+    checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
+  // Setup activity tracking and session timeout
+  useEffect(() => {
+    if (!mounted) return;
+
+    // Reset timer a cada atividade
+    const resetTimer = () => {
+      setLastActivity(Date.now());
+    };
+
+    // Event listeners para atividade do usuário
+    window.addEventListener("mousemove", resetTimer);
+    window.addEventListener("keypress", resetTimer);
+    window.addEventListener("click", resetTimer);
+    window.addEventListener("scroll", resetTimer);
+
+    // Verificar session timeout a cada 60 segundos
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (now - lastActivity >= SESSION_TIMEOUT && user) {
+        handleSessionTimeout();
+      }
+    }, 60000);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener("mousemove", resetTimer);
+      window.removeEventListener("keypress", resetTimer);
+      window.removeEventListener("click", resetTimer);
+      window.removeEventListener("scroll", resetTimer);
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
 
   const value = {
     user,
