@@ -87,17 +87,15 @@ export async function PUT(request, { params }) {
     // Update sleep tracking data
     const updateQuery = `
       UPDATE sleep_tracking 
-      SET user_id = ?, sleep_date = ?, sleep_duration_minutes = ?, sleep_quality = ?, bedtime = ?, wake_time = ?, notes = ?, updated_at = NOW()
+      SET user_id = ?, sleep_date = ?, sleep_hours = ?, sleep_minutes = ?, sleep_quality = ?, bedtime = ?, wake_time = ?, notes = ?, updated_at = NOW()
       WHERE id = ?
     `;
-
-    // Calculate total sleep duration in minutes
-    const sleepDurationMinutes = (sleep_hours * 60) + sleep_minutes;
 
     await query(updateQuery, [
       user_id,
       sleep_date,
-      sleepDurationMinutes,
+      sleep_hours,
+      sleep_minutes,
       sleep_quality,
       bedtime || null,
       wake_time || null,

@@ -18,26 +18,37 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Log clinics prop for debugging
+  console.log('[UserForm] Clinics prop:', clinics);
+  console.log('[UserForm] Clinics is array?', Array.isArray(clinics));
+  console.log('[UserForm] Clinics length:', clinics?.length);
+
   useEffect(() => {
     if (user) {
-      console.log("🔍 Setting form data for user:", user);
-      setFormData({
+      console.log('[UserForm] Loading user data:', user);
+      const newFormData = {
         name: user.name || "",
         email: user.email || "",
         password: "", // Don't show password in edit mode
-        role: user.role ? user.role.toUpperCase() : "STAFF",
+        role: user.role ? user.role.toLowerCase() : "staff",
         is_active: user.is_active ?? true,
-        clinic_id: user.clinic_id ? user.clinic_id.toString() : "",
-      });
+        clinic_id: user.clinic_id ? user.clinic_id.toString() : (user.clinic?.id ? user.clinic.id.toString() : ""),
+      };
+      console.log('[UserForm] Setting formData to:', newFormData);
+      setFormData(newFormData);
     }
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+    
     setFormData({
       ...formData,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: newValue,
     });
+
+    console.log('[UserForm] Field changed:', name, '=', newValue);
 
     // Clear error for this field
     if (errors[name]) {
@@ -50,18 +61,25 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) {
+    
+    console.log('[UserForm] Validating form with data:', formData);
+    
+    if (!formData.name || !formData.name.trim()) {
       newErrors.name = "Nama harus diisi";
+      console.log('[UserForm] Name validation failed:', formData.name);
     }
-    if (!formData.email.trim()) {
+    if (!formData.email || !formData.email.trim()) {
       newErrors.email = "Email harus diisi";
+      console.log('[UserForm] Email validation failed:', formData.email);
     } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = "Format email tidak valid";
+      console.log('[UserForm] Email format invalid:', formData.email);
     }
 
     // Only validate password for new users
     if (!user && !formData.password) {
       newErrors.password = "Password harus diisi";
+      console.log('[UserForm] Password validation failed for new user');
     }
     
     // For existing users, if password is provided, it should be at least 6 characters
@@ -70,40 +88,55 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
     }
 
     setErrors(newErrors);
+    console.log('[UserForm] Validation errors:', newErrors);
+    console.log('[UserForm] Validation result:', Object.keys(newErrors).length === 0);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form before submission
+
+    console.log('[UserForm] Current formData:', formData);
+
+    // Validate form first
     if (!validateForm()) {
-      console.log("❌ Form validation failed");
+      console.log('[UserForm] Validation failed, errors:', errors);
+      toast.error("Mohon lengkapi semua field yang wajib diisi");
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
-      const submitData = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        role: formData.role,
-        is_active: formData.is_active,
-        clinic_id: formData.clinic_id && formData.clinic_id !== "" ? formData.clinic_id : null,
-      };
-
-      // Remove password field for updates if it's empty
-      if (user && !submitData.password) {
-        delete submitData.password;
+      // Ensure fields are not empty strings
+      const name = (formData.name || "").trim();
+      const email = (formData.email || "").trim();
+      
+      if (!name || !email) {
+        toast.error("Nama dan Email harus diisi");
+        setIsLoading(false);
+        return;
       }
 
-      console.log("🔍 Submitting user data:", {
-        method: user ? "PUT" : "POST",
-        url: user ? `/api/users/${user.id}` : "/api/users",
-        data: submitData,
-        originalUser: user
+      const submitData = {
+        name: name,
+        email: email,
+        role: formData.role || "staff",
+        clinic_id: formData.clinic_id ? parseInt(formData.clinic_id) : null,
+        is_active: formData.is_active !== undefined ? formData.is_active : true,
+      };
+
+      // Only include password if it's provided
+      if (formData.password && formData.password.trim()) {
+        submitData.password = formData.password;
+      }
+
+      console.log('[UserForm] Submitting data:', { 
+        ...submitData, 
+        password: submitData.password ? '***' : undefined,
+        originalClinicId: formData.clinic_id,
+        isEdit: !!user,
+        userId: user?.id
       });
 
       const url = user ? `/api/users/${user.id}` : "/api/users";
@@ -117,39 +150,32 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
         body: JSON.stringify(submitData),
       });
 
-      console.log("📡 Response status:", response.status);
+      console.log('[UserForm] Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("❌ API Error:", errorData);
+        console.log('[UserForm] Error response:', errorData);
         throw new Error(errorData.error || "Gagal menyimpan data");
       }
 
       const result = await response.json();
-      console.log("✅ Success response:", result);
+      console.log('[UserForm] Success response:', result);
 
       toast.success(
         user ? "User berhasil diupdate" : "User berhasil ditambahkan"
       );
       
-      // Call onSubmit with the result and trigger data refresh
-      onSubmit(result);
+      // Call onSubmit callback to signal success (no params to avoid double submit)
+      if (onSubmit) {
+        onSubmit();
+      }
       
-      // Reset form data
-      setFormData({
-        name: "",
-        email: "",
-        password: "",
-        role: "STAFF",
-        is_active: true,
-        clinic_id: "",
-      });
-      setErrors({});
-      
-      // Close the form
-      onCancel();
+      // Close modal
+      if (onCancel) {
+        onCancel();
+      }
     } catch (error) {
-      console.error("❌ Error saving user:", error);
+      console.error("[UserForm] Error saving user:", error);
       toast.error(error.message || "Gagal menyimpan data");
     } finally {
       setIsLoading(false);
@@ -254,27 +280,27 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               value={formData.role}
               onChange={handleChange}
               className="w-full p-2 text-black border border-gray-300 rounded-md"
-              disabled={currentUser?.role === "ADMIN" && !user}
+              disabled={currentUser?.role?.toLowerCase() === "admin" && !user}
             >
-              {currentUser?.role === "SUPERADMIN" ? (
+              {currentUser?.role?.toLowerCase() === "superadmin" ? (
                 <>
-                  <option value="SUPERADMIN">Superadmin</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="DOCTOR">Dokter</option>
-                  <option value="STAFF">Staff</option>
+                  <option value="superadmin">Superadmin</option>
+                  <option value="admin">Admin</option>
+                  <option value="doctor">Dokter</option>
+                  <option value="staff">Staff</option>
                 </>
-              ) : currentUser?.role === "ADMIN" ? (
+              ) : currentUser?.role?.toLowerCase() === "admin" ? (
                 <>
-                  <option value="STAFF">Staff</option>
+                  <option value="staff">Staff</option>
                 </>
               ) : (
                 <>
-                  <option value="DOCTOR">Dokter</option>
-                  <option value="STAFF">Staff</option>
+                  <option value="doctor">Dokter</option>
+                  <option value="staff">Staff</option>
                 </>
               )}
             </select>
-            {currentUser?.role === "ADMIN" && !user && (
+            {currentUser?.role?.toLowerCase() === "admin" && !user && (
               <p className="text-xs text-gray-500 mt-1">
                 Admin hanya dapat menambahkan pengguna dengan role Staff
               </p>
@@ -296,14 +322,18 @@ export default function UserForm({ user, clinics, onSubmit, onCancel }) {
               className="w-full p-2 text-black border border-gray-300 rounded-md"
             >
               <option value="">-- Pilih Klinik --</option>
-              {Array.isArray(clinics) && clinics.map((clinic) => (
-                <option key={clinic.id} value={clinic.id.toString()}>
-                  {clinic.name} ({clinic.code})
-                </option>
-              ))}
+              {clinics && Array.isArray(clinics) && clinics.length > 0 ? (
+                clinics.map((clinic) => (
+                  <option key={clinic.id} value={clinic.id.toString()}>
+                    {clinic.name} ({clinic.code})
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>Tidak ada klinik tersedia</option>
+              )}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              {formData.role === "ADMIN" || formData.role === "SUPERADMIN"
+              {formData.role === "admin" || formData.role === "superadmin"
                 ? "Admin dapat melihat semua klinik tanpa perlu memilih klinik tertentu"
                 : "Staff harus dipilihkan klinik untuk membatasi akses data"}
             </p>

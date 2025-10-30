@@ -775,9 +775,10 @@ export default function PatientDetailModal({ patient, onClose }) {
                           onClick={() => {
                             const today = new Date();
                             const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+                            const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                             setDateFilter({
-                              startDate: lastMonth.toISOString().split('T')[0],
-                              endDate: today.toISOString().split('T')[0]
+                              startDate: formatDate(lastMonth),
+                              endDate: formatDate(today)
                             });
                           }}
                           className="px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
@@ -788,9 +789,10 @@ export default function PatientDetailModal({ patient, onClose }) {
                           onClick={() => {
                             const today = new Date();
                             const startOfYear = new Date(today.getFullYear(), 0, 1);
+                            const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                             setDateFilter({
-                              startDate: startOfYear.toISOString().split('T')[0],
-                              endDate: today.toISOString().split('T')[0]
+                              startDate: formatDate(startOfYear),
+                              endDate: formatDate(today)
                             });
                           }}
                           className="px-3 py-2 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200"

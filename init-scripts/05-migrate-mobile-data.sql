@@ -194,7 +194,8 @@ CREATE TABLE IF NOT EXISTS phc_dashboard.user_water_settings (
 INSERT IGNORE INTO phc_dashboard.user_water_settings 
 SELECT * FROM phc_mobile.user_water_settings;
 
-CREATE TABLE IF NOT EXISTS phc_dashboard.meal_tracking (
+-- 16. Create and migrate meal_logging table (if not exists)
+CREATE TABLE IF NOT EXISTS phc_dashboard.meal_logging (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     food_id INT,
@@ -210,6 +211,8 @@ CREATE TABLE IF NOT EXISTS phc_dashboard.meal_tracking (
     FOREIGN KEY (food_id) REFERENCES food_database(id) ON DELETE SET NULL
 );
 
+INSERT IGNORE INTO phc_dashboard.meal_logging 
+SELECT * FROM phc_mobile.meal_logging;
 
 -- 17. Create and migrate fitness_tracking table (if not exists)
 CREATE TABLE IF NOT EXISTS phc_dashboard.fitness_tracking (
@@ -317,6 +320,7 @@ CREATE INDEX IF NOT EXISTS idx_consultations_user_date ON phc_dashboard.consulta
 CREATE INDEX IF NOT EXISTS idx_assessments_user_type ON phc_dashboard.assessments(user_id, assessment_type);
 CREATE INDEX IF NOT EXISTS idx_mood_tracking_user_date ON phc_dashboard.mood_tracking(user_id, tracked_date);
 CREATE INDEX IF NOT EXISTS idx_water_tracking_user_date ON phc_dashboard.water_tracking(user_id, tracked_date);
+CREATE INDEX IF NOT EXISTS idx_meal_logging_user_date ON phc_dashboard.meal_logging(user_id, logged_date);
 CREATE INDEX IF NOT EXISTS idx_fitness_tracking_user_date ON phc_dashboard.fitness_tracking(user_id, tracked_date);
 CREATE INDEX IF NOT EXISTS idx_chats_user_status ON phc_dashboard.chats(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_created ON phc_dashboard.chat_messages(chat_id, created_at); 

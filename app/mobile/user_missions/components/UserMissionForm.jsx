@@ -134,7 +134,7 @@ export default function UserMissionForm({ userMission, onSubmit, onClose }) {
                 value={formData.user_id}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 disabled={loadingData}
               >
                 <option value="">Pilih User</option>
@@ -157,7 +157,7 @@ export default function UserMissionForm({ userMission, onSubmit, onClose }) {
                 value={formData.mission_id}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 disabled={loadingData}
               >
                 <option value="">Pilih Mission</option>
@@ -179,7 +179,7 @@ export default function UserMissionForm({ userMission, onSubmit, onClose }) {
                 value={formData.status}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               >
                 {statusOptions.map(option => (
                   <option key={option.value} value={option.value}>

@@ -151,7 +151,8 @@ async function migrateMobileToDashboard() {
         UNION ALL
         SELECT 'User Water Settings' as table_name, COUNT(*) as record_count FROM user_water_settings
         UNION ALL
-                UNION ALL
+        SELECT 'Meal Logging' as table_name, COUNT(*) as record_count FROM meal_logging
+        UNION ALL
         SELECT 'Fitness Tracking' as table_name, COUNT(*) as record_count FROM fitness_tracking
         UNION ALL
         SELECT 'User Quick Foods' as table_name, COUNT(*) as record_count FROM user_quick_foods

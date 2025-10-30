@@ -11,19 +11,11 @@ export async function GET(request, { params }) {
         title,
         description,
         category,
-        sub_category,
         points,
+        duration_days,
         target_value,
-        unit,
+        target_unit,
         is_active,
-        type,
-        difficulty,
-        icon,
-        color,
-        tracking_mapping,
-        requirements,
-        start_date,
-        end_date,
         created_at,
         updated_at
       FROM missions 
@@ -34,20 +26,16 @@ export async function GET(request, { params }) {
 
     if (missions.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Mission not found' },
+        { error: 'Mission not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: missions[0],
-      message: 'Mission retrieved successfully'
-    });
+    return NextResponse.json(missions[0]);
   } catch (error) {
     console.error('Error fetching mission:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch mission' },
+      { error: 'Failed to fetch mission' },
       { status: 500 }
     );
   }
@@ -62,15 +50,16 @@ export async function PUT(request, { params }) {
       description,
       category,
       points,
+      duration_days,
       target_value,
-      unit,
+      target_unit,
       is_active
     } = body;
 
     // Validate required fields
     if (!title || !category) {
       return NextResponse.json(
-        { success: false, error: 'Title and category are required' },
+        { error: 'Title and category are required' },
         { status: 400 }
       );
     }
@@ -83,7 +72,7 @@ export async function PUT(request, { params }) {
 
     if (existingMission.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Mission not found' },
+        { error: 'Mission not found' },
         { status: 404 }
       );
     }
@@ -94,8 +83,9 @@ export async function PUT(request, { params }) {
         description = ?,
         category = ?,
         points = ?,
+        duration_days = ?,
         target_value = ?,
-        unit = ?,
+        target_unit = ?,
         is_active = ?,
         updated_at = NOW()
       WHERE id = ?
@@ -105,8 +95,8 @@ export async function PUT(request, { params }) {
     const validatedIsActive = is_active === true || is_active === 1 || is_active === 'true' || is_active === '1';
 
     await query(sql, [
-      title, description, category, points,
-      target_value, unit, validatedIsActive, id
+      title, description, category, points, duration_days,
+      target_value, target_unit, validatedIsActive, id
     ]);
 
     return NextResponse.json({
@@ -116,7 +106,7 @@ export async function PUT(request, { params }) {
   } catch (error) {
     console.error('Error updating mission:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update mission' },
+      { error: 'Failed to update mission' },
       { status: 500 }
     );
   }
@@ -134,7 +124,7 @@ export async function DELETE(request, { params }) {
 
     if (existingMission.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Mission not found' },
+        { error: 'Mission not found' },
         { status: 404 }
       );
     }
@@ -146,13 +136,12 @@ export async function DELETE(request, { params }) {
     );
 
     return NextResponse.json({
-      success: true,
       message: 'Mission deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting mission:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete mission' },
+      { error: 'Failed to delete mission' },
       { status: 500 }
     );
   }

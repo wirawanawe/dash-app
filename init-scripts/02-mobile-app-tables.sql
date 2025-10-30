@@ -172,7 +172,25 @@ CREATE TABLE IF NOT EXISTS sleep_tracking (
     UNIQUE KEY unique_user_date (user_id, sleep_date)
 );
 
--- Meal Logging Table (REMOVED - consolidated into meal_tracking)
+-- Meal Logging Table
+CREATE TABLE IF NOT EXISTS meal_logging (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    food_id INT NOT NULL,
+    meal_type ENUM('breakfast', 'lunch', 'dinner', 'snack') NOT NULL,
+    portion_grams DECIMAL(6,2) NOT NULL,
+    meal_date DATE NOT NULL,
+    meal_time TIME NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (food_id) REFERENCES food_database(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_meal_date (meal_date),
+    INDEX idx_meal_type (meal_type),
+    INDEX idx_food_id (food_id)
+);
 
 -- Fitness Tracking Table
 CREATE TABLE IF NOT EXISTS fitness_tracking (
@@ -344,6 +362,7 @@ CREATE INDEX idx_wellness_user_date ON wellness_activities(user_id, completed_at
 CREATE INDEX idx_tracking_user_date ON mood_tracking(user_id, tracking_date);
 CREATE INDEX idx_water_user_date ON water_tracking(user_id, tracking_date);
 CREATE INDEX idx_sleep_user_date ON sleep_tracking(user_id, sleep_date);
+CREATE INDEX idx_meal_user_date ON meal_logging(user_id, meal_date, meal_type);
 CREATE INDEX idx_fitness_user_date ON fitness_tracking(user_id, tracking_date);
 CREATE INDEX idx_health_user_type_date ON health_data(user_id, data_type, measured_at);
 CREATE INDEX idx_chat_active ON chats(status, last_message_at);

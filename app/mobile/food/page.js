@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import FoodForm from "./components/FoodForm";
 import FoodTable from "./components/FoodTable";
 import ApiDocumentation from "@/components/ApiDocumentation";
-import toast from "react-hot-toast";
 import { 
   Utensils, 
   Plus, 
@@ -27,31 +25,14 @@ export default function FoodManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingFood, setEditingFood] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(""); // Add debounced search term
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
   const [pagination, setPagination] = useState({
     total: 0,
-    limit: 50, // Increased from 20 to 50
+    limit: 20,
     offset: 0,
     hasMore: false
   });
-
-  // Debounce search term to reduce API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500); // 500ms delay
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // Fetch foods when debounced search term changes
-  useEffect(() => {
-    if (isLoaded) {
-      fetchFoods(debouncedSearchTerm, selectedCategory, 0);
-    }
-  }, [debouncedSearchTerm, selectedCategory]);
 
   const fetchFoods = async (search = "", category = "", offset = 0) => {
     try {
@@ -101,13 +82,12 @@ export default function FoodManagementPage() {
   }, []);
 
   const handleSearch = () => {
-    // Search is now handled by debounced effect
-    // This function can be removed or kept for manual search button
+    fetchFoods(searchTerm, selectedCategory, 0);
   };
 
   const handleCategoryFilter = (category) => {
     setSelectedCategory(category);
-    // Category change is handled by debounced effect
+    fetchFoods(searchTerm, category, 0);
   };
 
   const handleAddFood = () => {
@@ -133,14 +113,13 @@ export default function FoodManagementPage() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success("Makanan berhasil dihapus");
         fetchFoods(searchTerm, selectedCategory, pagination.offset);
       } else {
-        toast.error(data.message || "Gagal menghapus makanan");
+        alert(data.message || "Gagal menghapus makanan");
       }
     } catch (err) {
       console.error("Error deleting food:", err);
-      toast.error("Gagal menghapus makanan");
+      alert("Gagal menghapus makanan");
     }
   };
 

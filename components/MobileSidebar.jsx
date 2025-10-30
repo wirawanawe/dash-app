@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,17 +26,6 @@ import {
 const MobileSidebar = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const [openSubmenu, setOpenSubmenu] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Don't render until mounted to prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
 
   const menuItems = [
     {
@@ -46,106 +35,80 @@ const MobileSidebar = ({ isOpen, onClose }) => {
       description: "Overview dan statistik utama"
     },
     {
-      section: "User Management",
-      items: [
-        {
-          title: "Mobile Users",
-          icon: <Users className="h-5 w-5" />,
-          path: "/mobile/users",
-          description: "Kelola pengguna aplikasi mobile"
-        }
-      ]
+      title: "Mobile Users",
+      icon: <Users className="h-5 w-5" />,
+      path: "/mobile/users",
+      description: "Kelola pengguna aplikasi mobile"
     },
     {
-      section: "Content Management",
-      items: [
-        {
-          title: "Database Makanan",
-          icon: <Utensils className="h-5 w-5" />,
-          path: "/mobile/food",
-          description: "Kelola database makanan dan nutrisi"
-        },
-        {
-          title: "Sistem Misi",
-          icon: <Target className="h-5 w-5" />,
-          path: "/mobile/missions",
-          description: "Kelola misi dan reward untuk user"
-        },
-        {
-          title: "Activities",
-          icon: <Activity className="h-5 w-5" />,
-          path: "/mobile/activities",
-          description: "Kelola aktivitas wellness"
-        }
-      ]
+      title: "Database Makanan",
+      icon: <Utensils className="h-5 w-5" />,
+      path: "/mobile/food",
+      description: "Kelola database makanan dan nutrisi"
     },
     {
-      section: "User Data & Tracking",
-      items: [
-        {
-          title: "User Missions",
-          icon: <Target className="h-5 w-5" />,
-          path: "/mobile/user_missions",
-          description: "Misi yang diambil user"
-        },
-        {
-          title: "Wellness Progress",
-          icon: <BarChart3 className="h-5 w-5" />,
-          path: "/mobile/wellness-progress",
-          description: "Pantau progress program wellness"
-        },
-        {
-          title: "Health Data",
-          icon: <Heart className="h-5 w-5" />,
-          path: "/mobile/health_data",
-          description: "Data kesehatan pengguna"
-        },
-        {
-          title: "Sleep Tracking",
-          icon: <Clock className="h-5 w-5" />,
-          path: "/mobile/sleep_tracking",
-          description: "Tracking tidur pengguna"
-        },
-        {
-          title: "Mood Tracking",
-          icon: <Award className="h-5 w-5" />,
-          path: "/mobile/mood_tracking",
-          description: "Tracking mood pengguna"
-        }
-      ]
+      title: "Sistem Misi",
+      icon: <Target className="h-5 w-5" />,
+      path: "/mobile/missions",
+      description: "Kelola misi dan reward untuk user"
     },
     {
-      section: "Coming Soon",
-      items: [
-        {
-          title: "Chat & Support",
-          icon: <MessageSquare className="h-5 w-5" />,
-          path: "/mobile/chat",
-          description: "Chat dan dukungan pengguna",
-          comingSoon: true
-        },
-        {
-          title: "Education Center",
-          icon: <BookOpen className="h-5 w-5" />,
-          path: "/mobile/education",
-          description: "Pusat edukasi kesehatan",
-          comingSoon: true
-        },
-        {
-          title: "News & Updates",
-          icon: <Newspaper className="h-5 w-5" />,
-          path: "/mobile/news",
-          description: "Berita dan update terbaru",
-          comingSoon: true
-        },
-        {
-          title: "Health Calculator",
-          icon: <Calculator className="h-5 w-5" />,
-          path: "/mobile/calculator",
-          description: "Kalkulator kesehatan",
-          comingSoon: true
-        }
-      ]
+      title: "Aktivitas Wellness",
+      icon: <Activity className="h-5 w-5" />,
+      path: "/mobile/wellness",
+      description: "Kelola aktivitas wellness dan mindfulness"
+    },
+    {
+      title: "Health Data",
+      icon: <Heart className="h-5 w-5" />,
+      path: "/mobile/health_data",
+      description: "Data kesehatan pengguna"
+    },
+    {
+      title: "Sleep Tracking",
+      icon: <Clock className="h-5 w-5" />,
+      path: "/mobile/sleep_tracking",
+      description: "Tracking tidur pengguna"
+    },
+    {
+      title: "Mood Tracking",
+      icon: <Award className="h-5 w-5" />,
+      path: "/mobile/mood_tracking",
+      description: "Tracking mood pengguna"
+    },
+    {
+      title: "User Missions",
+      icon: <Target className="h-5 w-5" />,
+      path: "/mobile/user_missions",
+      description: "Misi yang diambil user"
+    },
+    {
+      title: "Chat & Support",
+      icon: <MessageSquare className="h-5 w-5" />,
+      path: "/mobile/chat",
+      description: "Chat dan dukungan pengguna",
+      comingSoon: true
+    },
+    {
+      title: "Education Center",
+      icon: <BookOpen className="h-5 w-5" />,
+      path: "/mobile/education",
+      description: "Pusat edukasi kesehatan",
+      comingSoon: true
+    },
+    {
+      title: "News & Updates",
+      icon: <Newspaper className="h-5 w-5" />,
+      path: "/mobile/news",
+      description: "Berita dan update terbaru",
+      comingSoon: true
+    },
+    {
+      title: "Health Calculator",
+      icon: <Calculator className="h-5 w-5" />,
+      path: "/mobile/calculator",
+      description: "Kalkulator kesehatan",
+      comingSoon: true
     }
   ];
 

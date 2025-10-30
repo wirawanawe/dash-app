@@ -10,7 +10,7 @@ async function seedMedicineData() {
   try {
     // Database connection
     connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'dash.doctorphc.id',
+      host: process.env.DB_HOST || 'localhost',
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'phc_dashboard'

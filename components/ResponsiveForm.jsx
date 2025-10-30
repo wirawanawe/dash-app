@@ -140,7 +140,7 @@ export const ResponsiveInput = ({
       onChange={onChange}
       required={required}
       disabled={disabled}
-      className={`w-full px-4 py-3 sm:py-4 rounded-xl border text-black border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm text-base touch-manipulation ${className}`}
+      className={`w-full px-4 py-3 sm:py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm text-base touch-manipulation ${className}`}
       {...props}
     />
   );
@@ -163,7 +163,7 @@ export const ResponsiveSelect = ({
       onChange={onChange}
       required={required}
       disabled={disabled}
-      className={`w-full px-4 py-3 sm:py-4 rounded-xl border text-black border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm text-base touch-manipulation ${className}`}
+      className={`w-full px-4 py-3 sm:py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm text-base touch-manipulation ${className}`}
       {...props}
     >
       <option value="">{placeholder}</option>
@@ -195,7 +195,7 @@ export const ResponsiveTextarea = ({
       required={required}
       disabled={disabled}
       rows={rows}
-      className={`w-full px-4 py-3 sm:py-4 rounded-xl border text-black border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm text-base touch-manipulation resize-vertical ${className}`}
+      className={`w-full px-4 py-3 sm:py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm text-base touch-manipulation resize-vertical ${className}`}
       {...props}
     />
   );

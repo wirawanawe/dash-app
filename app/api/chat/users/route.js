@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { verifyJwtToken } from '@/lib/auth';
 
-export const dynamic = 'force-dynamic';
-
 // GET list of mobile users for doctor to chat with
 export async function GET(request) {
   try {

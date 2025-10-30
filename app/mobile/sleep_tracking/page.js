@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Moon, RefreshCw, BarChart3, TrendingUp, Zap, Clock,
@@ -10,8 +9,6 @@ import {
 import SleepTrackingForm from "./components/SleepTrackingForm";
 import SleepTrackingDetailModal from "./components/SleepTrackingDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
-import toast from "react-hot-toast";
-import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function SleepTrackingPage() {
   const [sleepData, setSleepData] = useState([]);
@@ -28,12 +25,6 @@ export default function SleepTrackingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const fetchSleepData = async () => {
     try {
@@ -67,9 +58,8 @@ export default function SleepTrackingPage() {
   };
 
   useEffect(() => {
-    if (!mounted) return;
     fetchSleepData();
-  }, [currentPage, searchTerm, qualityFilter, mounted]);
+  }, [currentPage, searchTerm, qualityFilter]);
 
   const handleCreate = () => {
     setEditingSleepData(null);
@@ -87,18 +77,19 @@ export default function SleepTrackingPage() {
     }
 
     try {
-      await createCrudOperation(
-        "DELETE",
-        `/api/mobile/sleep_tracking/${id}`,
-        null,
-        () => fetchSleepData(),
-        { setLoading }
-      );
-      
-      toast.success('Data tidur berhasil dihapus');
+      const response = await fetch(`/api/mobile/sleep_tracking/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchSleepData();
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || 'Gagal menghapus data tidur');
+      }
     } catch (err) {
       console.error('Error deleting sleep data:', err);
-      toast.error(err.message);
+      alert(err.message);
     }
   };
 
@@ -115,20 +106,25 @@ export default function SleepTrackingPage() {
       
       const method = editingSleepData ? 'PUT' : 'POST';
       
-      await createCrudOperation(
+      const response = await fetch(url, {
         method,
-        url,
-        formData,
-        () => fetchSleepData(),
-        { setLoading }
-      );
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      toast.success(editingSleepData ? 'Data tidur berhasil diperbarui' : 'Data tidur berhasil ditambahkan');
-      setShowForm(false);
-      setEditingSleepData(null);
+      if (response.ok) {
+        setShowForm(false);
+        setEditingSleepData(null);
+        fetchSleepData();
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || 'Gagal menyimpan data tidur');
+      }
     } catch (err) {
       console.error('Error saving sleep data:', err);
-      toast.error(err.message);
+      alert(err.message);
     }
   };
 

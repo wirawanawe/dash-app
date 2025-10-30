@@ -23,7 +23,11 @@ import {
   Calendar,
   Zap,
   RefreshCw,
-  User
+  User,
+  Eye,
+  FileText,
+  Phone,
+  MapPin
 } from 'lucide-react';
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Providers";
@@ -35,7 +39,8 @@ import ApiDocumentation from "@/components/ApiDocumentation";
 export default function PatientsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [patients, setPatients] = useState([]);
+  const [allPatients, setAllPatients] = useState([]); // Store ALL patients
+  const [patients, setPatients] = useState([]); // Paginated patients for display
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -49,15 +54,31 @@ export default function PatientsPage() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   
+  // Stats state
+  const [stats, setStats] = useState({
+    total: 0,
+    male: 0,
+    female: 0,
+    active: 0,
+  });
+  
   // Check if user is superadmin for API Documentation access
   const canViewApiDocumentation = user?.role === "SUPERADMIN";
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/patients?search=${search}&page=${page}&limit=${limit}`
-      );
+
+      // Build query parameters - Fetch ALL data (no pagination at API level)
+      const params = new URLSearchParams({
+        search,
+        page: "1",           // Always fetch from page 1
+        limit: "10000",      // Fetch all data (large limit)
+        sortBy: "name",      // Sort by name
+        sortOrder: "asc",    // Ascending (A-Z)
+      });
+
+      const response = await fetch(`/api/patients?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error("Gagal mengambil data pasien");
@@ -74,12 +95,38 @@ export default function PatientsPage() {
         throw new Error("Invalid data format");
       }
 
-      setPatients(result.data);
-      setMetadata(result.pagination || {});
-      setTotalPages(result.pagination?.totalPages || 0);
+      // Store ALL patients data
+      setAllPatients(result.data);
+      
+      // Calculate client-side pagination
+      const totalData = result.data.length;
+      const totalPagesCalculated = Math.ceil(totalData / limit);
+      
+      // Apply pagination to get current page data
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedData = result.data.slice(startIndex, endIndex);
+      
+      setPatients(paginatedData);
+      setMetadata({ total: totalData });
+      setTotalPages(totalPagesCalculated);
+      
+      // Calculate stats
+      const maleCount = result.data.filter(p => p.gender?.toLowerCase() === 'laki-laki' || p.gender?.toLowerCase() === 'l').length;
+      const femaleCount = result.data.filter(p => p.gender?.toLowerCase() === 'perempuan' || p.gender?.toLowerCase() === 'p').length;
+      
+      setStats({
+        total: totalData,
+        male: maleCount,
+        female: femaleCount,
+        active: totalData, // All patients are considered active
+      });
+      
+      console.log(`[Patients] Total data: ${totalData}, Page: ${page}, Showing: ${paginatedData.length}`);
     } catch (error) {
       console.error("Error:", error);
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
+      setAllPatients([]);
       setPatients([]);
       setMetadata({});
       setTotalPages(0);
@@ -88,10 +135,28 @@ export default function PatientsPage() {
     }
   };
 
+  // Fetch data when search changes (not when page/limit changes)
   useEffect(() => {
     fetchPatients();
     setIsLoaded(true);
-  }, [search, page, limit]);
+  }, [search]);
+
+  // Apply client-side pagination when page or limit changes
+  useEffect(() => {
+    if (allPatients.length > 0) {
+      const totalData = allPatients.length;
+      const totalPagesCalculated = Math.ceil(totalData / limit);
+      
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedData = allPatients.slice(startIndex, endIndex);
+      
+      setPatients(paginatedData);
+      setTotalPages(totalPagesCalculated);
+      
+      console.log(`[Pagination] Page: ${page}, Limit: ${limit}, Showing: ${paginatedData.length} of ${totalData}`);
+    }
+  }, [page, limit, allPatients]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -211,7 +276,7 @@ export default function PatientsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
@@ -224,12 +289,12 @@ export default function PatientsPage() {
               </div>
               <div className="flex items-center text-sm font-medium text-emerald-600">
                 <TrendingUp className="w-4 h-4 mr-1" />
-                +12%
+                +15%
               </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {metadata.total || 0}
+                {stats.total}
               </p>
               <p className="text-sm text-gray-600 font-medium">Total Pasien</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -248,18 +313,17 @@ export default function PatientsPage() {
               <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
                 <Activity className="w-6 h-6 text-white" />
               </div>
-              <div className="flex items-center text-sm font-medium text-emerald-600">
-                <Heart className="w-4 h-4 mr-1" />
-                Aktif
+              <div className="inline-flex items-center px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">
+                Live
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
-                {patients.length}
+              <p className="text-3xl font-bold text-emerald-600 mb-1">
+                {stats.active}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Halaman Ini</p>
+              <p className="text-sm text-gray-600 font-medium">Pasien Aktif</p>
               <p className="text-xs text-gray-500 mt-1">
-                Data yang ditampilkan
+                Sedang terdaftar
               </p>
             </div>
           </div>
@@ -271,21 +335,47 @@ export default function PatientsPage() {
             style={{ animationDelay: '200ms' }}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg">
-                <Calendar className="w-6 h-6 text-white" />
+              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                <User className="w-6 h-6 text-white" />
               </div>
-              <div className="flex items-center text-sm font-medium text-purple-600">
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Live
+              <div className="flex items-center text-sm font-medium text-blue-600">
+                <Heart className="w-4 h-4 mr-1" />
+                Laki-laki
               </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {page}
+                {stats.male}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Halaman Saat Ini</p>
+              <p className="text-sm text-gray-600 font-medium">Pasien Laki-laki</p>
               <p className="text-xs text-gray-500 mt-1">
-                dari {totalPages} halaman
+                {stats.total > 0 ? Math.round((stats.male / stats.total) * 100) : 0}% dari total
+              </p>
+            </div>
+          </div>
+
+          <div 
+            className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+              isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+            }`}
+            style={{ animationDelay: '300ms' }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl shadow-lg">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex items-center text-sm font-medium text-pink-600">
+                <Heart className="w-4 h-4 mr-1" />
+                Perempuan
+              </div>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-gray-900 mb-1">
+                {stats.female}
+              </p>
+              <p className="text-sm text-gray-600 font-medium">Pasien Perempuan</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {stats.total > 0 ? Math.round((stats.female / stats.total) * 100) : 0}% dari total
               </p>
             </div>
           </div>

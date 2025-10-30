@@ -155,7 +155,7 @@ export default function VisitDetailModal({ visit, onClose }) {
             <button
               onClick={() => {
                 // Export functionality could be added here
-                toast.info("Fitur export akan segera tersedia");
+                alert("Fitur export akan segera tersedia");
               }}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 text-gray-600 hover:text-gray-800"
               title="Export"
@@ -210,20 +210,34 @@ export default function VisitDetailModal({ visit, onClose }) {
                     <span className="text-sm font-medium text-gray-600">Nama:</span>
                     <span className="text-sm font-semibold text-gray-900">{visit.patient?.name || "-"}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-600">No. MR:</span>
-                    <span className="text-sm font-semibold text-gray-900">{visit.patient?.mrNumber || "-"}</span>
-                  </div>
+                  {visit.patient?.nik && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">NIK:</span>
+                      <span className="text-sm font-semibold text-gray-900">{visit.patient.nik}</span>
+                    </div>
+                  )}
                   {visit.patient?.nip && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-gray-600">NIP:</span>
                       <span className="text-sm font-semibold text-gray-900">{visit.patient.nip}</span>
                     </div>
                   )}
-                  {visit.patient?.employeeName && (
+                  {visit.patient?.noPeserta && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">Karyawan:</span>
-                      <span className="text-sm font-semibold text-gray-900">{visit.patient.employeeName}</span>
+                      <span className="text-sm font-medium text-gray-600">No. Peserta:</span>
+                      <span className="text-sm font-semibold text-gray-900">{visit.patient.noPeserta}</span>
+                    </div>
+                  )}
+                  {visit.patient?.gender && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">Jenis Kelamin:</span>
+                      <span className="text-sm font-semibold text-gray-900">{visit.patient.gender}</span>
+                    </div>
+                  )}
+                  {visit.patient?.department && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">Bagian:</span>
+                      <span className="text-sm font-semibold text-gray-900">{visit.patient.department}</span>
                     </div>
                   )}
                 </div>
@@ -250,22 +264,22 @@ export default function VisitDetailModal({ visit, onClose }) {
               </div>
             </div>
 
-            {/* Insurance & Company Information */}
+            {/* Facility & Clinic Information */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-4">
-                  <FaShieldAlt className="text-orange-600 mr-3 text-lg" />
-                  <h3 className="text-lg font-semibold text-gray-900">Informasi Penjamin</h3>
+                  <FaBuilding className="text-orange-600 mr-3 text-lg" />
+                  <h3 className="text-lg font-semibold text-gray-900">Fasilitas Kesehatan</h3>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-600">Penjamin:</span>
-                    <span className="text-sm font-semibold text-gray-900">{visit.insurance?.name || "-"}</span>
+                    <span className="text-sm font-medium text-gray-600">Nama Faskes:</span>
+                    <span className="text-sm font-semibold text-gray-900">{visit.facility?.name || "-"}</span>
                   </div>
-                  {visit.insurance?.number && (
+                  {visit.facility?.code && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">No. Kartu:</span>
-                      <span className="text-sm font-semibold text-gray-900">{visit.insurance.number}</span>
+                      <span className="text-sm font-medium text-gray-600">Kode:</span>
+                      <span className="text-sm font-semibold text-gray-900">{visit.facility.code}</span>
                     </div>
                   )}
                 </div>
@@ -273,71 +287,32 @@ export default function VisitDetailModal({ visit, onClose }) {
 
               <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-xl border border-indigo-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-4">
-                  <FaBriefcase className="text-indigo-600 mr-3 text-lg" />
-                  <h3 className="text-lg font-semibold text-gray-900">Informasi Perusahaan</h3>
+                  <FaStethoscope className="text-indigo-600 mr-3 text-lg" />
+                  <h3 className="text-lg font-semibold text-gray-900">Klinik</h3>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-600">Perusahaan:</span>
-                    <span className="text-sm font-semibold text-gray-900">{visit.company?.name || "-"}</span>
+                    <span className="text-sm font-medium text-gray-600">Unit/Poli:</span>
+                    <span className="text-sm font-semibold text-gray-900">{visit.clinic || "-"}</span>
                   </div>
-                  {visit.company?.address && (
+                  {visit.visitNumber && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">Alamat:</span>
-                      <span className="text-sm font-semibold text-gray-900">{visit.company.address}</span>
+                      <span className="text-sm font-medium text-gray-600">No. Kunjungan:</span>
+                      <span className="text-sm font-semibold text-gray-900">{visit.visitNumber}</span>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Medical Records (SOAP) */}
+            {/* Medical Records (Diagnosis) */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow duration-300">
               <div className="flex items-center mb-6">
-                <FaStethoscope className="text-blue-600 mr-3 text-xl" />
-                <h3 className="text-xl font-semibold text-gray-900">Rekam Medis (SOAP)</h3>
+                <FaNotesMedical className="text-blue-600 mr-3 text-xl" />
+                <h3 className="text-xl font-semibold text-gray-900">Diagnosa Medis</h3>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <FaClipboardList className="text-blue-500 mr-2" />
-                      <span className="font-semibold text-gray-900">Subject (Keluhan)</span>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 min-h-[80px] shadow-sm">
-                      <p className="text-gray-800 leading-relaxed">{visit.complaint || "-"}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <FaEye className="text-green-500 mr-2" />
-                      <span className="font-semibold text-gray-900">Object (Pemeriksaan)</span>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 min-h-[80px] shadow-sm">
-                      <p className="text-gray-800 leading-relaxed">{visit.notes || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <FaNotesMedical className="text-purple-500 mr-2" />
-                      <span className="font-semibold text-gray-900">Assessment (Diagnosa)</span>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 min-h-[80px] shadow-sm">
-                      <p className="text-gray-800 leading-relaxed">{visit.assessment || "-"}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <FaStethoscope className="text-orange-500 mr-2" />
-                      <span className="font-semibold text-gray-900">Planning (Rencana)</span>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-gray-200 min-h-[80px] shadow-sm">
-                      <p className="text-gray-800 leading-relaxed">{visit.treatment || "-"}</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <p className="text-gray-800 leading-relaxed whitespace-pre-line">{visit.diagnosis || visit.complaint || "-"}</p>
               </div>
             </div>
 
@@ -594,7 +569,7 @@ export default function VisitDetailModal({ visit, onClose }) {
             <button
               onClick={() => {
                 // Share functionality could be added here
-                toast.info("Fitur berbagi akan segera tersedia");
+                alert("Fitur berbagi akan segera tersedia");
               }}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
             >

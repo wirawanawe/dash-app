@@ -26,37 +26,37 @@ import { FaShield } from "react-icons/fa6";
 import { useAuth } from "./Providers";
 
 const Sidebar = ({ onClose }) => {
-  const pathname = usePathname();
   const { user } = useAuth();
   const [openSubmenu, setOpenSubmenu] = useState(null);
-  const [mounted, setMounted] = useState(false);
+  const [userPermissions, setUserPermissions] = useState({});
 
-  // Prevent hydration mismatch
+  // Fetch user permissions on mount
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    const fetchPermissions = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await fetch('/api/auth/permissions');
+        if (response.ok) {
+          const data = await response.json();
+          setUserPermissions(data);
+        }
+      } catch (error) {
+        console.error('Error fetching permissions:', error);
+      }
+    };
 
-  // Don't render until mounted to prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
+    fetchPermissions();
+  }, [user]);
 
-  // Role hierarchy: Superadmin > Admin > Doctor > Staff
-  const roleHierarchy = {
-    SUPERADMIN: 4,
-    ADMIN: 3,
-    DOCTOR: 2,
-    STAFF: 1
-  };
-
-  const getUserRoleLevel = (role) => {
-    return roleHierarchy[role?.toUpperCase()] || 0;
-  };
-
-  const canAccess = (requiredRole) => {
-    const userLevel = getUserRoleLevel(user?.role);
-    const requiredLevel = roleHierarchy[requiredRole?.toUpperCase()] || 0;
-    return userLevel >= requiredLevel;
+  // Check if user has permission to access a menu
+  const hasPermission = (menuKey) => {
+    // If no permissions set, show all menus (backward compatibility)
+    if (Object.keys(userPermissions).length === 0) {
+      return true;
+    }
+    
+    return userPermissions[menuKey] === true;
   };
 
   const getRoleIcon = (role) => {
@@ -94,7 +94,7 @@ const Sidebar = ({ onClose }) => {
       title: "Dashboard",
       icon: <FaHome />,
       path: "/dashboard",
-      roles: ["SUPERADMIN", "ADMIN", "DOCTOR", "STAFF"],
+      menuKey: "dashboard",
     },
     {
       section: "Pelayanan Medis",
@@ -103,19 +103,19 @@ const Sidebar = ({ onClose }) => {
           title: "Kunjungan",
           icon: <FaCalendarCheck />,
           path: "/visits",
-          roles: ["SUPERADMIN", "ADMIN", "DOCTOR", "STAFF"],
+          menuKey: "visits",
         },
-        // {
-        //   title: "Pemeriksaan",
-        //   icon: <FaStethoscope />,
-        //   path: "/examinations",
-        //   roles: ["SUPERADMIN", "DOCTOR"],
-        // },
+        {
+          title: "Pemeriksaan",
+          icon: <FaStethoscope />,
+          path: "/examinations",
+          menuKey: "examinations",
+        },
         {
           title: "Chat Konsultasi",
           icon: <FaComments />,
           path: "/chat",
-          roles: ["SUPERADMIN", "DOCTOR"],
+          menuKey: "chat",
         },
       ],
     },
@@ -123,140 +123,43 @@ const Sidebar = ({ onClose }) => {
       title: "Pasien",
       icon: <FaUserInjured />,
       path: "/patients",
-      roles: ["SUPERADMIN", "ADMIN", "DOCTOR", "STAFF"],
+      menuKey: "patients",
     },
     {
       title: "Dokter",
       icon: <FaUserMd />,
       path: "/doctors",
-      roles: ["SUPERADMIN", "ADMIN"],
+      menuKey: "doctors",
     },
     {
       title: "Klinik",
       icon: <FaClinicMedical />,
       path: "/clinics",
-      roles: ["SUPERADMIN", "ADMIN"],
+      menuKey: "clinics",
     },
     {
       title: "Obat",
       icon: <FaPills />,
       path: "/medicine",
-      roles: ["SUPERADMIN", "ADMIN"],
+      menuKey: "medicine",
     },
     {
       title: "Mobile App",
       icon: <FaMobile />,
       path: "/mobile",
-      submenu: [
-        {
-          title: "Dashboard Mobile",
-          path: "/mobile",
-          description: "Overview dan statistik utama",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Mobile Users",
-          path: "/mobile/users",
-          description: "Kelola pengguna aplikasi mobile",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Database Makanan",
-          path: "/mobile/food",
-          description: "Kelola database makanan dan nutrisi",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Sistem Misi",
-          path: "/mobile/missions",
-          description: "Kelola misi dan reward untuk user",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "User Missions",
-          path: "/mobile/user_missions",
-          description: "Misi yang diambil user",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Activities",
-          path: "/mobile/activities",
-          description: "Kelola aktivitas wellness",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Wellness Progress",
-          path: "/mobile/wellness-progress",
-          description: "Pantau progress program wellness",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Health Data",
-          path: "/mobile/health_data",
-          description: "Data kesehatan pengguna",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Sleep Tracking",
-          path: "/mobile/sleep_tracking",
-          description: "Tracking tidur pengguna",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Mood Tracking",
-          path: "/mobile/mood_tracking",
-          description: "Tracking mood pengguna",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Chat & Support",
-          path: "/mobile/chat",
-          description: "Chat dan dukungan pengguna",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Education Center",
-          path: "/mobile/education",
-          description: "Pusat edukasi kesehatan",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "News & Updates",
-          path: "/mobile/news",
-          description: "Berita dan update terbaru",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Health Calculator",
-          path: "/mobile/calculator",
-          description: "Kalkulator kesehatan",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        }
-      ],
-      roles: ["SUPERADMIN"],
+      menuKey: "mobile",
     },
     {
       title: "Pengguna",
       icon: <FaUsers />,
       path: "/users",
-      roles: ["SUPERADMIN", "ADMIN"],
+      menuKey: "users",
     },
     {
       title: "Settings",
       icon: <FaCog />,
       path: "/settings",
-      roles: ["SUPERADMIN", "ADMIN"],
-    },
-   
-    user?.role === "PHARMACIST" && {
-      title: "Farmasi",
-      icon: <FaPills />,
-      path: "/pharmacy",
-      roles: ["PHARMACIST"],
+      menuKey: "settings",
     },
     {
       title: "Laboratorium",
@@ -265,10 +168,10 @@ const Sidebar = ({ onClose }) => {
         {
           title: "Hasil Laboratorium",
           path: "/laboratory/results",
-          roles: ["SUPERADMIN", "ADMIN", "DOCTOR"],
+          menuKey: "laboratory",
         },
       ],
-      roles: ["SUPERADMIN", "ADMIN", "DOCTOR"],
+      menuKey: "laboratory",
     },
   ].filter(Boolean);
 
@@ -276,13 +179,13 @@ const Sidebar = ({ onClose }) => {
     setOpenSubmenu(openSubmenu === title ? null : title);
   };
 
-  // Filter menu items based on user role
+  // Filter menu items based on user permissions
   const filteredMenuItems = menuItems.map(item => {
     if (item.section) {
       return {
         ...item,
         items: item.items.filter(subItem => 
-          subItem.roles && subItem.roles.includes(user?.role)
+          hasPermission(subItem.menuKey)
         )
       };
     }
@@ -291,7 +194,7 @@ const Sidebar = ({ onClose }) => {
     if (item.section) {
       return item.items.length > 0;
     }
-    return item.roles && item.roles.includes(user?.role);
+    return hasPermission(item.menuKey);
   });
 
   const handleLinkClick = () => {
@@ -396,30 +299,14 @@ const Sidebar = ({ onClose }) => {
                     </button>
                     {openSubmenu === item.title && (
                       <ul className="ml-8 mt-2 space-y-1">
-                        {item.submenu
-                          .filter(subItem => subItem.roles && subItem.roles.includes(user?.role))
-                          .map((subItem, subIndex) => (
+                        {item.submenu.map((subItem, subIndex) => (
                           <li key={subIndex}>
                             <Link
                               href={subItem.path}
                               onClick={handleLinkClick}
-                              className={`flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px] ${
-                                subItem.comingSoon ? 'opacity-60 cursor-not-allowed' : ''
-                              }`}
+                              className="flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
                             >
-                              <div className="flex-1">
-                                <div className="flex items-center">
-                                  <span className="truncate">{subItem.title}</span>
-                                  {subItem.comingSoon && (
-                                    <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-200 rounded-full">
-                                      Soon
-                                    </span>
-                                  )}
-                                </div>
-                                {subItem.description && (
-                                  <p className="text-xs text-gray-300 mt-1 truncate">{subItem.description}</p>
-                                )}
-                              </div>
+                              <span className="truncate">{subItem.title}</span>
                             </Link>
                           </li>
                         ))}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Target, RefreshCw, BarChart3, TrendingUp, Activity, Zap, Award,
@@ -10,7 +9,6 @@ import {
 import UserMissionForm from "./components/UserMissionForm";
 import UserMissionDetailModal from "./components/UserMissionDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
-import toast from "react-hot-toast";
 
 export default function UserMissionsPage() {
   const [userMissions, setUserMissions] = useState([]);
@@ -73,7 +71,7 @@ export default function UserMissionsPage() {
     setShowForm(true);
   };
 
-  const handleDeleteUserMission = async (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('Apakah Anda yakin ingin menghapus user mission ini?')) {
       return;
     }
@@ -82,18 +80,16 @@ export default function UserMissionsPage() {
       const response = await fetch(`/api/mobile/user_missions/${id}`, {
         method: 'DELETE',
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success('User mission berhasil dihapus');
+
+      if (response.ok) {
         fetchUserMissions();
       } else {
-        toast.error(data.message || 'Gagal menghapus user mission');
+        const data = await response.json();
+        throw new Error(data.message || 'Gagal menghapus user mission');
       }
     } catch (err) {
       console.error('Error deleting user mission:', err);
-      toast.error('Gagal menghapus user mission');
+      alert(err.message);
     }
   };
 
@@ -128,7 +124,7 @@ export default function UserMissionsPage() {
       }
     } catch (err) {
       console.error('Error saving user mission:', err);
-      toast.error(err.message || 'Gagal menyimpan user mission');
+      alert(err.message);
     }
   };
 
@@ -144,17 +140,17 @@ export default function UserMissionsPage() {
 
   const getStatusBadge = (status) => {
     const statusColors = {
-      'active': 'bg-blue-100 text-blue-800 border-blue-200',
+      'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'in_progress': 'bg-blue-100 text-blue-800 border-blue-200',
       'completed': 'bg-green-100 text-green-800 border-green-200',
-      'expired': 'bg-red-100 text-red-800 border-red-200',
-      'cancelled': 'bg-gray-100 text-gray-800 border-gray-200'
+      'failed': 'bg-red-100 text-red-800 border-red-200'
     };
     
     const statusLabels = {
-      'active': 'Active',
+      'pending': 'Pending',
+      'in_progress': 'In Progress',
       'completed': 'Completed',
-      'expired': 'Expired',
-      'cancelled': 'Cancelled'
+      'failed': 'Failed'
     };
 
     return (
@@ -182,29 +178,29 @@ export default function UserMissionsPage() {
       isPositive: true
     },
     {
-      label: "Active",
-      value: userMissions.filter(um => um.status === 'active').length.toLocaleString(),
+      label: "In Progress",
+      value: userMissions.filter(um => um.status === 'in_progress').length.toLocaleString(),
       icon: Activity,
       gradient: "from-purple-500 to-purple-600",
       trend: "Active",
       isPositive: true
     },
     {
-      label: "Cancelled",
-      value: userMissions.filter(um => um.status === 'cancelled').length.toLocaleString(),
+      label: "Pending",
+      value: userMissions.filter(um => um.status === 'pending').length.toLocaleString(),
       icon: Award,
       gradient: "from-orange-500 to-orange-600",
-      trend: "Cancelled",
+      trend: "Waiting",
       isPositive: false
     }
   ];
 
   const statusOptions = [
     { value: "all", label: "Semua Status" },
-    { value: "active", label: "Active" },
+    { value: "pending", label: "Pending" },
+    { value: "in_progress", label: "In Progress" },
     { value: "completed", label: "Completed" },
-    { value: "expired", label: "Expired" },
-    { value: "cancelled", label: "Cancelled" }
+    { value: "failed", label: "Failed" }
   ];
 
   return (
@@ -421,7 +417,7 @@ export default function UserMissionsPage() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDeleteUserMission(userMission.id)}
+                            onClick={() => handleDelete(userMission.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                             title="Hapus"
                           >

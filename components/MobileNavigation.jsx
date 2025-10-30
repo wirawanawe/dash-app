@@ -22,35 +22,12 @@ import {
   Menu,
   X,
   ChevronDown,
-  ChevronUp,
-  Utensils,
-  Target,
-  Activity,
-  Heart,
-  Clock,
-  Award,
-  MessageSquare,
-  BookOpen,
-  Newspaper,
-  Calculator,
-  Database,
-  BarChart3
+  ChevronUp
 } from "lucide-react";
 
 const MobileNavigation = ({ isOpen, onClose, user }) => {
   const pathname = usePathname();
   const [openSubmenu, setOpenSubmenu] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Don't render until mounted to prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
 
   // Close navigation when route changes
   useEffect(() => {
@@ -124,97 +101,7 @@ const MobileNavigation = ({ isOpen, onClose, user }) => {
       title: "Mobile App",
       icon: <Mobile className="h-5 w-5" />,
       path: "/mobile",
-      submenu: [
-        {
-          title: "Dashboard Mobile",
-          path: "/mobile",
-          description: "Overview dan statistik utama",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Mobile Users",
-          path: "/mobile/users",
-          description: "Kelola pengguna aplikasi mobile",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Database Makanan",
-          path: "/mobile/food",
-          description: "Kelola database makanan dan nutrisi",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Sistem Misi",
-          path: "/mobile/missions",
-          description: "Kelola misi dan reward untuk user",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "User Missions",
-          path: "/mobile/user_missions",
-          description: "Misi yang diambil user",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Activities",
-          path: "/mobile/activities",
-          description: "Kelola aktivitas wellness",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Wellness Progress",
-          path: "/mobile/wellness-progress",
-          description: "Pantau progress program wellness",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Health Data",
-          path: "/mobile/health_data",
-          description: "Data kesehatan pengguna",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Sleep Tracking",
-          path: "/mobile/sleep_tracking",
-          description: "Tracking tidur pengguna",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Mood Tracking",
-          path: "/mobile/mood_tracking",
-          description: "Tracking mood pengguna",
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Chat & Support",
-          path: "/mobile/chat",
-          description: "Chat dan dukungan pengguna",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Education Center",
-          path: "/mobile/education",
-          description: "Pusat edukasi kesehatan",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "News & Updates",
-          path: "/mobile/news",
-          description: "Berita dan update terbaru",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        },
-        {
-          title: "Health Calculator",
-          path: "/mobile/calculator",
-          description: "Kalkulator kesehatan",
-          comingSoon: true,
-          roles: ["SUPERADMIN"],
-        }
-      ],
-      roles: ["SUPERADMIN"],
+      roles: ["SUPERADMIN", "ADMIN"],
     },
     {
       title: "Pengguna",
@@ -394,9 +281,7 @@ const MobileNavigation = ({ isOpen, onClose, user }) => {
                     </button>
                     {openSubmenu === item.title && (
                       <div className="ml-8 mt-2 space-y-1">
-                        {item.submenu
-                          .filter(subItem => subItem.roles && subItem.roles.includes(user?.role))
-                          .map((subItem, subIndex) => (
+                        {item.submenu.map((subItem, subIndex) => (
                           <Link
                             key={subIndex}
                             href={subItem.path}
@@ -405,21 +290,9 @@ const MobileNavigation = ({ isOpen, onClose, user }) => {
                               isActive(subItem.path)
                                 ? 'bg-blue-50 text-blue-700'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                            } ${subItem.comingSoon ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            }`}
                           >
-                            <div className="flex-1">
-                              <div className="flex items-center">
-                                <span className="truncate">{subItem.title}</span>
-                                {subItem.comingSoon && (
-                                  <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                                    Soon
-                                  </span>
-                                )}
-                              </div>
-                              {subItem.description && (
-                                <p className="text-xs text-gray-500 mt-1 truncate">{subItem.description}</p>
-                              )}
-                            </div>
+                            <span className="truncate">{subItem.title}</span>
                           </Link>
                         ))}
                       </div>

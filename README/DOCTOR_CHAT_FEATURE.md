@@ -95,7 +95,7 @@ Mengambil daftar chat untuk dokter yang sedang login.
       "title": "Konsultasi dengan John Doe",
       "status": "active",
       "user_name": "John Doe",
-      "user_email": "john.doe@example.com",
+      "user_email": "john@example.com",
       "user_phone": "+628123456789",
       "unread_count": 2,
       "last_message": "Terima kasih dokter",

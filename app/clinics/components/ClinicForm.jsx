@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Plus, Minus } from "lucide-react";
+import { X } from "lucide-react";
 
 export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolyclinics, onPolyclinicsChange }) {
   const [formData, setFormData] = useState({
@@ -136,17 +136,6 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
     }));
   };
 
-  const handlePolyclinicToggle = (polyclinicId) => {
-    const newSelected = localSelectedPolyclinics.includes(polyclinicId)
-      ? localSelectedPolyclinics.filter(id => id !== polyclinicId)
-      : [...localSelectedPolyclinics, polyclinicId];
-    
-    setLocalSelectedPolyclinics(newSelected);
-    if (onPolyclinicsChange) {
-      onPolyclinicsChange(newSelected);
-    }
-  };
-
   const validateForm = () => {
     const newErrors = {};
 
@@ -198,43 +187,7 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
       };
 
-      // Submit clinic data first
-      const result = await onSubmit(submitData);
-
-      // If editing, update polyclinics
-      if (clinic) {
-        // Get current polyclinics for this clinic
-        const currentResponse = await fetch(`/api/settings/clinics/${clinic.id}/polyclinics`);
-        if (currentResponse.ok) {
-          const currentPolyclinics = await currentResponse.json();
-          const currentSelected = currentPolyclinics.filter(p => p.is_available).map(p => p.id);
-
-          // Remove polyclinics that are no longer selected
-          for (const polyclinicId of currentSelected) {
-            if (!localSelectedPolyclinics.includes(polyclinicId)) {
-              await fetch(`/api/settings/clinics/${clinic.id}/polyclinics?polyclinic_id=${polyclinicId}`, {
-                method: 'DELETE'
-              });
-            }
-          }
-
-          // Add newly selected polyclinics
-          for (const polyclinicId of localSelectedPolyclinics) {
-            if (!currentSelected.includes(polyclinicId)) {
-              await fetch(`/api/settings/clinics/${clinic.id}/polyclinics`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ polyclinic_id: polyclinicId })
-              });
-            }
-          }
-        }
-      }
-      // If creating new clinic, we need to wait for the clinic to be created first
-      // The polyclinics will need to be added after the clinic is created
-      // This will be handled by the parent component
+      await onSubmit(submitData);
     } catch (error) {
       console.error("Error submitting form:", error);
     } finally {
@@ -254,7 +207,7 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl text-black font-semibold">
             {clinic ? 'Edit Klinik' : 'Tambah Klinik Baru'}
@@ -443,75 +396,6 @@ export default function ClinicForm({ clinic, onSubmit, onCancel, selectedPolycli
                 placeholder="Contoh: 106.8456"
               />
             </div>
-          </div>
-
-          {/* Polyclinics Section */}
-          <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Poli yang Tersedia</h3>
-              <div className="text-sm text-gray-600">
-                {localSelectedPolyclinics.length} dari {polyclinics.length} poli dipilih
-              </div>
-            </div>
-            
-            {loadingPolyclinics ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Memuat data poli...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {polyclinics.map((polyclinic) => (
-                  <div
-                    key={polyclinic.id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                      localSelectedPolyclinics.includes(polyclinic.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                    onClick={() => handlePolyclinicToggle(polyclinic.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{polyclinic.name}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{polyclinic.description}</p>
-                        <div className="flex items-center mt-2">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            polyclinic.status === 'Aktif' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {polyclinic.status}
-                          </span>
-                          {polyclinic.clinic_count > 0 && (
-                            <span className="ml-2 text-xs text-gray-500">
-                              {polyclinic.clinic_count} klinik
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        {localSelectedPolyclinics.includes(polyclinic.id) ? (
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                            <Minus className="w-4 h-4 text-white" />
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center">
-                            <Plus className="w-4 h-4 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {polyclinics.length === 0 && !loadingPolyclinics && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Tidak ada poli yang tersedia</p>
-              </div>
-            )}
           </div>
 
           {/* Operating Hours */}

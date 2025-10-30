@@ -10,17 +10,9 @@ const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Handle responsive behavior with improved breakpoints
   useEffect(() => {
-    if (!mounted) return;
-
     const handleResize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768); // md breakpoint
@@ -35,12 +27,10 @@ const DashboardLayout = ({ children }) => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [mounted]);
+  }, []);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
-    if (!mounted) return;
-
     const handleClickOutside = (event) => {
       if (isMobile && isSidebarOpen && 
           !event.target.closest('.sidebar-container') && 
@@ -58,12 +48,10 @@ const DashboardLayout = ({ children }) => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isMobile, isSidebarOpen, mounted]);
+  }, [isMobile, isSidebarOpen]);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
-    if (!mounted) return;
-
     if (isMobile && isSidebarOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -73,20 +61,7 @@ const DashboardLayout = ({ children }) => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isMobile, isSidebarOpen, mounted]);
-
-  // Don't render until mounted to prevent hydration mismatch
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen bg-gray-100">
-        <div className="flex-1 flex flex-col">
-          <main className="flex-1 p-3 sm:p-4 md:p-6">
-            {children}
-          </main>
-        </div>
-      </div>
-    );
-  }
+  }, [isMobile, isSidebarOpen]);
 
   return (
     <div className="flex min-h-screen bg-gray-100 overflow-x-hidden dashboard-container">

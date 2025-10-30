@@ -43,7 +43,8 @@ import ApiDocumentation from "@/components/ApiDocumentation";
 
 export default function VisitsPage() {
   const router = useRouter();
-  const [visits, setVisits] = useState([]);
+  const [allVisits, setAllVisits] = useState([]); // Store ALL visits
+  const [visits, setVisits] = useState([]); // Paginated visits for display
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -60,28 +61,39 @@ export default function VisitsPage() {
   const [filters, setFilters] = useState({
     status: "",
     doctorId: "",
+    clinic: "",
     startDate: "",
     endDate: "",
   });
   const [appliedFilters, setAppliedFilters] = useState({
     status: "",
     doctorId: "",
+    clinic: "",
     startDate: "",
     endDate: "",
   });
   const [showFilters, setShowFilters] = useState(false);
   const [doctors, setDoctors] = useState([]);
+  const [clinics, setClinics] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    today: 0,
+    active: 0,
+    completed: 0,
+  });
 
   const fetchVisits = async () => {
     try {
       setLoading(true);
 
-      // Build query parameters
+      // Build query parameters - Fetch ALL data (no pagination at API level)
       const params = new URLSearchParams({
         search,
-        page: page.toString(),
-        limit: limit.toString(),
+        page: "1",           // Always fetch from page 1
+        limit: "10000",      // Fetch all data (large limit)
+        sortBy: "date",      // Sort by date
+        sortOrder: "desc",   // Descending (terbaru dulu)
       });
 
       // Add date search if exists
@@ -107,6 +119,11 @@ export default function VisitsPage() {
         params.append("doctorId", appliedFilters.doctorId);
       }
 
+      // Add clinic filter if exists
+      if (appliedFilters.clinic) {
+        params.append("clinic", appliedFilters.clinic);
+      }
+
       const response = await fetch(`/api/visits?${params.toString()}`);
 
       if (!response.ok) {
@@ -124,12 +141,29 @@ export default function VisitsPage() {
         throw new Error("Invalid data format");
       }
 
-      setVisits(result.data);
-      setMetadata(result.pagination || {});
-      setTotalPages(result.pagination?.totalPages || 0);
+      // Store ALL visits data
+      setAllVisits(result.data);
+      
+      // Get total from API pagination (actual total from external API)
+      const totalData = result.pagination?.total || result.data.length;
+      const fetchedData = result.data.length;
+      // Calculate pages based on fetched data (what we can actually display)
+      const totalPagesCalculated = Math.ceil(fetchedData / limit);
+      
+      // Apply pagination to get current page data
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedData = result.data.slice(startIndex, endIndex);
+      
+      setVisits(paginatedData);
+      setMetadata({ total: totalData }); // Use actual total from API, not just fetched length
+      setTotalPages(totalPagesCalculated);
+      
+      console.log(`[Visits] Total in DB: ${totalData}, Fetched: ${fetchedData}, Page: ${page}, Showing: ${paginatedData.length}`);
     } catch (error) {
       console.error("Error:", error);
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
+      setAllVisits([]);
       setVisits([]);
       setMetadata({});
       setTotalPages(0);
@@ -152,23 +186,109 @@ export default function VisitsPage() {
     }
   };
 
+  const fetchClinics = async () => {
+    try {
+      const response = await fetch("/api/clinics");
+      if (!response.ok)
+        throw new Error(`HTTP error! Status: ${response.status}`);
+
+      const data = await response.json();
+      setClinics(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching clinics:", error);
+      setClinics([]);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      // Get today's date in YYYY-MM-DD format (local timezone, not UTC)
+      const today = new Date();
+      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      // Fetch all stats in parallel
+      // NOTE: External API tidak punya field status, semua kunjungan di-set sebagai "Selesai"
+      // Jadi "Total" = "Completed", tidak perlu fetch terpisah untuk completed
+      const [totalResponse, todayResponse, activeResponse] = await Promise.all([
+        // Total: Fetch dengan limit besar, tanpa filter
+        fetch('/api/visits?limit=10000'),
+        // Today: Fetch dengan filter tanggal hari ini
+        fetch(`/api/visits?searchDate=${todayString}&limit=10000`),
+        // Active: Fetch dengan filter status Aktif (akan return 0 karena semua "Selesai")
+        fetch('/api/visits?status=Aktif&limit=10000'),
+      ]);
+
+      const [totalData, todayData, activeData] = await Promise.all([
+        totalResponse.json(),
+        todayResponse.json(),
+        activeResponse.json(),
+      ]);
+
+      // Karena external API tidak punya status dan semua di-set "Selesai",
+      // maka completed = total (semua kunjungan adalah kunjungan selesai)
+      const totalCount = totalData.pagination?.total || 0;
+
+      setStats({
+        total: totalCount,
+        today: todayData.pagination?.total || 0,
+        active: activeData.pagination?.total || 0,
+        completed: totalCount, // Sama dengan total karena semua kunjungan "Selesai"
+      });
+
+      console.log('[Visits Stats] Updated:', {
+        total: totalCount,
+        today: todayData.pagination?.total || 0,
+        active: activeData.pagination?.total || 0,
+        completed: totalCount,
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  // Fetch data when search/filters change (not when page/limit changes)
   useEffect(() => {
     fetchVisits();
     setIsLoaded(true);
   }, [
     search,
     searchDate,
-    page,
-    limit,
     appliedFilters.startDate,
     appliedFilters.endDate,
     appliedFilters.status,
     appliedFilters.doctorId,
+    appliedFilters.clinic,
   ]);
+
+  // Apply client-side pagination when page or limit changes
+  useEffect(() => {
+    if (allVisits.length > 0) {
+      const totalData = allVisits.length;
+      const totalPagesCalculated = Math.ceil(totalData / limit);
+      
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedData = allVisits.slice(startIndex, endIndex);
+      
+      setVisits(paginatedData);
+      setTotalPages(totalPagesCalculated);
+      
+      console.log(`[Pagination] Page: ${page}, Limit: ${limit}, Showing: ${paginatedData.length} of ${totalData}`);
+    }
+  }, [page, limit, allVisits]);
 
   useEffect(() => {
     fetchDoctors();
+    fetchClinics();
+    fetchStats(); // Fetch stats on initial load
   }, []);
+
+  // Refetch stats when visits data changes (e.g., after add/edit/delete)
+  useEffect(() => {
+    if (isLoaded) {
+      fetchStats();
+    }
+  }, [visits.length]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -217,7 +337,9 @@ export default function VisitsPage() {
           : "Kunjungan berhasil ditambahkan"
       );
       setShowForm(false);
+      setSelectedVisit(null);
       fetchVisits();
+      fetchStats(); // Update statistics after saving
     } catch (error) {
       console.error("Error:", error);
       toast.error("Gagal menyimpan kunjungan");
@@ -235,6 +357,7 @@ export default function VisitsPage() {
 
         toast.success("Kunjungan berhasil dihapus");
         fetchVisits();
+        fetchStats(); // Update statistics after deletion
       } catch (error) {
         console.error("Error:", error);
         toast.error("Gagal menghapus kunjungan");
@@ -255,12 +378,14 @@ export default function VisitsPage() {
     setFilters({
       status: "",
       doctorId: "",
+      clinic: "",
       startDate: "",
       endDate: "",
     });
     setAppliedFilters({
       status: "",
       doctorId: "",
+      clinic: "",
       startDate: "",
       endDate: "",
     });
@@ -322,16 +447,12 @@ export default function VisitsPage() {
     );
   };
 
-  // Calculate visit statistics
-  const visitStats = {
-    total: metadata.total || 0,
-    active: visits.filter(v => v.status === "Aktif").length,
-    completed: visits.filter(v => v.status === "Selesai").length,
-    today: visits.filter(v => {
-      const visitDate = v.visitDate || v.createdAt;
-      return visitDate && new Date(visitDate).toDateString() === new Date().toDateString();
-    }).length
-  };
+  // Note: Stats are now fetched separately via fetchStats()
+  // This ensures accurate counts regardless of current filters/pagination
+  // visitStats.total = ALL visits in database
+  // visitStats.today = ALL visits today (not affected by filters)
+  // visitStats.active = ALL active visits
+  // visitStats.completed = ALL completed visits
 
   return (
     <DashboardLayout>
@@ -387,7 +508,7 @@ export default function VisitsPage() {
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {visitStats.total}
+                {stats.total}
               </p>
               <p className="text-sm text-gray-600 font-medium">Total Kunjungan</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -412,7 +533,7 @@ export default function VisitsPage() {
             </div>
             <div>
               <p className="text-3xl font-bold text-emerald-600 mb-1">
-                {visitStats.active}
+                {stats.active}
               </p>
               <p className="text-sm text-gray-600 font-medium">Kunjungan Aktif</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -438,7 +559,7 @@ export default function VisitsPage() {
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {visitStats.completed}
+                {stats.completed}
               </p>
               <p className="text-sm text-gray-600 font-medium">Kunjungan Selesai</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -464,7 +585,7 @@ export default function VisitsPage() {
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
-                {visitStats.today}
+                {stats.today}
               </p>
               <p className="text-sm text-gray-600 font-medium">Kunjungan Hari Ini</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -607,6 +728,24 @@ export default function VisitsPage() {
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Klinik / Poli
+                    </label>
+                    <select
+                      name="clinic"
+                      value={filters.clinic}
+                      onChange={handleFilterChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm"
+                    >
+                      <option value="">Semua Klinik</option>
+                      {clinics.map((clinic) => (
+                        <option key={clinic.id} value={clinic.name}>
+                          {clinic.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2 mt-4">
                   <button
@@ -648,7 +787,8 @@ export default function VisitsPage() {
           {(appliedFilters.startDate ||
             appliedFilters.endDate ||
             appliedFilters.status ||
-            appliedFilters.doctorId) && (
+            appliedFilters.doctorId ||
+            appliedFilters.clinic) && (
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="text-sm text-gray-600">Filter aktif:</span>
               {appliedFilters.startDate && (
@@ -710,6 +850,20 @@ export default function VisitsPage() {
                   </button>
                 </span>
               )}
+              {appliedFilters.clinic && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  Klinik: {appliedFilters.clinic}
+                  <button
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, clinic: "" }));
+                      setAppliedFilters((prev) => ({ ...prev, clinic: "" }));
+                    }}
+                    className="ml-2 text-orange-600 hover:text-orange-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -755,8 +909,8 @@ export default function VisitsPage() {
             ) : (
               <>
                 {/* Visits Table */}
-                <div className="overflow-hidden rounded-xl border border-gray-200">
-                  <table className="w-full">
+                <div className="overflow-x-auto overflow-hidden rounded-xl border border-gray-200">
+                  <table className="w-full min-w-max">
                     <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
                       <tr>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -769,10 +923,13 @@ export default function VisitsPage() {
                           Dokter
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Unit
+                          Klinik/Poli
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Keluhan
+                          Kode Faskes
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Diagnosa
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
@@ -788,7 +945,7 @@ export default function VisitsPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {visits.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="px-6 py-12 text-center">
+                          <td colSpan="9" className="px-6 py-12 text-center">
                             <div className="flex flex-col items-center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                 <Calendar className="w-8 h-8 text-gray-400" />
@@ -800,17 +957,19 @@ export default function VisitsPage() {
                         </tr>
                       ) : (
                         visits.map((visit) => (
-                          <tr key={visit.id} className="hover:bg-blue-50 transition-colors">
+                          <tr key={visit.uniqueId || visit.id} className="hover:bg-blue-50 transition-colors">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-bold text-gray-900">#{visit.id}</div>
+                              <div className="text-sm font-bold text-gray-900">{visit.visitNumber || visit.id}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-semibold text-gray-900">
                                 {visit.patient?.name || "-"}
                               </div>
-                              <div className="text-sm text-gray-500">
-                                MR: {visit.patient?.mrNumber || "-"}
-                              </div>
+                              {visit.patient?.nik && (
+                                <div className="text-sm text-gray-500">
+                                  NIK: {visit.patient.nik}
+                                </div>
+                              )}
                               {visit.patient?.nip && (
                                 <div className="text-sm text-gray-500">
                                   NIP: {visit.patient.nip}
@@ -821,10 +980,16 @@ export default function VisitsPage() {
                               {visit.doctor?.name || "-"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {visit.room || "-"}
+                              {visit.clinic || visit.room || "-"}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                              {visit.complaint || "-"}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-blue-600">{visit.facility?.code || "-"}</span>
+                                <span className="text-xs text-gray-500">{visit.facility?.name || "-"}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={visit.diagnosis || visit.complaint || "-"}>
+                              {visit.diagnosis || visit.complaint || "-"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
@@ -839,9 +1004,17 @@ export default function VisitsPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {visit.visitDate
-                                ? new Date(visit.visitDate).toLocaleDateString("id-ID")
+                                ? new Date(visit.visitDate).toLocaleDateString("id-ID", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric"
+                                  })
                                 : visit.createdAt
-                                ? new Date(visit.createdAt).toLocaleDateString("id-ID")
+                                ? new Date(visit.createdAt).toLocaleDateString("id-ID", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric"
+                                  })
                                 : "-"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -879,11 +1052,16 @@ export default function VisitsPage() {
                         </span>{" "}
                         -{" "}
                         <span className="font-semibold text-blue-600">
-                          {Math.min(page * limit, metadata.total || 0)}
+                          {Math.min(page * limit, allVisits.length || 0)}
                         </span>{" "}
                         dari{" "}
                         <span className="font-semibold text-blue-600">{metadata.total || 0}</span>{" "}
                         data kunjungan
+                        {metadata.total > allVisits.length && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({allVisits.length} data terbaru tersedia)
+                          </span>
+                        )}
                       </div>
 
                       {/* Items per page */}

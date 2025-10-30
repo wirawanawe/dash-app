@@ -316,7 +316,7 @@ FROM phc_mobile.user_water_settings;
 
 -- 11. MEAL LOGGING TABLE
 -- Check if table exists, if not create it
-CREATE TABLE IF NOT EXISTS meal_tracking (
+CREATE TABLE IF NOT EXISTS meal_logging (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     food_id INT NOT NULL,
@@ -334,13 +334,15 @@ CREATE TABLE IF NOT EXISTS meal_tracking (
     INDEX idx_user_date (user_id, meal_date)
 );
 
+-- Migrate meal_logging if source table exists
+INSERT IGNORE INTO meal_logging (
     id, user_id, food_id, meal_type, portion_grams, meal_date, meal_time, notes, created_at, updated_at
 )
 SELECT 
     id, user_id, food_id, meal_type, quantity, logged_date, logged_time, notes,
     NOW() as created_at,
     NOW() as updated_at
-FROM phc_mobile.meal_tracking;
+FROM phc_mobile.meal_logging;
 
 -- 12. FITNESS TRACKING TABLE
 -- Check if table exists, if not create it
@@ -554,6 +556,7 @@ SELECT 'Water Tracking' as table_name, COUNT(*) as record_count FROM water_track
 UNION ALL
 SELECT 'User Water Settings' as table_name, COUNT(*) as record_count FROM user_water_settings
 UNION ALL
+SELECT 'Meal Logging' as table_name, COUNT(*) as record_count FROM meal_logging
 UNION ALL
 SELECT 'Fitness Tracking' as table_name, COUNT(*) as record_count FROM fitness_tracking
 UNION ALL

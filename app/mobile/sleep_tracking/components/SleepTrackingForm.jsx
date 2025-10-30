@@ -127,7 +127,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                 value={formData.user_id}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 disabled={loadingData}
               >
                 <option value="">Pilih User</option>
@@ -151,7 +151,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                 value={formData.sleep_date}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               />
             </div>
 
@@ -170,7 +170,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                   min="0"
                   max="24"
                   required
-                  className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="0-24"
                 />
               </div>
@@ -187,7 +187,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                   min="0"
                   max="59"
                   required
-                  className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   placeholder="0-59"
                 />
               </div>
@@ -204,7 +204,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                 value={formData.sleep_quality}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               >
                 {qualityOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -226,7 +226,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                   name="bedtime"
                   value={formData.bedtime}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 />
               </div>
               <div>
@@ -239,7 +239,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                   name="wake_time"
                   value={formData.wake_time}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 />
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function SleepTrackingForm({ sleepData, onSubmit, onClose }) {
                 value={formData.notes}
                 onChange={handleChange}
                 rows="4"
-                className="w-full px-4 py-3 border text-black border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
                 placeholder="Tambahkan catatan tentang tidur ini..."
               />
             </div>

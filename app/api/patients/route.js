@@ -34,32 +34,25 @@ async function fetchWithRetry(url, options, maxRetries = 2) {
 
 // GET all patients from external API
 export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search") || "";
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "10");
+  const sortBy = searchParams.get("sortBy") || "name"; // name, nik, created
+  const sortOrder = searchParams.get("sortOrder") || "asc"; // asc, desc
+  
   try {
-    // Get user information from token to check role and clinic_id
-    const token = request.cookies.get("token");
-    let userPayload = null;
+    // Determine if we need to fetch all data for client-side filtering
+    const needsClientSideFiltering = search !== "";
     
-    if (token) {
-      try {
-        const { verifyJwtToken } = await import("@/lib/auth");
-        userPayload = await verifyJwtToken(token.value);
-      } catch (error) {
-        console.error("Error verifying token:", error);
-      }
-    }
+    // If we need client-side filtering, fetch a large batch or all data
+    const fetchLimit = needsClientSideFiltering ? 10000 : limit;
+    const fetchPage = needsClientSideFiltering ? 1 : page;
 
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search") || "";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    // Build API URL - using the new API endpoint
+    let apiUrl = `https://api-ehr-klinik.doctorphc.id/pasien?page=${fetchPage}&limit=${fetchLimit}`;
 
-    // Build API URL with keyword parameter for server-side filtering
-    let apiUrl = `http://api-klinik.doctorphc.id/pasien?page=${page}&limit=${limit}`;
-
-    // Add keyword parameter if search is provided
-    if (search) {
-      apiUrl += `&keyword=${encodeURIComponent(search)}`;
-    }
+    console.log(`[Patients API] Fetching from: ${apiUrl}`);
 
     // Add clinic_id filter if user is not superadmin and has clinic_id
     if (userPayload && userPayload.role !== "SUPERADMIN" && userPayload.clinic_id) {
@@ -222,16 +215,197 @@ export async function GET(request) {
         throw new Error("Failed to fetch patients from both external API and local database");
       }
     }
-  } catch (error) {
-    console.error("Error fetching patients:", error);
-    return NextResponse.json(
-      { 
-        success: false,
-        message: "Gagal mengambil data pasien",
-        error: error.message 
+    
+    console.log(`[Patients API] Fetched ${rawPatients.length} patients from external API`);
+
+    // Log first patient for debugging
+    if (rawPatients.length > 0) {
+      console.log('[Patients API] Sample patient data:', JSON.stringify(rawPatients[0], null, 2));
+    }
+
+    // Transform the external API data to match our expected format
+    let patients = rawPatients.map((patient) => {
+      // Extract NIK and NIP from Identitas array with multiple approaches
+      let nik = "";
+      let nip = "";
+      
+      if (patient.Identitas && Array.isArray(patient.Identitas)) {
+        const nikObj = patient.Identitas.find((id) => 
+          id.type === "nik" || id.Type === "nik" || id.TYPE === "NIK" || 
+          id.type === "NIK" || id.nama === "NIK" || id.Nama === "NIK"
+        );
+        const nipObj = patient.Identitas.find((id) => 
+          id.type === "nip" || id.Type === "nip" || id.TYPE === "NIP" || 
+          id.type === "NIP" || id.nama === "NIP" || id.Nama === "NIP"
+        );
+        
+        nik = nikObj?.id || nikObj?.Id || nikObj?.ID || nikObj?.value || nikObj?.Value || "";
+        nip = nipObj?.id || nipObj?.Id || nipObj?.ID || nipObj?.value || nipObj?.Value || "";
+      }
+      
+      // Fallback: check if NIK/NIP exist as direct properties
+      if (!nik && patient.NIK) nik = patient.NIK;
+      if (!nip && patient.NIP) nip = patient.NIP;
+      
+      // Extract gender with multiple approaches
+      let gender = "";
+      if (patient.Jenis_Kelamin) {
+        if (Array.isArray(patient.Jenis_Kelamin) && patient.Jenis_Kelamin.length > 0) {
+          gender = patient.Jenis_Kelamin[0]?.name || patient.Jenis_Kelamin[0]?.Name || patient.Jenis_Kelamin[0];
+        } else if (typeof patient.Jenis_Kelamin === 'string') {
+          gender = patient.Jenis_Kelamin;
+        } else if (typeof patient.Jenis_Kelamin === 'object') {
+          gender = patient.Jenis_Kelamin?.name || patient.Jenis_Kelamin?.Name || "";
+        }
+      }
+      
+      // Additional fallbacks for gender
+      if (!gender && patient.Gender) gender = patient.Gender;
+      if (!gender && patient.gender) gender = patient.gender;
+      
+      return {
+        id: patient.No_MR || patient.ID || patient.id,
+        mrn: patient.No_MR || patient.No_RM || patient.MRN || "-",
+        name: patient.Nama_Pasien || patient.Nama || patient.Name || "-",
+        gender: gender || "-",
+        birthDate: patient.Tgl_Lahir ? patient.Tgl_Lahir.split(" ")[0] : null,
+        age: patient.Umur || patient.Age || "-",
+        nik: nik,
+        nip: nip,
+        noPeserta: patient.No_Peserta || "",
+        namaPeserta: patient.Nama_Peserta || "",
+        phone: patient.No_Telepon || patient.No_HP || patient.Phone || "",
+        address: patient.Alamat_Rumah?.[0]?.Alamat || patient.Alamat || "",
+        rt: patient.Alamat_Rumah?.[0]?.RT || "",
+        rw: patient.Alamat_Rumah?.[0]?.RW || "",
+        kelurahan: patient.Alamat_Rumah?.[0]?.Kelurahan?.[0]?.name || "",
+        kecamatan: patient.Alamat_Rumah?.[0]?.Kecamatan?.[0]?.name || "",
+        city: patient.Alamat_Rumah?.[0]?.Kota?.[0]?.name || patient.Kota || "",
+        province: patient.Alamat_Rumah?.[0]?.Propinsi?.[0]?.name || patient.Propinsi || "",
+        postalCode: patient.Alamat_Rumah?.[0]?.Kode_Pos || "",
+        bloodType: patient.Golongan_Darah?.[0]?.name || patient.Golongan_Darah || "-",
+        religion: patient.Agama?.[0]?.name || patient.Agama || "-",
+        maritalStatus: patient.Status_Marital?.[0]?.name || patient.Status_Marital || "-",
+        occupation: patient.Pekerjaan?.[0]?.name || patient.Pekerjaan || "-",
+        education: patient.Pendidikan?.[0]?.name || patient.Pendidikan || "-",
+        nationality: patient.Kewarganegaraan?.[0]?.name || patient.Kewarganegaraan || "-",
+        department: patient.Bagian || patient.Department || "",
+        company: patient.Perusahaan || patient.Company || "",
+        createdAt: patient.audittrail?.CreatedDate || patient.audittrail?.created_at || null,
+        updatedAt: patient.audittrail?.LastModifiedDate || patient.audittrail?.updated_at || null,
+      };
+    });
+
+    // Apply client-side search filtering
+    if (search) {
+      const searchLower = search.toLowerCase();
+      patients = patients.filter((patient) => {
+        return (
+          patient.name?.toLowerCase().includes(searchLower) ||
+          patient.nik?.toLowerCase().includes(searchLower) ||
+          patient.nip?.toLowerCase().includes(searchLower) ||
+          patient.mrn?.toLowerCase().includes(searchLower) ||
+          patient.noPeserta?.toLowerCase().includes(searchLower)
+        );
+      });
+      console.log(`[Patients API] After search filter: ${patients.length} patients match`);
+    }
+
+    // Sort patients
+    console.log(`[Patients API] Sorting by: ${sortBy}, order: ${sortOrder}`);
+    
+    patients.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortBy === "name") {
+        const aName = a.name || "";
+        const bName = b.name || "";
+        comparison = aName.localeCompare(bName);
+      } else if (sortBy === "nik") {
+        const aNik = a.nik || "";
+        const bNik = b.nik || "";
+        comparison = aNik.localeCompare(bNik);
+      } else if (sortBy === "created") {
+        const aDate = new Date(a.createdAt || 0);
+        const bDate = new Date(b.createdAt || 0);
+        comparison = bDate.getTime() - aDate.getTime(); // Default descending for date
+      } else if (sortBy === "mrn") {
+        const aMrn = a.mrn || "";
+        const bMrn = b.mrn || "";
+        comparison = aMrn.localeCompare(bMrn);
+      }
+
+      // Apply sort order
+      if (sortOrder === "desc" && (sortBy === "name" || sortBy === "nik" || sortBy === "mrn")) {
+        comparison = -comparison;
+      } else if (sortOrder === "asc" && sortBy === "created") {
+        comparison = -comparison;
+      }
+
+      return comparison;
+    });
+
+    // Calculate pagination AFTER all filtering
+    const actualTotal = patients.length;
+    const totalPages = Math.ceil(actualTotal / limit);
+    
+    console.log(`[Patients API] Total after filtering: ${actualTotal} patients`);
+    
+    // Apply pagination to filtered results
+    let paginatedPatients = patients;
+    if (needsClientSideFiltering) {
+      // If we fetched all data for client-side filtering, now paginate the results
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      paginatedPatients = patients.slice(startIndex, endIndex);
+      console.log(`[Patients API] Returning page ${page} with ${paginatedPatients.length} patients`);
+    }
+
+    return NextResponse.json({
+      data: paginatedPatients,
+      pagination: {
+        total: actualTotal,
+        page,
+        limit,
+        totalPages,
       },
-      { status: 500 }
-    );
+    });
+  } catch (error) {
+    console.error("Error fetching patients from external API:", error);
+
+    // Fallback to local database if external API fails
+    try {
+      const patients = await query(
+        `
+        SELECT 
+          id, mr_number as mrn, name, nik, nip, birth_date as birthDate,
+          gender, blood_type as bloodType, phone, address, city, province,
+          occupation, marital_status as maritalStatus, created_at as createdAt,
+          updated_at as updatedAt
+        FROM patients
+        ORDER BY name ASC
+      `
+      );
+
+      return NextResponse.json({
+        data: patients,
+        pagination: {
+          total: patients.length,
+          page: 1,
+          limit: patients.length,
+          totalPages: 1,
+        },
+      });
+    } catch (fallbackError) {
+      console.error("Fallback to local database also failed:", fallbackError);
+      return NextResponse.json(
+        {
+          message: "Failed to fetch patients from external API and local database",
+          error: error.message,
+        },
+        { status: 500 }
+      );
+    }
   }
 }
 

@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
 import { query, rawQuery } from '@/lib/db';
-import bcrypt from 'bcryptjs';
-
-export const dynamic = 'force-dynamic';
-
 
 export async function GET(request) {
   try {
@@ -17,40 +13,35 @@ export async function GET(request) {
     let params = [];
 
     if (search) {
-      whereClause = 'WHERE mu.name LIKE ? OR mu.email LIKE ?';
-      params = [`%${search}%`, `%${search}%`];
+      whereClause = 'WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?';
+      params = [`%${search}%`, `%${search}%`, `%${search}%`];
     }
 
-    // Get users from mobile_users table only (since it has wellness data)
-    const countSql = `SELECT COUNT(*) as total FROM mobile_users mu ${whereClause}`;
+    // Get total count
+    const countSql = `SELECT COUNT(*) as total FROM mobile_users ${whereClause}`;
     const countResult = await query(countSql, params);
     const total = countResult[0].total;
 
-    // Get users with wellness data from mobile_users table and join with health_data for height/weight
+    // Get users with pagination
     const sql = `
       SELECT 
-        mu.id,
-        mu.name,
-        mu.email,
-        mu.phone,
-        mu.date_of_birth,
-        mu.gender,
-        mu.emergency_contact_name,
-        mu.emergency_contact_phone,
-        mu.is_active,
-        mu.wellness_program_joined,
-        mu.wellness_join_date,
-        mu.activity_level,
-        mu.fitness_goal,
-        mu.created_at,
-        mu.updated_at,
-        MAX(CASE WHEN hd.data_type = 'height' THEN hd.value END) as height,
-        MAX(CASE WHEN hd.data_type = 'weight' THEN hd.value END) as weight
-      FROM mobile_users mu
-      LEFT JOIN health_data hd ON mu.id = hd.user_id AND hd.data_type IN ('height', 'weight')
+        id,
+        name,
+        email,
+        phone,
+        date_of_birth,
+        gender,
+        height,
+        weight,
+        blood_type,
+        emergency_contact_name,
+        emergency_contact_phone,
+        is_active,
+        created_at,
+        updated_at
+      FROM mobile_users 
       ${whereClause}
-      GROUP BY mu.id
-      ORDER BY mu.created_at DESC 
+      ORDER BY created_at DESC 
       LIMIT ? OFFSET ?
     `;
 
@@ -69,7 +60,6 @@ export async function GET(request) {
     const users = await rawQuery(finalQuery);
     
     return NextResponse.json({
-      success: true,
       users,
       pagination: {
         page,
@@ -81,7 +71,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching mobile users:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch mobile users', message: error.message },
+      { error: 'Failed to fetch mobile users' },
       { status: 500 }
     );
   }
@@ -99,6 +89,7 @@ export async function POST(request) {
       gender,
       height,
       weight,
+      blood_type,
       emergency_contact_name,
       emergency_contact_phone
     } = body;
@@ -111,58 +102,44 @@ export async function POST(request) {
       );
     }
 
-    // Check if user already exists
+    // Check if email already exists
     const existingUser = await query(
-      'SELECT id FROM mobile_users WHERE email = ? OR phone = ?',
-      [email, phone]
+      'SELECT id FROM mobile_users WHERE email = ?',
+      [email]
     );
 
     if (existingUser.length > 0) {
       return NextResponse.json(
-        { error: 'User with this email or phone already exists' },
-        { status: 409 }
+        { error: 'Email already exists' },
+        { status: 400 }
       );
     }
 
-    // Hash password sebelum disimpan
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password (you should use bcrypt in production)
+    const hashedPassword = password; // For now, store as plain text
 
-    // Insert new user (without height and weight - these go to health_data table)
-    const insertSql = `
+    const sql = `
       INSERT INTO mobile_users (
         name, email, phone, password, date_of_birth, gender,
-        emergency_contact_name, emergency_contact_phone
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        height, weight, blood_type, emergency_contact_name,
+        emergency_contact_phone, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
     `;
 
-    const result = await query(insertSql, [
+    // Validate blood_type against ENUM values
+    const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    const validatedBloodType = blood_type && validBloodTypes.includes(blood_type) ? blood_type : null;
+
+    const result = await query(sql, [
       name, email, phone, hashedPassword, date_of_birth, gender,
-      emergency_contact_name, emergency_contact_phone
+      height, weight, validatedBloodType, emergency_contact_name,
+      emergency_contact_phone
     ]);
 
-    const userId = result.insertId;
-
-    // Insert height and weight into health_data table if provided
-    if (height && height > 0) {
-      await query(
-        'INSERT INTO health_data (user_id, data_type, value, unit, measured_at, source) VALUES (?, ?, ?, ?, NOW(), ?)',
-        [userId, 'height', height, 'cm', 'manual']
-      );
-    }
-
-    if (weight && weight > 0) {
-      await query(
-        'INSERT INTO health_data (user_id, data_type, value, unit, measured_at, source) VALUES (?, ?, ?, ?, NOW(), ?)',
-        [userId, 'weight', weight, 'kg', 'manual']
-      );
-    }
-
     return NextResponse.json({
-      success: true,
-      message: 'User created successfully',
-      userId: userId
+      message: 'Mobile user created successfully',
+      userId: result.insertId
     });
-
   } catch (error) {
     console.error('Error creating mobile user:', error);
     return NextResponse.json(

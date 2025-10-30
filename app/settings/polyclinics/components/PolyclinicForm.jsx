@@ -102,7 +102,6 @@ export default function PolyclinicForm({ polyclinic, onSubmit, onCancel }) {
                 errors.name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Masukkan nama poli"
-              required
             />
           </div>
 

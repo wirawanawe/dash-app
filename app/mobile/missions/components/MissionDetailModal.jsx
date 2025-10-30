@@ -20,8 +20,6 @@ export default function MissionDetailModal({ mission, onClose }) {
       sleep: 'badge-secondary'
     };
     
-    if (!category) return <span className="badge badge-default">UNKNOWN</span>;
-    
     return (
       <span className={`badge ${colors[category] || 'badge-default'}`}>
         {category.replace('_', ' ').toUpperCase()}
@@ -84,7 +82,7 @@ export default function MissionDetailModal({ mission, onClose }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Category</label>
-                    <div className="mt-1 text-black">{getCategoryBadge(mission.category)}</div>
+                    <div className="mt-1">{getCategoryBadge(mission.category)}</div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Status</label>
@@ -111,8 +109,8 @@ export default function MissionDetailModal({ mission, onClose }) {
                 <div>
                   <label className="block text-sm font-medium text-gray-500">Target</label>
                   <p className="text-sm text-gray-900 mt-1">
-                                    {mission.target_value && mission.unit
-                  ? `${mission.target_value} ${mission.unit}`
+                    {mission.target_value && mission.target_unit 
+                      ? `${mission.target_value} ${mission.target_unit}`
                       : '-'
                     }
                   </p>

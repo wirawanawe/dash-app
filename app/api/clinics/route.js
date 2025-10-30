@@ -89,15 +89,15 @@ export async function GET(request) {
     // Get paginated results
     const clinicsQuery = `
       SELECT 
-        c.id, c.name, c.address, c.city, c.phone, c.email,
-        c.rating, c.total_reviews, c.latitude, c.longitude,
-        c.operating_hours, c.description, c.image_url,
-        c.is_active, c.created_at, c.updated_at
-      FROM clinics c
+        id, name, address, city, phone, email,
+        rating, total_reviews, latitude, longitude,
+        operating_hours, description, image_url,
+        is_active, created_at, updated_at
+      FROM clinics
       WHERE 
-        (LOWER(c.name) LIKE LOWER(?) OR
-        LOWER(c.address) LIKE LOWER(?) OR
-        LOWER(c.city) LIKE LOWER(?))
+        (LOWER(name) LIKE LOWER(?) OR
+        LOWER(address) LIKE LOWER(?) OR
+        LOWER(city) LIKE LOWER(?))
         ${clinicFilter}
       ORDER BY c.name ASC
       LIMIT ${limit} OFFSET ${offset}

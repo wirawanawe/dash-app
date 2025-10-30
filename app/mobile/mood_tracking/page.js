@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/Providers";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import { 
   Heart, RefreshCw, BarChart3, TrendingUp, Zap, Smile,
@@ -11,11 +9,8 @@ import {
 import MoodTrackingForm from "./components/MoodTrackingForm";
 import MoodTrackingDetailModal from "./components/MoodTrackingDetailModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
-import toast from "react-hot-toast";
-import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function MoodTrackingPage() {
-  const router = useRouter();
   const [moodData, setMoodData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,12 +25,6 @@ export default function MoodTrackingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [limit] = useState(10);
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const fetchMoodData = async () => {
     try {
@@ -69,9 +58,8 @@ export default function MoodTrackingPage() {
   };
 
   useEffect(() => {
-    if (!mounted) return;
     fetchMoodData();
-  }, [currentPage, searchTerm, moodFilter, mounted]);
+  }, [currentPage, searchTerm, moodFilter]);
 
   const handleCreate = () => {
     setEditingMoodData(null);
@@ -89,18 +77,19 @@ export default function MoodTrackingPage() {
     }
 
     try {
-      await createCrudOperation(
-        "DELETE",
-        `/api/mobile/mood_tracking/${id}`,
-        null,
-        () => fetchMoodData(),
-        { setLoading }
-      );
-      
-      toast.success('Data mood berhasil dihapus');
+      const response = await fetch(`/api/mobile/mood_tracking/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchMoodData();
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || 'Gagal menghapus data mood');
+      }
     } catch (err) {
       console.error('Error deleting mood data:', err);
-      toast.error(err.message);
+      alert(err.message);
     }
   };
 
@@ -117,29 +106,25 @@ export default function MoodTrackingPage() {
       
       const method = editingMoodData ? 'PUT' : 'POST';
       
-      await createCrudOperation(
+      const response = await fetch(url, {
         method,
-        url,
-        formData,
-        () => fetchMoodData(),
-        { setLoading }
-      );
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      toast.success(editingMoodData ? 'Data mood berhasil diperbarui' : 'Data mood berhasil ditambahkan');
-      setShowForm(false);
-      setEditingMoodData(null);
-      
-      // Navigate to wellness progress tracking page after successful submission
-      if (!editingMoodData) {
-        // Only navigate for new mood data, not for updates
-        toast.success('Mengalihkan ke halaman Wellness Progress...', { duration: 2000 });
-        setTimeout(() => {
-          router.push('/mobile/wellness-progress');
-        }, 1500); // 1.5 second delay to show success message and navigation notification
+      if (response.ok) {
+        setShowForm(false);
+        setEditingMoodData(null);
+        fetchMoodData();
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || 'Gagal menyimpan data mood');
       }
     } catch (err) {
       console.error('Error saving mood data:', err);
-      toast.error(err.message);
+      alert(err.message);
     }
   };
 
@@ -262,13 +247,6 @@ export default function MoodTrackingPage() {
                 Refresh Data
               </button>
               <button
-                onClick={() => router.push('/mobile/wellness-progress')}
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all duration-200 border border-white/30"
-              >
-                <BarChart3 className="w-4 h-4" />
-                Lihat Progress
-              </button>
-              <button
                 onClick={handleCreate}
                 className="flex items-center gap-2 px-6 py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 transition-all duration-200 font-medium"
               >
@@ -307,30 +285,6 @@ export default function MoodTrackingPage() {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Quick Navigation Card */}
-        <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold flex items-center gap-3">
-                <BarChart3 className="w-6 h-6" />
-                Wellness Progress Tracking
-              </h2>
-              <p className="text-green-100 mt-2">
-                Lihat progress wellness dan tracking data kesehatan pengguna
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => router.push('/mobile/wellness-progress')}
-                className="flex items-center gap-2 px-6 py-3 bg-white text-green-600 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium shadow-lg"
-              >
-                <TrendingUp className="w-4 h-4" />
-                Lihat Progress Wellness
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Search Section */}

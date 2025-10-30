@@ -1,102 +1,44 @@
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
-
-export const dynamic = 'force-dynamic';
-
 
 export async function PUT(request, { params }) {
   try {
-    // Get authorization header
-    const authHeader = request.headers.get("authorization");
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Authorization header required",
-        },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-
-    // Verify JWT token
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(process.env.JWT_SECRET)
-    );
-
-    const userId = payload.userId;
     const { id } = params;
     const body = await request.json();
     const {
-      mood_level,
-      stress_level,
+      user_id,
+      mood,
       energy_level,
-      sleep_quality,
-      tracking_date,
-      notes,
-      activities,
-      weather,
-      location
+      recorded_at,
+      notes
     } = body;
 
     // Validate required fields
-    if (!mood_level) {
+    if (!user_id || !mood) {
       return NextResponse.json(
-        { success: false, error: 'Mood level is required' },
+        { error: 'User ID and mood are required' },
         { status: 400 }
-      );
-    }
-
-    // Calculate mood_score based on mood_level
-    const moodScores = {
-      'very_happy': 10,
-      'happy': 8,
-      'neutral': 5,
-      'sad': 3,
-      'very_sad': 1
-    };
-    const calculatedMoodScore = moodScores[mood_level] || 5;
-
-    // First check if the record belongs to the user
-    const checkQuery = 'SELECT id FROM mood_tracking WHERE id = ? AND user_id = ?';
-    const [checkResult] = await query(checkQuery, [id, userId]);
-
-    if (checkResult.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Mood tracking record not found or access denied' },
-        { status: 404 }
       );
     }
 
     const sql = `
       UPDATE mood_tracking 
-      SET mood_level = ?, mood_score = ?, stress_level = ?, energy_level = ?, sleep_quality = ?, 
-          tracking_date = ?, notes = ?, activities = ?, weather = ?, location = ?, updated_at = NOW()
-      WHERE id = ? AND user_id = ?
+      SET user_id = ?, mood = ?, energy_level = ?, recorded_at = ?, notes = ?, updated_at = NOW()
+      WHERE id = ?
     `;
 
     const result = await query(sql, [
-      mood_level,
-      calculatedMoodScore,
-      stress_level || null,
+      user_id,
+      mood,
       energy_level || null,
-      sleep_quality || null,
-      tracking_date || new Date().toISOString().split('T')[0],
+      recorded_at || new Date().toISOString(),
       notes || null,
-      activities ? JSON.stringify(activities) : null,
-      weather || null,
-      location || null,
-      id,
-      userId
+      id
     ]);
 
     if (result.affectedRows === 0) {
       return NextResponse.json(
-        { success: false, error: 'Mood tracking record not found' },
+        { error: 'Mood tracking record not found' },
         { status: 404 }
       );
     }
@@ -108,7 +50,7 @@ export async function PUT(request, { params }) {
   } catch (error) {
     console.error('Error updating mood tracking data:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update mood tracking data' },
+      { error: 'Failed to update mood tracking data' },
       { status: 500 }
     );
   }
@@ -116,36 +58,14 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
-    // Get authorization header
-    const authHeader = request.headers.get("authorization");
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Authorization header required",
-        },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-
-    // Verify JWT token
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(process.env.JWT_SECRET)
-    );
-
-    const userId = payload.userId;
     const { id } = params;
 
-    const sql = 'DELETE FROM mood_tracking WHERE id = ? AND user_id = ?';
-    const result = await query(sql, [id, userId]);
+    const sql = 'DELETE FROM mood_tracking WHERE id = ?';
+    const result = await query(sql, [id]);
 
     if (result.affectedRows === 0) {
       return NextResponse.json(
-        { success: false, error: 'Mood tracking record not found or access denied' },
+        { error: 'Mood tracking record not found' },
         { status: 404 }
       );
     }
@@ -157,7 +77,7 @@ export async function DELETE(request, { params }) {
   } catch (error) {
     console.error('Error deleting mood tracking data:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete mood tracking data' },
+      { error: 'Failed to delete mood tracking data' },
       { status: 500 }
     );
   }

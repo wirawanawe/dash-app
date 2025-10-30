@@ -33,15 +33,16 @@ import {
   Edit,
   Trash2,
   Eye,
-  MoreVertical
+  MoreVertical,
+  Lock
 } from 'lucide-react';
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Providers";
 import DashboardLayout from "@/components/DashboardLayout";
 import UserForm from "./components/UserForm";
 import UserDetailModal from "./components/UserDetailModal";
+import UserPermissionsModal from "./components/UserPermissionsModal";
 import ApiDocumentation from "@/components/ApiDocumentation";
-import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function UsersPage() {
   const router = useRouter();
@@ -63,6 +64,8 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [permissionUser, setPermissionUser] = useState(null);
   const [clinics, setClinics] = useState([]);
 
   // Check if user is admin or superadmin, otherwise redirect
@@ -81,8 +84,6 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      console.log("🔄 Fetching users data...");
-      
       const params = new URLSearchParams({
         search: search,
         page: page.toString(),
@@ -110,13 +111,8 @@ export default function UsersPage() {
       setUsers(result.data);
       setMetadata(result.pagination || {});
       setTotalPages(result.pagination?.totalPages || 0);
-      
-      console.log("✅ Users data fetched successfully:", {
-        total: result.data.length,
-        pagination: result.pagination
-      });
     } catch (error) {
-      console.error("❌ Error fetching users:", error);
+      console.error("Error:", error);
       toast.error(error.message || "Terjadi kesalahan saat mengambil data");
       setUsers([]);
       setMetadata({});
@@ -143,10 +139,23 @@ export default function UsersPage() {
       }
 
       const data = await response.json();
-      setClinics(data.clinics || []);
+      console.log('[Users Page] Clinics data received:', data);
+      console.log('[Users Page] Is array?', Array.isArray(data));
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setClinics(data);
+      } else if (data && Array.isArray(data.clinics)) {
+        // If API returns { clinics: [...] }
+        setClinics(data.clinics);
+      } else {
+        console.warn('[Users Page] Clinics data is not an array:', data);
+        setClinics([]);
+      }
     } catch (error) {
       console.error("Error fetching clinics:", error);
       toast.error("Gagal memuat data klinik");
+      setClinics([]); // Set empty array on error
     }
   }, []);
 
@@ -207,6 +216,17 @@ export default function UsersPage() {
     setShowDetailModal(false);
   };
 
+  // Handle show permissions modal
+  const handleShowPermissions = (user) => {
+    setPermissionUser(user);
+    setShowPermissionsModal(true);
+  };
+
+  const handleClosePermissions = () => {
+    setPermissionUser(null);
+    setShowPermissionsModal(false);
+  };
+
   // Handle delete user
   const handleDeleteUser = async (id) => {
     if (!confirm("Apakah Anda yakin ingin menghapus pengguna ini?")) {
@@ -214,14 +234,15 @@ export default function UsersPage() {
     }
 
     try {
-      await createCrudOperation(
-        "DELETE",
-        `/api/users/${id}`,
-        null,
-        () => fetchUsers(),
-        { setLoading }
-      );
-      
+      const response = await fetch(`/api/users/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete user");
+      }
+
       toast.success("Pengguna berhasil dihapus");
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -229,28 +250,13 @@ export default function UsersPage() {
     }
   };
 
-  // Handle form submit
-  const handleFormSubmit = async (result) => {
-    try {
-      // Close the form modal
-      setShowForm(false);
-      setEditingUser(null);
-      
-      // If we're editing a user and the current page might be affected, 
-      // consider staying on the same page or going to page 1
-      if (editingUser && page > 1) {
-        // If we're on a page other than 1, refresh current page first
-        await fetchUsers();
-      } else {
-        // For new users or when on page 1, refresh normally
-        await fetchUsers();
-      }
-      
-      console.log("✅ Form submitted successfully, data refreshed");
-    } catch (error) {
-      console.error("Error handling form submission:", error);
-      toast.error("Gagal memperbarui data");
-    }
+  // Handle form submit - just refresh data and close modal
+  const handleFormSubmit = async () => {
+    // UserForm already handles the API call and shows toast
+    // We just need to refresh the list and close the modal
+    setShowForm(false);
+    setEditingUser(null);
+    fetchUsers();
   };
 
   const formatDate = (dateString) => {
@@ -258,13 +264,15 @@ export default function UsersPage() {
   };
 
   const getRoleBadge = (role) => {
-    const roleUpper = role ? role.toUpperCase() : 'STAFF';
     const colors = {
       SUPERADMIN: "bg-yellow-100 text-yellow-800",
       ADMIN: "bg-red-100 text-red-800",
       DOCTOR: "bg-blue-100 text-blue-800",
       STAFF: "bg-green-100 text-green-800"
     };
+
+    // Convert role to uppercase for display and color matching
+    const roleUpper = role?.toUpperCase() || 'UNKNOWN';
 
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[roleUpper] || 'bg-gray-100 text-gray-800'}`}>
@@ -705,6 +713,13 @@ export default function UsersPage() {
                                <Eye className="h-4 w-4" />
                              </button>
                              <button
+                               onClick={() => handleShowPermissions(user)}
+                               className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-50 transition-colors"
+                               title="Kelola Akses Menu"
+                             >
+                               <Lock className="h-4 w-4" />
+                             </button>
+                             <button
                                onClick={() => handleEditUser(user)}
                                className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
                                title="Edit Pengguna"
@@ -782,25 +797,35 @@ export default function UsersPage() {
                       </div>
                     </div>
                     
-                                         <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
-                       <button
-                         onClick={() => handleShowDetail(user)}
-                         className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                       >
-                         Detail
-                       </button>
-                       <button
-                         onClick={() => handleEditUser(user)}
-                         className="flex-1 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                       >
-                         Edit
-                       </button>
-                       <button
-                         onClick={() => handleDeleteUser(user.id)}
-                         className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                       >
-                         Hapus
-                       </button>
+                                         <div className="mt-4 pt-4 border-t border-gray-200">
+                       <div className="flex gap-2 mb-2">
+                         <button
+                           onClick={() => handleShowDetail(user)}
+                           className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                         >
+                           Detail
+                         </button>
+                         <button
+                           onClick={() => handleShowPermissions(user)}
+                           className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                         >
+                           Akses
+                         </button>
+                       </div>
+                       <div className="flex gap-2">
+                         <button
+                           onClick={() => handleEditUser(user)}
+                           className="flex-1 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                         >
+                           Edit
+                         </button>
+                         <button
+                           onClick={() => handleDeleteUser(user.id)}
+                           className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                         >
+                           Hapus
+                         </button>
+                       </div>
                      </div>
                   </div>
                 ))}
@@ -965,6 +990,15 @@ export default function UsersPage() {
           <UserDetailModal
             user={selectedUser}
             onClose={handleCloseDetail}
+          />
+        )}
+
+        {/* User Permissions Modal */}
+        {showPermissionsModal && permissionUser && (
+          <UserPermissionsModal
+            user={permissionUser}
+            onClose={handleClosePermissions}
+            onSaved={fetchUsers}
           />
         )}
       </div>

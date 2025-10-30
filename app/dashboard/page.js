@@ -15,11 +15,8 @@ import {
   Zap,
   RefreshCw,
   ChevronRight,
-  Star,
-  Clock,
-  Target
+  Star
 } from 'lucide-react';
-
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -73,39 +70,66 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
-      console.log("Fetching dashboard data...");
-
-      // Fetch dashboard statistics from API
-      const statsResponse = await fetch('/api/dashboard/stats');
-      console.log("Stats response status:", statsResponse.status);
-      
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        console.log("Stats data:", statsData);
-        if (statsData.success) {
-          setStats(statsData.data);
-        } else {
-          throw new Error(statsData.message || 'Failed to fetch stats');
-        }
-      } else {
-        const errorText = await statsResponse.text();
-        console.error("Stats response error:", errorText);
-        throw new Error('Failed to fetch dashboard stats');
-      }
-
-      // Fetch visits data for rooms and queue
+      // Get today's date in local timezone (not UTC)
       const today = new Date();
-      const todayString = today.toISOString().split("T")[0];
-      console.log("Fetching visits with status Aktif...");
-      const activeVisits = await fetchVisits({ status: "Aktif", limit: 100 });
-      console.log("Active visits:", activeVisits);
+      const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-      // Process doctor rooms from active visits
-      const rooms = await processDoctorRooms(activeVisits.data || []);
+      // Get this month's date range in local timezone
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthStart = `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-${String(startOfMonth.getDate()).padStart(2, '0')}`;
+      const monthEnd = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
+
+      // Log dates for debugging
+      console.log('[Dashboard] Fetching data for:', {
+        todayString,
+        monthStart,
+        monthEnd,
+      });
+
+      // Fetch visits data for different time periods
+      // NOTE: External API tidak punya field status, semua kunjungan adalah "Selesai"
+      const [todayVisits, monthlyVisits, allVisits] = await Promise.all([
+        fetchVisits({ searchDate: todayString, limit: 10000 }),
+        fetchVisits({ tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),
+        fetchVisits({ limit: 10000 }), // Fetch untuk mendapatkan total
+      ]);
+
+      // Calculate statistics
+      const dailyVisitsCount = todayVisits.data?.length || 0;
+      const monthlyVisitsCount = monthlyVisits.data?.length || 0;
+      const activeVisitsCount = 0; // Semua kunjungan "Selesai", tidak ada "Aktif"
+
+      // Get total visits today (including completed)
+      const totalVisitsToday = todayVisits.data?.length || 0;
+
+      // Log statistics for debugging
+      console.log('[Dashboard] Statistics:', {
+        dailyVisitsCount,
+        monthlyVisitsCount,
+        activeVisitsCount,
+        totalVisitsToday,
+        totalAllVisits: allVisits.pagination?.total || 0,
+      });
+
+      // Calculate average wait time (estimated based on active visits)
+      const avgWaitTime =
+        activeVisitsCount > 0 ? Math.ceil(activeVisitsCount * 15) : 0;
+
+      setStats({
+        dailyVisits: dailyVisitsCount,
+        monthlyVisits: monthlyVisitsCount,
+        activeVisits: activeVisitsCount,
+        totalVisitsToday,
+        avgWaitTime,
+      });
+
+      // Process doctor rooms - tidak ada kunjungan aktif karena semua "Selesai"
+      const rooms = processDoctorRooms([]);
       setDoctorRooms(rooms);
 
-      // Process upcoming queue from active visits
-      const queue = processUpcomingQueue(activeVisits.data || []);
+      // Process upcoming queue - tidak ada antrian karena semua kunjungan "Selesai"
+      const queue = processUpcomingQueue([]);
       setUpcomingQueue(queue);
 
       // Fetch mobile user statistics
@@ -362,7 +386,7 @@ export default function Dashboard() {
         </div>
 
         {/* Enhanced Statistics Cards */}
-        {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <div 
             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
@@ -373,10 +397,10 @@ export default function Dashboard() {
               <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
                 <Users className="w-6 h-6 text-white" />
               </div>
-                          <div className="flex items-center text-sm font-medium text-emerald-600">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              {stats.trends?.dailyChange > 0 ? `+${stats.trends.dailyChange}%` : '0%'}
-            </div>
+              <div className="flex items-center text-sm font-medium text-emerald-600">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                +12%
+              </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
@@ -384,7 +408,7 @@ export default function Dashboard() {
               </p>
               <p className="text-sm text-gray-600 font-medium">Kunjungan Hari Ini</p>
               <p className="text-xs text-gray-500 mt-1">
-                Total: {stats.totalVisitsToday} kunjungan
+                {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}
               </p>
             </div>
           </div>
@@ -399,10 +423,10 @@ export default function Dashboard() {
               <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
                 <Calendar className="w-6 h-6 text-white" />
               </div>
-                          <div className="flex items-center text-sm font-medium text-emerald-600">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              {stats.trends?.monthlyChange > 0 ? `+${stats.trends.monthlyChange}%` : '0%'}
-            </div>
+              <div className="flex items-center text-sm font-medium text-emerald-600">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                +8%
+              </div>
             </div>
             <div>
               <p className="text-3xl font-bold text-gray-900 mb-1">
@@ -465,458 +489,8 @@ export default function Dashboard() {
           </div>
         </div> */}
 
-        {/* Mobile User Statistics Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
-                  <FaUsers className="w-6 h-6 text-white" />
-                </div>
-                Statistik Pengguna Mobile
-              </h2>
-              <p className="text-gray-600 mt-2">Data pengguna aplikasi mobile dan aktivitas terkait</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {/* Total Mobile Users */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '400ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                  <FaUsers className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-blue-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  Total
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.totalMobileUsers}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Total Pengguna Mobile</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Terdaftar di aplikasi
-                </p>
-              </div>
-            </div>
-
-            {/* Active Mobile Users */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '500ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl shadow-lg">
-                  <Activity className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-emerald-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  {mobileStats.activePercentage}%
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.activeMobileUsers}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Pengguna Aktif</p>
-                <p className="text-xs text-emerald-600 mt-1 font-medium">
-                  {mobileStats.activePercentage}% dari total
-                </p>
-              </div>
-            </div>
-
-            {/* Male Users */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '600ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                  <Users className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-blue-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  Laki-laki
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.genderDistribution?.male || 0}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Pengguna Laki-laki</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {mobileStats.totalMobileUsers > 0 ? Math.round(((mobileStats.genderDistribution?.male || 0) / mobileStats.totalMobileUsers) * 100) : 0}% dari total
-                </p>
-              </div>
-            </div>
-
-            {/* Female Users */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '700ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-pink-500 to-rose-600 rounded-xl shadow-lg">
-                  <Users className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-pink-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  Perempuan
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.genderDistribution?.female || 0}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Pengguna Perempuan</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {mobileStats.totalMobileUsers > 0 ? Math.round(((mobileStats.genderDistribution?.female || 0) / mobileStats.totalMobileUsers) * 100) : 0}% dari total
-                </p>
-              </div>
-            </div>
-          </div>
-
-                     {/* Gender Distribution Chart */}
-           <div 
-             className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-             }`}
-             style={{ animationDelay: '800ms' }}
-           >
-             <div className="flex items-center justify-between mb-6">
-               <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                 <BarChart3 className="w-6 h-6 text-white" />
-               </div>
-               <h3 className="text-lg font-bold text-gray-900">Distribusi Gender</h3>
-             </div>
-             <div className="space-y-4">
-               <div className="flex items-center justify-between">
-                 <div className="flex items-center space-x-3">
-                   <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                   <span className="text-sm font-medium text-gray-700">Laki-laki</span>
-                 </div>
-                                   <span className="text-sm font-bold text-gray-900">
-                    {mobileStats.genderDistribution?.male || 0}
-                  </span>
-               </div>
-               <div className="flex items-center justify-between">
-                 <div className="flex items-center space-x-3">
-                   <div className="w-4 h-4 bg-pink-500 rounded-full"></div>
-                   <span className="text-sm font-medium text-gray-700">Perempuan</span>
-                 </div>
-                                   <span className="text-sm font-bold text-gray-900">
-                    {mobileStats.genderDistribution?.female || 0}
-                  </span>
-               </div>
-               <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
-                 <div className="flex h-2 rounded-full overflow-hidden">
-                   <div 
-                     className="bg-blue-500" 
-                     style={{ 
-                       width: `${mobileStats.totalMobileUsers > 0 ? ((mobileStats.genderDistribution?.male || 0) / mobileStats.totalMobileUsers) * 100 : 0}%` 
-                     }}
-                   ></div>
-                   <div 
-                     className="bg-pink-500" 
-                     style={{ 
-                       width: `${mobileStats.totalMobileUsers > 0 ? ((mobileStats.genderDistribution?.female || 0) / mobileStats.totalMobileUsers) * 100 : 0}%` 
-                     }}
-                   ></div>
-                 </div>
-               </div>
-             </div>
-           </div>
-
-           {/* Additional Mobile App Statistics */}
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            {/* Habit Program Users */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '800ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                  <Heart className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-purple-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  {mobileStats.habitPercentage}%
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.habitUsers}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Program Habit</p>
-                <p className="text-xs text-purple-600 mt-1 font-medium">
-                  Bergabung dengan program
-                </p>
-              </div>
-            </div>
-
-            {/* New Users This Month */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '900ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg">
-                  <Star className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-orange-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  Baru
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.newUsersThisMonth}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Pengguna Baru</p>
-                <p className="text-xs text-orange-600 mt-1 font-medium">
-                  Bulan ini
-                </p>
-              </div>
-            </div>
-
-            {/* Users with Health Data */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '1000ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl shadow-lg">
-                  <BarChart3 className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-teal-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  {mobileStats.healthDataPercentage}%
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.usersWithHealthData}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Data Kesehatan</p>
-                <p className="text-xs text-teal-600 mt-1 font-medium">
-                  Tinggi & berat badan
-                </p>
-              </div>
-            </div>
-                     </div>
-
-           {/* Mobile App Activity Statistics */}
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {/* Activity Level Distribution */}
-             <div 
-               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-               }`}
-               style={{ animationDelay: '1100ms' }}
-             >
-               <div className="flex items-center justify-between mb-6">
-                 <div className="p-3 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl shadow-lg">
-                   <Activity className="w-6 h-6 text-white" />
-                 </div>
-                 <h3 className="text-lg font-bold text-gray-900">Level Aktivitas</h3>
-               </div>
-               <div className="space-y-3">
-                 {Object.entries(mobileStats.activityLevelDistribution || {}).map(([level, count], index) => (
-                   <div key={level} className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-gray-700 capitalize">
-                       {level.replace('_', ' ')}
-                     </span>
-                     <div className="flex items-center space-x-2">
-                       <div className="w-20 bg-gray-200 rounded-full h-2">
-                         <div 
-                           className="bg-indigo-500 h-2 rounded-full" 
-                           style={{ width: `${mobileStats.totalMobileUsers > 0 ? (count / mobileStats.totalMobileUsers) * 100 : 0}%` }}
-                         ></div>
-                       </div>
-                       <span className="text-sm font-bold text-gray-900 min-w-[2rem] text-right">
-                         {count}
-                       </span>
-                     </div>
-                   </div>
-                 ))}
-                 {Object.keys(mobileStats.activityLevelDistribution || {}).length === 0 && (
-                   <p className="text-sm text-gray-500 text-center py-4">Belum ada data level aktivitas</p>
-                 )}
-               </div>
-             </div>
-
-             {/* Fitness Goals Distribution */}
-             <div 
-               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-               }`}
-               style={{ animationDelay: '1200ms' }}
-             >
-               <div className="flex items-center justify-between mb-6">
-                 <div className="p-3 bg-gradient-to-r from-rose-500 to-rose-600 rounded-xl shadow-lg">
-                   <Target className="w-6 h-6 text-white" />
-                 </div>
-                 <h3 className="text-lg font-bold text-gray-900">Tujuan Fitness</h3>
-               </div>
-               <div className="space-y-3">
-                 {Object.entries(mobileStats.fitnessGoalDistribution || {}).map(([goal, count], index) => (
-                   <div key={goal} className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-gray-700 capitalize">
-                       {goal.replace('_', ' ')}
-                     </span>
-                     <div className="flex items-center space-x-2">
-                       <div className="w-20 bg-gray-200 rounded-full h-2">
-                         <div 
-                           className="bg-rose-500 h-2 rounded-full" 
-                           style={{ width: `${mobileStats.totalMobileUsers > 0 ? (count / mobileStats.totalMobileUsers) * 100 : 0}%` }}
-                         ></div>
-                       </div>
-                       <span className="text-sm font-bold text-gray-900 min-w-[2rem] text-right">
-                         {count}
-                       </span>
-                     </div>
-                   </div>
-                 ))}
-                 {Object.keys(mobileStats.fitnessGoalDistribution || {}).length === 0 && (
-                   <p className="text-sm text-gray-500 text-center py-4">Belum ada data tujuan fitness</p>
-                 )}
-               </div>
-             </div>
-           </div>
-
-           {/* Enhanced Mobile App Statistics */}
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                         {/* Habit Activities */}
-            <div 
-              className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-              }`}
-              style={{ animationDelay: '1300ms' }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-lg">
-                  <Activity className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-emerald-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  30 Hari
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {mobileStats.habitActivities?.total_activities || 0}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Aktivitas Habit</p>
-                <p className="text-xs text-emerald-600 mt-1 font-medium">
-                  {mobileStats.habitActivities?.active_users || 0} pengguna aktif
-                </p>
-              </div>
-            </div>
-
-             {/* Fitness Tracking */}
-             <div 
-               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-               }`}
-               style={{ animationDelay: '1400ms' }}
-             >
-               <div className="flex items-center justify-between mb-4">
-                 <div className="p-3 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl shadow-lg">
-                   <Heart className="w-6 h-6 text-white" />
-                 </div>
-                 <div className="flex items-center text-sm font-medium text-orange-600">
-                   <TrendingUp className="w-4 h-4 mr-1" />
-                   {mobileStats.fitnessTracking?.total_calories || 0}
-                 </div>
-               </div>
-               <div>
-                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                   {mobileStats.fitnessTracking?.total_sessions || 0}
-                 </p>
-                 <p className="text-sm text-gray-600 font-medium">Sesi Fitness</p>
-                 <p className="text-xs text-orange-600 mt-1 font-medium">
-                   {mobileStats.fitnessTracking?.total_steps || 0} langkah
-                 </p>
-               </div>
-             </div>
-
-             {/* Missions */}
-             <div 
-               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-               }`}
-               style={{ animationDelay: '1500ms' }}
-             >
-               <div className="flex items-center justify-between mb-4">
-                 <div className="p-3 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl shadow-lg">
-                   <Target className="w-6 h-6 text-white" />
-                 </div>
-                 <div className="flex items-center text-sm font-medium text-purple-600">
-                   <TrendingUp className="w-4 h-4 mr-1" />
-                   {mobileStats.missions?.active_missions || 0}
-                 </div>
-               </div>
-               <div>
-                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                   {mobileStats.missions?.total_missions || 0}
-                 </p>
-                 <p className="text-sm text-gray-600 font-medium">Total Misi</p>
-                 <p className="text-xs text-purple-600 mt-1 font-medium">
-                   {mobileStats.missions?.mission_categories || 0} kategori
-                 </p>
-               </div>
-             </div>
-
-             {/* User Missions */}
-             <div 
-               className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
-                 isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-               }`}
-               style={{ animationDelay: '1600ms' }}
-             >
-               <div className="flex items-center justify-between mb-4">
-                 <div className="p-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl shadow-lg">
-                   <Star className="w-6 h-6 text-white" />
-                 </div>
-                 <div className="flex items-center text-sm font-medium text-cyan-600">
-                   <TrendingUp className="w-4 h-4 mr-1" />
-                   {mobileStats.userMissions?.completed_missions || 0}
-                 </div>
-               </div>
-               <div>
-                 <p className="text-3xl font-bold text-gray-900 mb-1">
-                   {mobileStats.userMissions?.total_user_missions || 0}
-                 </p>
-                 <p className="text-sm text-gray-600 font-medium">Misi Pengguna</p>
-                 <p className="text-xs text-cyan-600 mt-1 font-medium">
-                   {mobileStats.userMissions?.users_with_missions || 0} pengguna
-                 </p>
-               </div>
-             </div>
-           </div>
-         </div>
-
         {/* Modern Doctor Rooms Section */}
-        {/* <div className="space-y-6">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -1009,228 +583,205 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div> */}
+        </div>
 
-       
-
-        {/* Habit Activities Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-                <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
-                  <Heart className="w-6 h-6 text-white" />
-                </div>
-                Aktivitas Kesehatan & Habit
-              </h2>
-              <p className="text-gray-600 mt-2">Kelola dan pantau aktivitas kesehatan yang tersedia untuk pengguna mobile</p>
-            </div>
-            <div className="hidden lg:flex items-center text-sm text-gray-500">
-              <Activity className="w-4 h-4 mr-2" />
-              Total: {habitStats.total_activities} aktivitas
-            </div>
-          </div>
-
-          {/* Habit Statistics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg">
-                  <Activity className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-green-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  Aktif
-                </div>
-              </div>
+        {/* Enhanced Queue Section */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-blue-100">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {habitStats.total_activities}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Total Aktivitas</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {habitStats.active_activities} aktif saat ini
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                  <BarChart3 className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-blue-600">
-                  <Star className="w-4 h-4 mr-1" />
-                  Kategori
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {habitStats.categories}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Kategori Aktivitas</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Berbagai jenis aktivitas
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                  <Timer className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-purple-600">
-                  <Clock className="w-4 h-4 mr-1" />
-                  Rata-rata
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {habitStats.avg_duration}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Durasi (Menit)</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Rata-rata per aktivitas
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg">
-                  <Star className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex items-center text-sm font-medium text-orange-600">
-                  <Zap className="w-4 h-4 mr-1" />
-                  Poin
-                </div>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 mb-1">
-                  {habitStats.avg_points}
-                </p>
-                <p className="text-sm text-gray-600 font-medium">Poin Rata-rata</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Per aktivitas selesai
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Habit Activities List */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 border-b border-green-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                    <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mr-3">
-                      <Heart className="w-5 h-5 text-white" />
-                    </div>
-                    Daftar Aktivitas Habit
-                  </h3>
-                  <p className="text-gray-600 mt-1">
-                    Aktivitas kesehatan yang tersedia untuk pengguna mobile
-                  </p>
-                </div>
-                <button className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold text-sm">
-                  <ChevronRight className="w-4 h-4 mr-2" />
-                  Lihat Semua
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {habitActivities.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <Heart className="w-10 h-10 text-gray-400" />
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-3">
+                    <BarChart3 className="w-6 h-6 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-700 mb-2">Belum Ada Aktivitas</h3>
-                  <p className="text-gray-500">Aktivitas habit belum ditambahkan ke sistem</p>
+                  Antrian Kunjungan Aktif
+                </h2>
+                <p className="text-gray-600 mt-2">
+                  Daftar pasien yang sedang menunggu atau sedang dilayani
+                </p>
+              </div>
+              <div className="hidden lg:flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Sedang Dilayani</span>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {habitActivities.map((activity, index) => (
+                <div className="flex items-center space-x-1">
+                  <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Menunggu</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {upcomingQueue.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Tidak Ada Antrian Aktif</h3>
+                <p className="text-gray-500">Saat ini tidak ada pasien dalam antrian kunjungan</p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table View - Large screens only */}
+                <div className="hidden xl:block">
+                  <div className="overflow-hidden rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Antrian</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Pasien</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimasi Waktu</th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {upcomingQueue.map((item, index) => (
+                          <tr key={item.id} className="hover:bg-blue-50 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${
+                                item.status === "Sedang Dilayani" 
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600" 
+                                  : "bg-gradient-to-r from-gray-400 to-gray-500"
+                              }`}>
+                                <span className="text-sm font-bold text-white">{item.queueNumber}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-semibold text-gray-900">{item.patientName}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-600 font-medium">{item.estimatedTime}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                  item.status === "Sedang Dilayani"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {item.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Tablet Table View - Medium to Large screens */}
+                <div className="hidden md:block xl:hidden">
+                  <div className="overflow-hidden rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pasien</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {upcomingQueue.map((item, index) => (
+                          <tr key={item.id} className="hover:bg-blue-50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
+                                item.status === "Sedang Dilayani" 
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600" 
+                                  : "bg-gradient-to-r from-gray-400 to-gray-500"
+                              }`}>
+                                <span className="text-xs font-bold text-white">{item.queueNumber}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900 text-sm">
+                                {item.patientName}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-gray-600 text-xs font-medium">
+                                {item.estimatedTime}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  item.status === "Sedang Dilayani"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-gray-100 text-gray-600"
+                                }`}
+                              >
+                                {item.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Card View - Small screens */}
+                <div className="md:hidden space-y-4">
+                  {upcomingQueue.map((item, index) => (
                     <div
-                      key={activity.id}
-                      className={`group bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 ${
-                        isLoaded ? 'animate-fade-in-up' : 'opacity-0'
-                      }`}
-                      style={{ animationDelay: `${(index + 8) * 100}ms` }}
+                      key={item.id}
+                      className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                     >
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <h4 className="text-lg font-bold text-gray-900 group-hover:text-green-600 transition-colors mb-2">
-                            {activity.title}
-                          </h4>
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                            {activity.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Kategori
-                          </span>
-                          <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                            {activity.category}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Durasi
-                          </span>
-                          <span className="text-sm font-semibold text-gray-900">
-                            {activity.duration_minutes} menit
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Kesulitan
-                          </span>
-                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                            activity.difficulty === 'easy' || activity.difficulty === 'beginner'
-                              ? 'bg-green-100 text-green-800'
-                              : activity.difficulty === 'medium' || activity.difficulty === 'intermediate'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : activity.difficulty === 'hard' || activity.difficulty === 'advanced'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                            item.status === "Sedang Dilayani" 
+                              ? "bg-gradient-to-r from-blue-500 to-blue-600" 
+                              : "bg-gradient-to-r from-gray-400 to-gray-500"
                           }`}>
-                            {activity.difficulty === 'easy' || activity.difficulty === 'beginner' ? 'Mudah' : 
-                             activity.difficulty === 'medium' || activity.difficulty === 'intermediate' ? 'Sedang' : 
-                             activity.difficulty === 'hard' || activity.difficulty === 'advanced' ? 'Sulit' : 
-                             'Tidak ditentukan'}
-                          </span>
+                            <span className="text-sm font-bold text-white">{item.queueNumber}</span>
+                          </div>
+                          <div>
+                            <h4 className="text-gray-900 font-semibold">
+                              {item.patientName}
+                            </h4>
+                            <p className="text-gray-500 text-sm mt-1">
+                              {item.estimatedTime}
+                            </p>
+                          </div>
                         </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Poin
-                          </span>
-                          <span className="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
-                            <Star className="w-3 h-3 mr-1" />
-                            {activity.points}
-                          </span>
-                        </div>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                            item.status === "Sedang Dilayani"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {item.status}
+                        </span>
                       </div>
 
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>ID: {activity.id}</span>
-                          <span>{new Date(activity.created_at).toLocaleDateString('id-ID')}</span>
+                      {/* Progress indicator for mobile */}
+                      <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-500 ${
+                              item.status === "Sedang Dilayani"
+                                ? "bg-gradient-to-r from-blue-500 to-blue-600 w-full"
+                                : "bg-gray-400 w-1/3"
+                            }`}
+                          />
                         </div>
+                        <span className="text-xs text-gray-500 font-medium">
+                          {item.status === "Sedang Dilayani"
+                            ? "Sedang proses"
+                            : "Menunggu"}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
       </div>

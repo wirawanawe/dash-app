@@ -111,15 +111,133 @@ export default function DoctorForm({ doctor, onSubmit, onCancel }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {doctor ? "Edit Dokter" : "Tambah Dokter Baru"}
-          </h2>
-          <p className="text-gray-600 mt-2">
-            {doctor ? "Perbarui informasi dokter" : "Masukkan informasi dokter baru"}
-          </p>
+    <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+      <h2 className="text-xl font-semibold mb-4 text-black">
+        {doctor ? "Edit Dokter" : "Tambah Dokter Baru"}
+      </h2>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mb-4">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Nama Dokter <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.name ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="Masukkan nama dokter"
+            />
+            {errors.name && (
+              <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+            )}
+          </div>
+
+          <div className="mb-4">
+            <label
+              htmlFor="specialist"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Spesialis
+            </label>
+            <input
+              type="text"
+              id="specialist"
+              name="specialist"
+              value={formData.specialist}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.specialist ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Masukkan spesialisasi"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label
+              htmlFor="license_number"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Nomor SIP
+            </label>
+            <input
+              type="text"
+              id="license_number"
+              name="license_number"
+              value={formData.license_number}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.license_number ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Masukkan nomor SIP"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Telepon
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.phone ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Masukkan nomor telepon"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className={`w-full px-4 py-2 border text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.email ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Masukkan email"
+            />
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+            )}
+          </div>
+
+          <div className="mb-4 md:col-span-2">
+            <label
+              htmlFor="address"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Alamat
+            </label>
+            <textarea
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              rows="3"
+              className="w-full p-2 border border-gray-300 rounded-md"
+            ></textarea>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">

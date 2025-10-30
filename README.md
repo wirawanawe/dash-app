@@ -26,7 +26,7 @@ Sistem ini sekarang terintegrasi dengan backend mobile app PHC. Admin dapat meng
 
 #### ✅ **Already Implemented:**
 - **Missions Management** - Kelola sistem misi dan reward untuk user mobile app
-
+- **Wellness Activities** - Kelola aktivitas wellness dan mindfulness
 
 #### 🔄 Coming Soon
 - **Health Tracking** - API untuk tracking mood, air, tidur, makanan, fitness
@@ -42,7 +42,7 @@ Sistem ini menggunakan database schema yang sama dengan backend mobile app. Tabe
 - `food_database` - Database makanan dengan informasi nutrisi
 - `missions` - Sistem misi dan reward
 - `user_missions` - Progress misi user
-
+- `wellness_activities` - Aktivitas wellness user
 - `mood_tracking` - Tracking mood harian
 - `water_tracking` - Tracking konsumsi air
 - `sleep_tracking` - Tracking pola tidur
@@ -75,7 +75,7 @@ Sistem ini menggunakan database schema yang sama dengan backend mobile app. Tabe
 
 Menu "Mobile App" hanya tersedia untuk user dengan role ADMIN. Submenu yang tersedia:
 - 🍽️ Database Makanan (`/mobile/food`)
-
+- 🌿 Aktivitas Wellness (`/mobile/wellness`)
 - 🏆 Sistem Misi (`/mobile/missions`)
 
 ## Original Features
@@ -125,7 +125,7 @@ Menu "Mobile App" hanya tersedia untuk user dengan role ADMIN. Submenu yang ters
    # Run initialization scripts
    source init-scripts/01-create-tables.sql;
    source init-scripts/02-mobile-app-tables.sql;
-   
+   source init-scripts/11-wellness-activities-table.sql;
    ```
 
 4. **Environment Configuration**
@@ -168,7 +168,7 @@ dash-app/
 #### Mobile App APIs
 - **Food Database**: `/api/mobile/food/*`
 - **Missions**: `/api/mobile/missions/*`
-
+- **Wellness Activities**: `/api/mobile/wellness/*`
 - **Tracking**: `/api/mobile/tracking/*` (Coming Soon)
 
 #### Healthcare Management APIs

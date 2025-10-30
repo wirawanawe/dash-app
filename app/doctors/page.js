@@ -28,9 +28,12 @@ import {
   RefreshCw,
   FileText,
   Star,
-  Shield
+  Shield,
+  Download,
+  Cloud,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
-import { createCrudOperation } from "@/utils/refreshUtils";
 
 export default function DoctorsPage() {
   const [doctors, setDoctors] = useState([]);
@@ -39,15 +42,11 @@ export default function DoctorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
-  const [clinics, setClinics] = useState([]);
-  const [polyclinics, setPolyclinics] = useState([]);
-  const [selectedClinic, setSelectedClinic] = useState("");
-  const [selectedPolyclinic, setSelectedPolyclinic] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     fetchDoctors();
-    fetchClinics();
-    fetchPolyclinics();
     setIsLoaded(true);
   }, []);
 
@@ -221,6 +220,84 @@ export default function DoctorsPage() {
     }, {})
   };
 
+  const handleSyncFromAPI = async () => {
+    if (isSyncing) return;
+    
+    if (!confirm('Apakah Anda yakin ingin melakukan sinkronisasi data dokter dari API eksternal? Proses ini mungkin memakan waktu beberapa menit.')) {
+      return;
+    }
+    
+    setIsSyncing(true);
+    const loadingToast = toast.loading('Melakukan sinkronisasi data dokter dari API eksternal...');
+    
+    try {
+      const response = await fetch('/api/doctors/sync', {
+        method: 'POST',
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        toast.success(result.message, { id: loadingToast });
+        // Refresh the doctors list
+        fetchDoctors();
+      } else {
+        throw new Error(result.message || 'Gagal melakukan sinkronisasi');
+      }
+    } catch (error) {
+      console.error('Error syncing doctors:', error);
+      toast.error(error.message || 'Gagal melakukan sinkronisasi dokter', { id: loadingToast });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleResetAndSync = async () => {
+    if (isResetting) return;
+    
+    // Konfirmasi pertama
+    if (!confirm('⚠️ PERINGATAN: Anda akan menghapus SEMUA data dokter yang ada dan menggantinya dengan data dari API!\n\nApakah Anda yakin ingin melanjutkan?')) {
+      return;
+    }
+    
+    // Konfirmasi kedua untuk keamanan
+    if (!confirm('Konfirmasi sekali lagi: Semua data dokter akan dihapus permanen dan diganti dengan data dari API eksternal. Proses ini tidak dapat dibatalkan!\n\nLanjutkan?')) {
+      return;
+    }
+    
+    setIsResetting(true);
+    const loadingToast = toast.loading('Menghapus data dokter lama dan melakukan sinkronisasi dari API eksternal...');
+    
+    try {
+      const response = await fetch('/api/doctors/reset-sync', {
+        method: 'POST',
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        toast.success(result.message, { id: loadingToast });
+        // Refresh the doctors list
+        fetchDoctors();
+      } else {
+        throw new Error(result.message || 'Gagal melakukan reset dan sinkronisasi');
+      }
+    } catch (error) {
+      console.error('Error resetting and syncing doctors:', error);
+      toast.error(error.message || 'Gagal melakukan reset dan sinkronisasi dokter', { id: loadingToast });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  // Calculate doctor statistics
+  const doctorStats = {
+    total: doctors.length,
+    specialists: doctors.filter(d => d.specialist).length,
+    active: doctors.length, // Assuming all doctors are active
+    averageExperience: Math.round(doctors.reduce((acc, d) => acc + (d.experience_years || 0), 0) / Math.max(1, doctors.length))
+  };
+
   return (
     <DashboardLayout>
               <div className="space-y-6 sm:space-y-8">
@@ -250,6 +327,23 @@ export default function DoctorsPage() {
               >
                 <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-300" />
                 Refresh Data
+              </button>
+              <button
+                onClick={handleSyncFromAPI}
+                disabled={isSyncing || isResetting}
+                className="group flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Cloud className={`w-5 h-5 mr-2 ${isSyncing ? 'animate-pulse' : ''}`} />
+                {isSyncing ? 'Sinkronisasi...' : 'Sinkronisasi dari API'}
+              </button>
+              <button
+                onClick={handleResetAndSync}
+                disabled={isSyncing || isResetting}
+                className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Hapus semua data dokter dan ganti dengan data dari API"
+              >
+                <RotateCcw className={`w-5 h-5 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
+                {isResetting ? 'Reset & Sync...' : 'Reset & Sync dari API'}
               </button>
               <button
                 onClick={() => {
@@ -371,51 +465,6 @@ export default function DoctorsPage() {
           </div>
         </div>
 
-        {/* Summary Section */}
-        {doctors.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Distribution by Clinic */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl mr-3">
-                  <Users className="w-5 h-5 text-white" />
-                </div>
-                Distribusi Dokter per Klinik
-              </h3>
-              <div className="space-y-3">
-                {Object.entries(doctorStats.byClinic).map(([clinicName, count]) => (
-                  <div key={clinicName} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span className="text-sm font-medium text-gray-700">{clinicName}</span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {count} dokter
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Distribution by Polyclinic */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <div className="p-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl mr-3">
-                  <Award className="w-5 h-5 text-white" />
-                </div>
-                Distribusi Dokter per Poli
-              </h3>
-              <div className="space-y-3">
-                {Object.entries(doctorStats.byPolyclinic).map(([polyclinicName, count]) => (
-                  <div key={polyclinicName} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <span className="text-sm font-medium text-gray-700">{polyclinicName}</span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      {count} dokter
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Search Section */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20">
           <div className="flex items-center justify-between mb-6">
@@ -424,110 +473,31 @@ export default function DoctorsPage() {
                 <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-3">
                   <Search className="w-5 h-5 text-white" />
                 </div>
-                Pencarian & Filter Dokter
+                Pencarian Dokter
               </h2>
-              <p className="text-gray-600 mt-2">Cari dan filter dokter berdasarkan berbagai kriteria</p>
+              <p className="text-gray-600 mt-2">Cari dokter berdasarkan nama, spesialisasi, atau nomor SIP</p>
             </div>
           </div>
 
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search Input */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Cari nama, spesialisasi, atau SIP..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl text-black border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 pl-12 bg-white/50 backdrop-blur-sm shadow-sm"
-                />
-                <Search className="absolute left-4 top-4 text-gray-400 w-5 h-5" />
-              </div>
-
-              {/* Clinic Filter */}
-              <div>
-                <select
-                  value={selectedClinic}
-                  onChange={(e) => handleClinicFilter(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl text-black border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm"
-                >
-                  <option value="">Semua Klinik</option>
-                  {clinics.map((clinic) => (
-                    <option key={clinic.id} value={clinic.id}>
-                      {clinic.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Polyclinic Filter */}
-              <div>
-                <select
-                  value={selectedPolyclinic}
-                  onChange={(e) => handlePolyclinicFilter(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl text-black border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm shadow-sm"
-                >
-                  <option value="">Semua Poli</option>
-                  {polyclinics.map((polyclinic) => (
-                    <option key={polyclinic.id} value={polyclinic.id}>
-                      {polyclinic.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
-                >
-                  <Search className="w-5 h-5 mr-2" />
-                  Cari
-                </button>
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-                  title="Clear Filters"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                </button>
-              </div>
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Cari dokter berdasarkan nama, spesialisasi, atau nomor SIP..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl text-black border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 pl-12 bg-white/50 backdrop-blur-sm shadow-sm"
+              />
+              <Search className="absolute left-4 top-4 text-gray-400 w-5 h-5" />
             </div>
+            <button
+              type="submit"
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
+            >
+              <Search className="w-5 h-5 mr-2" />
+              Cari Dokter
+            </button>
           </form>
-
-          {/* Active Filters Display */}
-          {(searchTerm || selectedClinic || selectedPolyclinic) && (
-            <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-blue-800">Filter Aktif:</span>
-                  {searchTerm && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                      Pencarian: "{searchTerm}"
-                    </span>
-                  )}
-                  {selectedClinic && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
-                      Klinik: {clinics.find(c => c.id == selectedClinic)?.name}
-                    </span>
-                  )}
-                  {selectedPolyclinic && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                      Poli: {polyclinics.find(p => p.id == selectedPolyclinic)?.name}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={clearFilters}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  Clear All
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Data Table Section */}
@@ -542,10 +512,7 @@ export default function DoctorsPage() {
                   Data Dokter
                 </h2>
                 <p className="text-gray-600 mt-2">
-                  {doctors.length > 0 
-                    ? `Menampilkan ${doctors.length} dokter${searchTerm || selectedClinic || selectedPolyclinic ? ' (hasil filter)' : ''}`
-                    : 'Daftar lengkap dokter yang terdaftar dalam sistem'
-                  }
+                  Daftar lengkap dokter yang terdaftar dalam sistem
                 </p>
               </div>
               <div className="hidden lg:flex items-center space-x-2">
@@ -586,9 +553,6 @@ export default function DoctorsPage() {
                         Nomor SIP
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Klinik & Poli
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Kontak
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -599,44 +563,19 @@ export default function DoctorsPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {doctors.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-12 text-center">
+                        <td colSpan="5" className="px-6 py-12 text-center">
                           <div className="flex flex-col items-center">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                               <Stethoscope className="w-8 h-8 text-gray-400" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                              {searchTerm || selectedClinic || selectedPolyclinic 
-                                ? "Tidak Ada Hasil Pencarian" 
-                                : "Tidak Ada Data Dokter"
-                              }
-                            </h3>
-                            <p className="text-gray-500">
-                              {searchTerm || selectedClinic || selectedPolyclinic 
-                                ? "Coba ubah filter atau kata kunci pencarian Anda"
-                                : "Belum ada dokter yang terdaftar dalam sistem"
-                              }
-                            </p>
-                            {(searchTerm || selectedClinic || selectedPolyclinic) && (
-                              <button
-                                onClick={clearFilters}
-                                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                              >
-                                Clear Filters
-                              </button>
-                            )}
+                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Tidak Ada Data Dokter</h3>
+                            <p className="text-gray-500">Belum ada dokter yang terdaftar dalam sistem</p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      doctors.map((doctor, index) => (
-                        <tr 
-                          key={doctor.id} 
-                          className="hover:bg-blue-50 transition-colors"
-                          style={{ 
-                            animationDelay: `${index * 50}ms`,
-                            animation: 'fadeInUp 0.5s ease-out forwards'
-                          }}
-                        >
+                      doctors.map((doctor) => (
+                        <tr key={doctor.id} className="hover:bg-blue-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mr-4">
@@ -649,11 +588,6 @@ export default function DoctorsPage() {
                                 <div className="text-sm text-gray-500">
                                   ID: {doctor.id}
                                 </div>
-                                {doctor.address && (
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    📍 {doctor.address}
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </td>
@@ -668,58 +602,21 @@ export default function DoctorsPage() {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {doctor.license_number ? (
-                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                                {doctor.license_number}
-                              </span>
-                            ) : (
-                              <span className="text-sm text-gray-500">-</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="space-y-1">
-                              {doctor.clinic_name && (
-                                <div className="flex items-center text-sm text-gray-900">
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                                  <span className="font-medium">{doctor.clinic_name}</span>
-                                </div>
-                              )}
-                              {doctor.polyclinic_name && (
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                                  <span>{doctor.polyclinic_name}</span>
-                                  {doctor.polyclinic_code && (
-                                    <span className="ml-1 text-xs text-gray-400">
-                                      ({doctor.polyclinic_code})
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {!doctor.clinic_name && !doctor.polyclinic_name && (
-                                <span className="text-sm text-gray-500">-</span>
-                              )}
-                            </div>
+                            {doctor.license_number || "-"}
                           </td>
                           <td className="px-6 py-4">
                             <div className="space-y-1">
                               {doctor.phone && (
                                 <div className="flex items-center text-sm text-gray-900">
                                   <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                                  <a href={`tel:${doctor.phone}`} className="hover:text-blue-600 transition-colors">
-                                    {doctor.phone}
-                                  </a>
+                                  {doctor.phone}
                                 </div>
                               )}
                               {doctor.email && (
                                 <div className="flex items-center text-sm text-gray-900">
                                   <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                                  <a href={`mailto:${doctor.email}`} className="hover:text-blue-600 transition-colors">
-                                    {doctor.email}
-                                  </a>
+                                  {doctor.email}
                                 </div>
-                              )}
-                              {!doctor.phone && !doctor.email && (
-                                <span className="text-sm text-gray-500">-</span>
                               )}
                             </div>
                           </td>

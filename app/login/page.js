@@ -180,7 +180,7 @@ export default function LoginPage() {
               <img
                 src="/phc-logo.png"
                 alt="PHC Logo"
-                className="w-[150px] h-[150px] sm:w-[150px] sm:h-[150px] object-contain drop-shadow-lg"
+                className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-lg"
                 onLoad={handleLogoLoad}
                 onError={handleLogoError}
                 style={{ 
@@ -284,7 +284,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="group w-full flex items-center justify-center py-4 px-6 bg-[#E22345] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
+                  className="group w-full flex items-center justify-center py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105"
                 >
                   {isLoading ? (
                     <div className="flex items-center">

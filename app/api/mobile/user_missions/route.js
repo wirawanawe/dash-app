@@ -125,32 +125,28 @@ export async function POST(request) {
       );
     }
 
-    // Check if user mission already exists for the same date
-    const missionDate = start_date ? new Date(start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-    
+    // Check if user mission already exists
     const existingUserMission = await query(
-      'SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ? AND mission_date = ?',
-      [user_id, mission_id, missionDate]
+      'SELECT id FROM user_missions WHERE user_id = ? AND mission_id = ?',
+      [user_id, mission_id]
     );
 
     if (existingUserMission.length > 0) {
       return NextResponse.json(
-        { message: 'User mission already exists for this date' },
+        { message: 'User mission already exists' },
         { status: 409 }
       );
     }
 
-    // Insert new user mission with mission_date
-    
+    // Insert new user mission
     const insertQuery = `
-      INSERT INTO user_missions (user_id, mission_id, mission_date, status, progress, start_date, end_date, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO user_missions (user_id, mission_id, status, progress, start_date, end_date, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
     `;
 
     const result = await query(insertQuery, [
       user_id,
       mission_id,
-      missionDate,
       status || 'pending',
       progress || 0,
       start_date || null,
