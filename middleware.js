@@ -55,12 +55,6 @@ export function middleware(request) {
   ) {
     return NextResponse.next();
   }
-  
-  // Apply rate limiting to API routes
-  if (pathname.startsWith('/api/')) {
-    const clientIP = getClientIP(request);
-    const endpointType = getEndpointType(pathname);
-    
 
   // Check if user is authenticated
   const token = request.cookies.get("token");
