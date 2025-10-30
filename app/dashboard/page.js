@@ -64,12 +64,33 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [clinics, setClinics] = useState([]);
+  const [selectedClinic, setSelectedClinic] = useState("");
+
+  // Fetch clinics on mount
+  useEffect(() => {
+    fetchClinics();
+  }, []);
 
   // Fetch dashboard data
   useEffect(() => {
     fetchDashboardData();
     setIsLoaded(true);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClinic]);
+
+  const fetchClinics = async () => {
+    try {
+      const response = await fetch("/api/clinics?limit=1000");
+      if (response.ok) {
+        const result = await response.json();
+        const clinicsList = result.data || [];
+        setClinics(clinicsList);
+      }
+    } catch (error) {
+      console.error("Error fetching clinics:", error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -88,12 +109,15 @@ export default function Dashboard() {
 
       // Log dates for debugging
 
+      // Prepare base params with clinic filter
+      const baseParams = selectedClinic ? { facility_code: selectedClinic } : {};
+
       // Fetch visits data for different time periods
       // NOTE: External API tidak punya field status, semua kunjungan adalah "Selesai"
       const [todayVisits, monthlyVisits, allVisits] = await Promise.all([
-        fetchVisits({ searchDate: todayString, limit: 10000 }),
-        fetchVisits({ tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),
-        fetchVisits({ limit: 999999 }), // Fetch semua data tanpa limit
+        fetchVisits({ ...baseParams, searchDate: todayString, limit: 10000 }),
+        fetchVisits({ ...baseParams, tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),
+        fetchVisits({ ...baseParams, limit: 999999 }), // Fetch semua data tanpa limit
       ]);
 
       // Calculate statistics - Gunakan total dari pagination API, bukan length array
@@ -135,9 +159,12 @@ export default function Dashboard() {
         // Error fetching clinics
       }
 
-      // Fetch monthly visits data for chart
+      // Fetch monthly visits data for chart with clinic filter
       try {
-        const monthlyResponse = await fetch('/api/dashboard/monthly-visits');
+        const url = selectedClinic 
+          ? `/api/dashboard/monthly-visits?facility_code=${encodeURIComponent(selectedClinic)}`
+          : '/api/dashboard/monthly-visits';
+        const monthlyResponse = await fetch(url);
         if (monthlyResponse.ok) {
           const monthlyData = await monthlyResponse.json();
           if (monthlyData.success) {
@@ -502,7 +529,7 @@ export default function Dashboard() {
         {/* Grafik Kunjungan Per Bulan */}
         <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b border-blue-100">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                   <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl mr-3">
@@ -511,6 +538,20 @@ export default function Dashboard() {
                   Grafik Kunjungan Per Bulan
                 </h2>
                 <p className="text-gray-600 mt-2">Data kunjungan 12 bulan terakhir</p>
+              </div>
+              <div className="w-full sm:w-auto">
+                <select
+                  value={selectedClinic}
+                  onChange={(e) => setSelectedClinic(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white shadow-sm"
+                >
+                  <option value="">Semua Klinik</option>
+                  {clinics.map((clinic) => (
+                    <option key={clinic.id} value={clinic.code}>
+                      {clinic.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

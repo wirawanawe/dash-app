@@ -3,20 +3,40 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-// GET all polyclinics
+// GET all polyclinics with doctor count from visits
 export async function GET() {
   try {
     const sql = `
-      SELECT id, name, code, description, status, created_at, updated_at
-      FROM polyclinics
-      WHERE status = 'Aktif' OR status IS NULL
-      ORDER BY name ASC
+      SELECT 
+        p.id, 
+        p.name, 
+        p.code, 
+        p.description, 
+        p.status, 
+        p.created_at, 
+        p.updated_at,
+        (
+          SELECT COUNT(DISTINCT v.doctor_name)
+          FROM visits v
+          WHERE (v.clinic = p.name OR v.room = p.name)
+            AND v.doctor_name IS NOT NULL
+            AND v.doctor_name != ''
+            AND v.doctor_name != '-'
+        ) as doctor_count
+      FROM polyclinics p
+      WHERE p.status = 'Aktif' OR p.status IS NULL
+      ORDER BY p.name ASC
     `;
     
     const polyclinics = await query(sql);
+    console.log('Master Polyclinics with doctor count:', polyclinics.map(p => ({ 
+      name: p.name, 
+      doctor_count: p.doctor_count 
+    })));
+    
     return NextResponse.json(polyclinics);
   } catch (error) {
-
+    console.error('Error fetching master polyclinics:', error);
     return NextResponse.json(
       { error: "Gagal mengambil data poli" },
       { status: 500 }

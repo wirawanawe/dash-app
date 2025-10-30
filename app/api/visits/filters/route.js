@@ -8,9 +8,12 @@ export async function GET(request) {
   try {
     console.log('📋 Fetching filter options from visits table...');
     
-    // Get unique doctors from visits
+    // Get unique doctors with their polyclinics from visits
     const doctorsQuery = `
-      SELECT DISTINCT doctor_name as name
+      SELECT DISTINCT 
+        doctor_name as name,
+        clinic as polyclinic,
+        room as polyclinic_alt
       FROM visits 
       WHERE doctor_name IS NOT NULL 
         AND doctor_name != '' 
@@ -18,10 +21,24 @@ export async function GET(request) {
       ORDER BY doctor_name ASC
     `;
     
-    const doctors = await query(doctorsQuery);
-    console.log(`👨‍⚕️ Found ${doctors.length} unique doctors`);
+    const doctorsRaw = await query(doctorsQuery);
+    console.log(`👨‍⚕️ Found ${doctorsRaw.length} doctor-polyclinic combinations`);
     
-    // Get unique clinics from visits (both clinic and room columns)
+    // Create a map of doctors with their associated polyclinics
+    const doctorPoliMap = {};
+    doctorsRaw.forEach(doc => {
+      const docName = doc.name;
+      const poli = doc.polyclinic || doc.polyclinic_alt || null;
+      
+      if (!doctorPoliMap[docName]) {
+        doctorPoliMap[docName] = new Set();
+      }
+      if (poli && poli !== '-') {
+        doctorPoliMap[docName].add(poli);
+      }
+    });
+    
+    // Get unique clinics/polyclinics from visits (both clinic and room columns)
     const clinicsQuery = `
       SELECT DISTINCT name 
       FROM (
@@ -33,12 +50,13 @@ export async function GET(request) {
     `;
     
     const clinics = await query(clinicsQuery);
-    console.log(`🏥 Found ${clinics.length} unique clinics`);
+    console.log(`🏥 Found ${clinics.length} unique clinics/polyclinics`);
     
-    // Format the response to include id and name for compatibility with existing code
-    const formattedDoctors = doctors.map((doc, index) => ({
+    // Format the response to include id, name, and polyclinics for doctors
+    const formattedDoctors = Object.keys(doctorPoliMap).map((docName, index) => ({
       id: index + 1,
-      name: doc.name,
+      name: docName,
+      polyclinics: Array.from(doctorPoliMap[docName]),
     }));
     
     const formattedClinics = clinics.map((clinic, index) => ({
@@ -50,6 +68,8 @@ export async function GET(request) {
       success: true,
       doctors: formattedDoctors,
       clinics: formattedClinics,
+      // Return the mapping separately for easy lookup
+      doctorPoliMapping: doctorPoliMap,
     });
   } catch (error) {
     console.error('❌ Error fetching filter options:', error);
@@ -59,6 +79,7 @@ export async function GET(request) {
         error: "Failed to fetch filter options",
         doctors: [],
         clinics: [],
+        doctorPoliMapping: {},
       },
       { status: 500 }
     );

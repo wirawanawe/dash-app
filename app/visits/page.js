@@ -74,6 +74,7 @@ export default function VisitsPage() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [doctors, setDoctors] = useState([]);
+  const [allDoctors, setAllDoctors] = useState([]); // Store all doctors
   const [clinics, setClinics] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [stats, setStats] = useState({
@@ -179,13 +180,15 @@ export default function VisitsPage() {
 
       const data = await response.json();
       
-      // API returns { success: true, doctors: [...], clinics: [...] }
+      // API returns { success: true, doctors: [...], clinics: [...], doctorPoliMapping: {...} }
       const doctorsList = data.doctors || [];
       const clinicsList = data.clinics || [];
       
+      setAllDoctors(Array.isArray(doctorsList) ? doctorsList : []); // Store all doctors
       setDoctors(Array.isArray(doctorsList) ? doctorsList : []);
       setClinics(Array.isArray(clinicsList) ? clinicsList : []);
     } catch (error) {
+      setAllDoctors([]);
       setDoctors([]);
       setClinics([]);
     }
@@ -330,6 +333,58 @@ export default function VisitsPage() {
     }
   };
 
+  // Handle sync data from external API
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null);
+
+  const handleSyncData = async () => {
+    // Confirm before syncing
+    if (!confirm('Sync data dari API eksternal? Proses ini mungkin memakan waktu beberapa menit.')) {
+      return;
+    }
+
+    try {
+      setSyncing(true);
+      setSyncProgress('Memulai sinkronisasi...');
+      
+      toast.loading('Sinkronisasi data dimulai...', { id: 'sync-toast' });
+      
+      const response = await fetch('/api/visits/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast.success(
+          `✅ Sync berhasil! ${result.message}\n` +
+          `Inserted: ${result.stats?.inserted || 0}, Updated: ${result.stats?.updated || 0}`,
+          { 
+            id: 'sync-toast',
+            duration: 6000
+          }
+        );
+        
+        // Refresh data setelah sync
+        await fetchVisits();
+        await fetchStats();
+        setSyncProgress(null);
+      } else {
+        throw new Error(result.message || 'Sync gagal');
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error(
+        `❌ Gagal sync data: ${error.message}`,
+        { id: 'sync-toast', duration: 5000 }
+      );
+      setSyncProgress(null);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (confirm("Apakah Anda yakin ingin menghapus kunjungan ini?")) {
       try {
@@ -355,6 +410,29 @@ export default function VisitsPage() {
       ...prev,
       [name]: value,
     }));
+    
+    // If Poli/clinic is changed, filter the doctors list
+    if (name === 'clinic') {
+      if (value) {
+        // Filter doctors based on selected Poli
+        const filteredDoctors = allDoctors.filter(doctor => 
+          doctor.polyclinics && doctor.polyclinics.includes(value)
+        );
+        setDoctors(filteredDoctors);
+        
+        // Reset doctor filter if current selected doctor is not in the filtered list
+        if (filters.doctorId && !filteredDoctors.some(d => d.name === filters.doctorId)) {
+          setFilters(prev => ({
+            ...prev,
+            [name]: value,
+            doctorId: '', // Reset doctor selection
+          }));
+        }
+      } else {
+        // If Poli is cleared, show all doctors
+        setDoctors(allDoctors);
+      }
+    }
     // Don't reset page or apply filters automatically
   };
 
@@ -373,6 +451,8 @@ export default function VisitsPage() {
       startDate: "",
       endDate: "",
     });
+    // Reset doctors list to show all doctors
+    setDoctors(allDoctors);
     setPage(1);
   };
 
@@ -461,17 +541,32 @@ export default function VisitsPage() {
               </p>
             </div>
             <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
+             
               <button
-                onClick={fetchVisits}
-                className="group flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl shadow-lg hover:bg-white/30 hover:scale-105 transition-all duration-300 font-semibold border border-white/30"
+                onClick={handleSyncData}
+                disabled={syncing}
+                className="group flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-300" />
-                Refresh Data
+                <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
+                {syncing ? 'Syncing...' : 'Sync dari API'}
               </button>
-              
             </div>
           </div>
         </div>
+
+        {/* Sync Progress Indicator */}
+        {syncProgress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+            <div className="flex items-center">
+              <RefreshCw className="w-6 h-6 text-blue-600 mr-3 animate-spin" />
+              <div>
+                <h3 className="text-lg font-semibold text-blue-800">Sinkronisasi Data Sedang Berjalan</h3>
+                <p className="text-blue-700 mt-1">{syncProgress}</p>
+                <p className="text-sm text-blue-600 mt-2">Harap tunggu, proses ini mungkin memakan waktu beberapa menit...</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -656,17 +751,20 @@ export default function VisitsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Status
+                      Poli
                     </label>
                     <select
-                      name="status"
-                      value={filters.status}
+                      name="clinic"
+                      value={filters.clinic}
                       onChange={handleFilterChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm"
                     >
-                      <option value="">Semua Status</option>
-                      <option value="Aktif">Aktif</option>
-                      <option value="Selesai">Selesai</option>
+                      <option value="">Semua Poli</option>
+                      {clinics.map((clinic) => (
+                        <option key={clinic.id} value={clinic.name}>
+                          {clinic.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -687,24 +785,7 @@ export default function VisitsPage() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Klinik
-                    </label>
-                    <select
-                      name="clinic"
-                      value={filters.clinic}
-                      onChange={handleFilterChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm"
-                    >
-                      <option value="">Semua Klinik</option>
-                      {clinics.map((clinic) => (
-                        <option key={clinic.id} value={clinic.name}>
-                          {clinic.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  
                 </div>
                 <div className="flex flex-wrap justify-end gap-2 mt-4">
                   <button
@@ -808,11 +889,13 @@ export default function VisitsPage() {
               )}
               {appliedFilters.clinic && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  Klinik: {appliedFilters.clinic}
+                  Poli: {appliedFilters.clinic}
                   <button
                     onClick={() => {
                       setFilters((prev) => ({ ...prev, clinic: "" }));
                       setAppliedFilters((prev) => ({ ...prev, clinic: "" }));
+                      // Reset doctors list to show all doctors
+                      setDoctors(allDoctors);
                     }}
                     className="ml-2 text-orange-600 hover:text-orange-800"
                   >

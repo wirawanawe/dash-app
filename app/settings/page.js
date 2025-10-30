@@ -121,29 +121,6 @@ export default function SettingsPage() {
     }
   ];
 
-  const systemInfo = [
-    {
-      label: "Versi Sistem",
-      value: "v2.1.0",
-      icon: <Info className="h-4 w-4" />
-    },
-    {
-      label: "Terakhir Update",
-      value: "15 Desember 2024",
-      icon: <Clock className="h-4 w-4" />
-    },
-    {
-      label: "Database",
-      value: "MySQL 8.0",
-      icon: <Database className="h-4 w-4" />
-    },
-    {
-      label: "Framework",
-      value: "Next.js 14",
-      icon: <Settings className="h-4 w-4" />
-    }
-  ];
-
   return (
     <DashboardLayout>
       <div className="p-6">

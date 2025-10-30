@@ -11,15 +11,39 @@ export default function PolyclinicsPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedPolyclinic, setSelectedPolyclinic] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [clinics, setClinics] = useState([]);
+  const [selectedClinic, setSelectedClinic] = useState("");
+
+  useEffect(() => {
+    fetchClinics();
+  }, []);
 
   useEffect(() => {
     fetchPolyclinics();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClinic]);
+
+  const fetchClinics = async () => {
+    try {
+      const response = await fetch("/api/clinics?limit=1000");
+      if (response.ok) {
+        const result = await response.json();
+        const clinicsList = result.data || [];
+        setClinics(clinicsList);
+      }
+    } catch (error) {
+      console.error("Error fetching clinics:", error);
+    }
+  };
 
   const fetchPolyclinics = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/settings/polyclinics", {
+      const url = selectedClinic 
+        ? `/api/settings/polyclinics?clinic_code=${encodeURIComponent(selectedClinic)}`
+        : "/api/settings/polyclinics";
+        
+      const response = await fetch(url, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -81,14 +105,31 @@ export default function PolyclinicsPage() {
   return (
     <DashboardLayout>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl text-black font-bold">Data Poli</h1>
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-[#E22345] text-white rounded-lg hover:bg-red-600"
-          >
-            Tambah Poli
-          </button>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl text-black font-bold">Data Poli</h1>
+            <p className="text-sm text-gray-600 mt-1">Jumlah dokter berdasarkan data kunjungan per klinik</p>
+          </div>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <select
+              value={selectedClinic}
+              onChange={(e) => setSelectedClinic(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white"
+            >
+              <option value="">Semua Klinik</option>
+              {clinics.map((clinic) => (
+                <option key={clinic.id} value={clinic.code}>
+                  {clinic.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 bg-[#E22345] text-white rounded-lg hover:bg-red-600 whitespace-nowrap"
+            >
+              Tambah Poli
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -152,7 +193,10 @@ export default function PolyclinicsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-black whitespace-nowrap">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                        <span 
+                          className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs cursor-help" 
+                          title={`Total ${polyclinic.doctor_count || 0} dokter unik yang pernah melayani di poli ${polyclinic.name} dari semua klinik berdasarkan data kunjungan`}
+                        >
                           {polyclinic.doctor_count || 0} dokter
                         </span>
                       </td>

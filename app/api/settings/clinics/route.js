@@ -48,9 +48,20 @@ export async function GET(request) {
     }
 
     try {
-      const clinics = await query(
-        "SELECT * FROM clinics ORDER BY name ASC"
-      );
+      const clinics = await query(`
+        SELECT 
+          c.*,
+          (
+            SELECT COUNT(DISTINCT v.doctor_name)
+            FROM visits v
+            WHERE v.facility_name = c.name
+              AND v.doctor_name IS NOT NULL
+              AND v.doctor_name != ''
+              AND v.doctor_name != '-'
+          ) as doctor_count
+        FROM clinics c
+        ORDER BY c.name ASC
+      `);
 
       return NextResponse.json({
         success: true,

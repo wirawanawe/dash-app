@@ -89,18 +89,26 @@ export async function GET(request) {
     // Get paginated results
     const clinicsQuery = `
       SELECT 
-        id, external_id, name, code, client_id, address, city, phone, email,
-        rating, total_reviews, latitude, longitude,
-        operating_hours, description, image_url,
-        is_active, created_at, updated_at
-      FROM clinics
+        c.id, c.external_id, c.name, c.code, c.client_id, c.address, c.city, c.phone, c.email,
+        c.rating, c.total_reviews, c.latitude, c.longitude,
+        c.operating_hours, c.description, c.image_url,
+        c.is_active, c.created_at, c.updated_at,
+        (
+          SELECT COUNT(DISTINCT v.doctor_name)
+          FROM visits v
+          WHERE v.facility_name = c.name
+            AND v.doctor_name IS NOT NULL
+            AND v.doctor_name != ''
+            AND v.doctor_name != '-'
+        ) as doctor_count
+      FROM clinics c
       WHERE 
-        (LOWER(name) LIKE LOWER(?) OR
-        LOWER(address) LIKE LOWER(?) OR
-        LOWER(city) LIKE LOWER(?) OR
-        LOWER(code) LIKE LOWER(?))
+        (LOWER(c.name) LIKE LOWER(?) OR
+        LOWER(c.address) LIKE LOWER(?) OR
+        LOWER(c.city) LIKE LOWER(?) OR
+        LOWER(c.code) LIKE LOWER(?))
         ${clinicFilter}
-      ORDER BY name ASC
+      ORDER BY c.name ASC
       LIMIT ${limit} OFFSET ${offset}
     `;
 

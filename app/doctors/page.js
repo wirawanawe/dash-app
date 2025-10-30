@@ -32,7 +32,8 @@ import {
   Download,
   Cloud,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Building
 } from 'lucide-react';
 
 export default function DoctorsPage() {
@@ -516,6 +517,12 @@ export default function DoctorsPage() {
                         Spesialisasi
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Klinik
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Poli
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Nomor SIP
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -529,7 +536,7 @@ export default function DoctorsPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {doctors.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center">
+                        <td colSpan="7" className="px-6 py-12 text-center">
                           <div className="flex flex-col items-center">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                               <Stethoscope className="w-8 h-8 text-gray-400" />
@@ -563,6 +570,54 @@ export default function DoctorsPage() {
                                 <Award className="w-3 h-3 mr-1" />
                                 {doctor.specialist}
                               </span>
+                            ) : (
+                              <span className="text-sm text-gray-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {doctor.clinics_from_visits ? (
+                              <div className="flex flex-wrap gap-1">
+                                {doctor.clinics_from_visits.split(', ').map((clinic, idx) => (
+                                  <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    <Building className="w-3 h-3 mr-1" />
+                                    {clinic}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : doctor.clinic_name ? (
+                              <div className="flex flex-col">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  <Building className="w-3 h-3 mr-1" />
+                                  {doctor.clinic_name}
+                                </span>
+                                <span className="text-xs text-gray-500 mt-1">
+                                  (Belum ada kunjungan)
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-500">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            {doctor.polyclinics_from_visits ? (
+                              <div className="flex flex-wrap gap-1">
+                                {doctor.polyclinics_from_visits.split(', ').map((poli, idx) => (
+                                  <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <Stethoscope className="w-3 h-3 mr-1" />
+                                    {poli}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : doctor.polyclinic_name ? (
+                              <div className="flex flex-col">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  <Stethoscope className="w-3 h-3 mr-1" />
+                                  {doctor.polyclinic_name}
+                                </span>
+                                <span className="text-xs text-gray-500 mt-1">
+                                  (Belum ada kunjungan)
+                                </span>
+                              </div>
                             ) : (
                               <span className="text-sm text-gray-500">-</span>
                             )}

@@ -39,7 +39,26 @@ export async function GET(request) {
         p.name as polyclinic_name,
         p.code as polyclinic_code,
         d.created_at as createdAt, 
-        d.updated_at as updatedAt
+        d.updated_at as updatedAt,
+        (
+          SELECT GROUP_CONCAT(DISTINCT v.facility_name SEPARATOR ', ')
+          FROM visits v 
+          WHERE v.doctor_name = d.name
+            AND v.facility_name IS NOT NULL
+            AND v.facility_name != ''
+            AND v.facility_name != '-'
+        ) as clinics_from_visits,
+        (
+          SELECT GROUP_CONCAT(DISTINCT 
+            CASE 
+              WHEN v.clinic IS NOT NULL AND v.clinic != '' AND v.clinic != '-' THEN v.clinic
+              WHEN v.room IS NOT NULL AND v.room != '' AND v.room != '-' THEN v.room
+              ELSE NULL
+            END
+          SEPARATOR ', ')
+          FROM visits v 
+          WHERE v.doctor_name = d.name
+        ) as polyclinics_from_visits
       FROM doctors d
       LEFT JOIN clinics c ON d.clinic_id = c.id
       LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
@@ -138,7 +157,26 @@ export async function POST(request) {
         p.name as polyclinic_name,
         p.code as polyclinic_code,
         d.created_at as createdAt, 
-        d.updated_at as updatedAt
+        d.updated_at as updatedAt,
+        (
+          SELECT GROUP_CONCAT(DISTINCT v.facility_name SEPARATOR ', ')
+          FROM visits v 
+          WHERE v.doctor_name = d.name
+            AND v.facility_name IS NOT NULL
+            AND v.facility_name != ''
+            AND v.facility_name != '-'
+        ) as clinics_from_visits,
+        (
+          SELECT GROUP_CONCAT(DISTINCT 
+            CASE 
+              WHEN v.clinic IS NOT NULL AND v.clinic != '' AND v.clinic != '-' THEN v.clinic
+              WHEN v.room IS NOT NULL AND v.room != '' AND v.room != '-' THEN v.room
+              ELSE NULL
+            END
+          SEPARATOR ', ')
+          FROM visits v 
+          WHERE v.doctor_name = d.name
+        ) as polyclinics_from_visits
       FROM doctors d
       LEFT JOIN clinics c ON d.clinic_id = c.id
       LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
