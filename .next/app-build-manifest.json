@@ -16,15 +16,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/visits/page": [
+    "/reports/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/visits/page.js"
+      "static/chunks/app/reports/page.js"
     ],
-    "/doctors/page": [
+    "/reports/visits/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/doctors/page.js"
+      "static/chunks/app/reports/visits/page.js"
+    ],
+    "/reports/diagnoses/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/reports/diagnoses/page.js"
+    ],
+    "/reports/medicines/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/reports/medicines/page.js"
     ]
   }
 }

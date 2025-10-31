@@ -1,16 +1,11 @@
 {
-  "/login/page": "app/login/page.js",
-  "/visits/page": "app/visits/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/api/clinics/route": "app/api/clinics/route.js",
-  "/api/visits/route": "app/api/visits/route.js",
-  "/api/patients/route": "app/api/patients/route.js",
-  "/api/dashboard/monthly-visits/route": "app/api/dashboard/monthly-visits/route.js",
-  "/api/dashboard/rooms/route": "app/api/dashboard/rooms/route.js",
-  "/api/dashboard/mobile-stats/route": "app/api/dashboard/mobile-stats/route.js",
-  "/doctors/page": "app/doctors/page.js",
+  "/reports/page": "app/reports/page.js",
+  "/reports/visits/page": "app/reports/visits/page.js",
+  "/reports/diagnoses/page": "app/reports/diagnoses/page.js",
+  "/reports/medicines/page": "app/reports/medicines/page.js",
   "/api/auth/permissions/route": "app/api/auth/permissions/route.js",
-  "/api/dashboard/habit-activities/route": "app/api/dashboard/habit-activities/route.js",
   "/api/auth/me/route": "app/api/auth/me/route.js",
-  "/api/doctors/route": "app/api/doctors/route.js"
+  "/api/reports/visits-per-month/route": "app/api/reports/visits-per-month/route.js",
+  "/api/clinics/route": "app/api/clinics/route.js"
 }

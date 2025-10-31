@@ -11,6 +11,8 @@ import {
   FaFlask,
   FaChevronDown,
   FaChevronUp,
+  FaChevronLeft,
+  FaChevronRight,
   FaUsers,
   FaUserMd,
   FaClinicMedical,
@@ -25,7 +27,7 @@ import {
 import { FaShield } from "react-icons/fa6";
 import { useAuth } from "./Providers";
 
-const Sidebar = ({ onClose }) => {
+const Sidebar = ({ onClose, collapsed = false, onToggleCollapse }) => {
   const { user } = useAuth();
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const [userPermissions, setUserPermissions] = useState({});
@@ -89,12 +91,31 @@ const Sidebar = ({ onClose }) => {
     }
   };
 
+  const getInitials = (name) => {
+    if (!name || typeof name !== 'string') return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '';
+    const first = parts[0]?.[0] || '';
+    const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] || '') : '';
+    return (first + last).toUpperCase();
+  };
+
   const menuItems = [
     {
       title: "Dashboard",
       icon: <FaHome />,
       path: "/dashboard",
       menuKey: "dashboard",
+    },
+    {
+      title: "Reports",
+      icon: <FaCalendarCheck />,
+      submenu: [
+        { title: "Report Kunjungan", path: "/reports/visits", menuKey: "reports" },
+        { title: "Report Diagnosis", path: "/reports/diagnoses", menuKey: "reports" },
+        { title: "Report Obat-obatan", path: "/reports/medicines", menuKey: "reports" },
+      ],
+      menuKey: "reports",
     },
     {
       section: "Pelayanan Medis",
@@ -204,11 +225,11 @@ const Sidebar = ({ onClose }) => {
   };
 
   return (
-    <div className="bg-[#E22345] text-white w-64 h-screen fixed left-0 top-0 overflow-hidden shadow-2xl">
+    <div className={`bg-[#E22345] text-white h-screen fixed left-0 top-0 overflow-hidden shadow-2xl ${collapsed ? 'w-20' : 'w-64'}`}>
       <div className="p-4 h-full flex flex-col">
         {/* Enhanced Mobile Header with better touch targets */}
         <div className="flex items-center justify-between mb-6 lg:hidden flex-shrink-0">
-          <h2 className="text-lg sm:text-xl font-bold">Admin Panel</h2>
+          {!collapsed && <h2 className="text-lg sm:text-xl font-bold">Admin Panel</h2>}
           <button
             onClick={onClose}
             className="p-3 text-white hover:bg-white/10 rounded-lg transition-colors touch-manipulation min-h-[48px] min-w-[48px] flex items-center justify-center"
@@ -219,26 +240,47 @@ const Sidebar = ({ onClose }) => {
         </div>
 
         {/* Desktop Header */}
-        <h2 className="text-xl sm:text-2xl font-bold mb-6 lg:mb-8 hidden lg:block flex-shrink-0">Admin Panel</h2>
+        <div className="hidden lg:flex items-center justify-between mb-6 lg:mb-8 flex-shrink-0">
+          {!collapsed && <h2 className="text-xl sm:text-2xl font-bold">Admin Panel</h2>}
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={collapsed ? 'Perluas' : 'Tutup'}
+            >
+              {collapsed ? <FaChevronRight size={16} /> : <FaChevronLeft size={16} />}
+            </button>
+          )}
+        </div>
         
         {/* Enhanced User Info with better mobile layout */}
         <div className="mb-6 p-4 bg-white/10 rounded-lg border border-white/20 flex-shrink-0">
           <div className="flex items-center mb-3">
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-              {getRoleIcon(user?.role)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <div className="flex items-center">
-                <span className={`text-xs font-medium ${getRoleColor(user?.role)} capitalize`}>
-                  {user?.role?.toLowerCase()}
+            <div className={`${collapsed ? 'bg-transparent rounded-none w-auto h-auto mr-0' : 'w-10 h-10 bg-white/20 rounded-full mr-3'} flex items-center justify-center flex-shrink-0`}>
+              {collapsed ? (
+                <span className="text-white font-semibold select-none">
+                  {getInitials(user?.name)}
                 </span>
-              </div>
+              ) : (
+                getRoleIcon(user?.role)
+              )}
             </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{user?.name}</p>
+                <div className="flex items-center">
+                  <span className={`text-xs font-medium ${getRoleColor(user?.role)} capitalize`}>
+                    {user?.role?.toLowerCase()}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Role Permissions Info - Hidden on very small screens */}
-          <div className="text-xs text-gray-300 space-y-1 hidden sm:block">
+          {!collapsed && (
+            <div className="text-xs text-gray-300 space-y-1 hidden sm:block">
             {user?.role === "SUPERADMIN" && (
               <p>✓ Akses penuh ke semua fitur</p>
             )}
@@ -251,7 +293,8 @@ const Sidebar = ({ onClose }) => {
             {user?.role === "STAFF" && (
               <p>✓ Staff dengan akses minimal</p>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation Menu - Scrollable with enhanced touch targets */}
@@ -261,19 +304,22 @@ const Sidebar = ({ onClose }) => {
               <li key={index}>
                 {item.section ? (
                   <>
-                    <div className="text-xs sm:text-sm font-semibold mb-2 px-2 text-gray-300">
-                      {item.section}
-                    </div>
-                    <ul className="ml-2 space-y-1">
+                    {!collapsed && (
+                      <div className="text-xs sm:text-sm font-semibold mb-2 px-2 text-gray-300">
+                        {item.section}
+                      </div>
+                    )}
+                    <ul className={`${collapsed ? '' : 'ml-2'} space-y-1`}>
                       {item.items.map((subItem, subIndex) => (
                         <li key={subIndex}>
                           <Link
                             href={subItem.path}
                             onClick={handleLinkClick}
-                            className="flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
+                            className={`flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px] ${collapsed ? 'justify-center' : ''}`}
+                            title={collapsed ? subItem.title : undefined}
                           >
-                            <span className="mr-3 flex-shrink-0">{subItem.icon}</span>
-                            <span className="truncate">{subItem.title}</span>
+                            <span className={`${collapsed ? 'text-2xl' : 'mr-3'} flex-shrink-0`}>{subItem.icon}</span>
+                            {!collapsed && <span className="truncate">{subItem.title}</span>}
                           </Link>
                         </li>
                       ))}
@@ -281,46 +327,60 @@ const Sidebar = ({ onClose }) => {
                   </>
                 ) : item.submenu ? (
                   <div>
-                    <button
-                      onClick={() => toggleSubmenu(item.title)}
-                      className="w-full flex items-center justify-between p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        <span className="mr-3 flex-shrink-0">{item.icon}</span>
-                        <span className="truncate">{item.title}</span>
-                      </div>
-                      <span className="flex-shrink-0">
-                        {openSubmenu === item.title ? (
-                          <FaChevronUp size={12} />
-                        ) : (
-                          <FaChevronDown size={12} />
+                    {collapsed ? (
+                      <Link
+                        href={item.submenu?.[0]?.path || '#'}
+                        onClick={handleLinkClick}
+                        className="flex items-center justify-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
+                        title={item.title}
+                      >
+                        <span className="flex-shrink-0 text-2xl">{item.icon}</span>
+                      </Link>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleSubmenu(item.title)}
+                          className="w-full flex items-center justify-between p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
+                        >
+                          <div className="flex items-center flex-1 min-w-0">
+                            <span className="mr-3 flex-shrink-0">{item.icon}</span>
+                            <span className="truncate">{item.title}</span>
+                          </div>
+                          <span className="flex-shrink-0">
+                            {openSubmenu === item.title ? (
+                              <FaChevronUp size={12} />
+                            ) : (
+                              <FaChevronDown size={12} />
+                            )}
+                          </span>
+                        </button>
+                        {openSubmenu === item.title && (
+                          <ul className="ml-8 mt-2 space-y-1">
+                            {item.submenu.map((subItem, subIndex) => (
+                              <li key={subIndex}>
+                                <Link
+                                  href={subItem.path}
+                                  onClick={handleLinkClick}
+                                  className="flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
+                                >
+                                  <span className="truncate">{subItem.title}</span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
                         )}
-                      </span>
-                    </button>
-                    {openSubmenu === item.title && (
-                      <ul className="ml-8 mt-2 space-y-1">
-                        {item.submenu.map((subItem, subIndex) => (
-                          <li key={subIndex}>
-                            <Link
-                              href={subItem.path}
-                              onClick={handleLinkClick}
-                              className="flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
-                            >
-                              <span className="truncate">{subItem.title}</span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                      </>
                     )}
                   </div>
                 ) : (
                   <Link
                     href={item.path}
                     onClick={handleLinkClick}
-                    className="flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px]"
+                    className={`flex items-center p-3 sm:p-3 rounded-lg hover:bg-white/10 transition-colors text-sm touch-manipulation min-h-[48px] ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? item.title : undefined}
                   >
-                    <span className="mr-3 flex-shrink-0">{item.icon}</span>
-                    <span className="truncate">{item.title}</span>
+                    <span className={`${collapsed ? 'text-2xl' : 'mr-3'} flex-shrink-0`}>{item.icon}</span>
+                    {!collapsed && <span className="truncate">{item.title}</span>}
                   </Link>
                 )}
               </li>

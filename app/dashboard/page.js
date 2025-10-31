@@ -169,7 +169,12 @@ export default function Dashboard() {
         if (monthlyResponse.ok) {
           const monthlyData = await monthlyResponse.json();
           if (monthlyData.success) {
-            setMonthlyVisitsData(monthlyData.data || []);
+            // Filter: hanya tampilkan bulan yang ada datanya
+            const raw = monthlyData.data || [];
+            const filtered = selectedClinic
+              ? raw.filter((r) => (r.count || 0) > 0)
+              : raw.filter((r) => (r.total || 0) > 0);
+            setMonthlyVisitsData(filtered);
             // Set facility series only when showing all clinics
             if (!selectedClinic && monthlyData.meta?.facilities) {
               setFacilitySeries(monthlyData.meta.facilities);
@@ -547,7 +552,7 @@ export default function Dashboard() {
                   </div>
                   Grafik Kunjungan Per Bulan
                 </h2>
-                <p className="text-gray-600 mt-2">Data kunjungan 12 bulan terakhir</p>
+                <p className="text-gray-600 mt-2">Data kunjungan perbulan</p>
               </div>
               <div className="w-full sm:w-auto">
                 <select

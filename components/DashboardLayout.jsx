@@ -8,6 +8,7 @@ import { Menu, X } from "lucide-react";
 
 const DashboardLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
 
@@ -28,6 +29,27 @@ const DashboardLayout = ({ children }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Load persisted collapsed state
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('sidebar:collapsed');
+      if (stored !== null) {
+        setIsSidebarCollapsed(stored === '1');
+      }
+    } catch (_) {
+      // ignore
+    }
+  }, []);
+
+  // Persist collapsed state
+  useEffect(() => {
+    try {
+      localStorage.setItem('sidebar:collapsed', isSidebarCollapsed ? '1' : '0');
+    } catch (_) {
+      // ignore
+    }
+  }, [isSidebarCollapsed]);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -81,8 +103,12 @@ const DashboardLayout = ({ children }) => {
       {/* Enhanced Sidebar with better mobile support - FIXED POSITION */}
       <div className={`sidebar-container fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      }`}>
-        <Sidebar onClose={() => setIsSidebarOpen(false)} />
+      } ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
+        <Sidebar 
+          onClose={() => setIsSidebarOpen(false)} 
+          collapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((v) => !v)}
+        />
       </div>
 
       {/* Enhanced Backdrop for mobile/tablet with better z-index */}
@@ -95,7 +121,7 @@ const DashboardLayout = ({ children }) => {
       )}
       
       {/* Main Content - Enhanced responsive padding and spacing */}
-      <div className="flex-1 flex flex-col lg:ml-64 overflow-x-hidden">
+      <div className={`flex-1 flex flex-col overflow-x-hidden ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Navbar />
         <main className="flex-1 p-3 sm:p-4 md:p-6 pb-16 sm:pb-20 lg:pb-28">
           <div className="max-w-7xl mx-auto">
