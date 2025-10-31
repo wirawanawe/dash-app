@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { query, rawQuery } from '@/lib/db';
+import { query } from '@/lib/db';
+import { queryWithPagination } from '@/lib/safeQuery';
 
 export async function GET(request) {
   try {
@@ -39,8 +40,8 @@ export async function GET(request) {
     const countResult = await query(countQuery, params);
     const total = countResult[0]?.total || 0;
 
-    // Get paginated data
-    const dataQuery = `
+    // Get paginated data - using safe query with parameter binding
+    const baseQuery = `
       SELECT 
         hd.*,
         u.name as user_name,
@@ -49,22 +50,10 @@ export async function GET(request) {
       LEFT JOIN mobile_users u ON hd.user_id = u.id
       ${whereClause}
       ORDER BY hd.recorded_at DESC, hd.created_at DESC
-      LIMIT ? OFFSET ?
     `;
 
-    // Use raw query to avoid parameter binding issues with LIMIT/OFFSET
-    let finalQuery = dataQuery;
-    
-    // Replace parameter placeholders with actual values
-    params.forEach((param) => {
-      const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
-      finalQuery = finalQuery.replace('?', value);
-    });
-    
-    // Replace LIMIT and OFFSET placeholders
-    finalQuery = finalQuery.replace('?', parseInt(limit, 10)).replace('?', parseInt(offset, 10));
-    
-    const healthData = await rawQuery(finalQuery);
+    // Use safe pagination helper to prevent SQL injection
+    const healthData = await queryWithPagination(baseQuery, params, limit, offset);
 
     const totalPages = Math.ceil(total / limit);
 

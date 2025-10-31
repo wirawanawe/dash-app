@@ -29,9 +29,6 @@ export async function GET(request, { params }) {
       `;
       const patientResult = await query(patientQuery, [patientId, String(patientId), patientId, String(patientId)]);
       
-      console.log(`[DEBUG] Querying patient with ID: ${patientId} (type: ${typeof patientId})`);
-      console.log(`[DEBUG] Patient query returned ${patientResult.length} results`);
-      
       if (patientResult.length > 0) {
         const patient = patientResult[0];
         patientNik = patient.nik;
@@ -40,44 +37,19 @@ export async function GET(request, { params }) {
         if (patientNik) {
           patientNik = String(patientNik).trim();
         }
-        
-        console.log(`[DEBUG] Patient found:`, {
-          id: patient.id,
-          name: patient.name,
-          mrn: patient.mrn,
-          nik: patientNik,
-          nik_length: patientNik?.length || 0
-        });
-        
-        if (!patientNik) {
-          console.log(`[DEBUG] ⚠️ WARNING: Patient ${patient.name} (ID: ${patient.id}) has NO NIK!`);
-        }
       } else {
-        console.log(`[DEBUG] ❌ ERROR: Patient ID ${patientId} NOT FOUND in database!`);
-        console.log(`[DEBUG] 🔄 FALLBACK: Will try to find visits by patient_id in visits table directly`);
-        
         // FALLBACK: Coba cari NIK dari visits table langsung
         const visitsNikQuery = `SELECT DISTINCT patient_nik FROM visits WHERE patient_id = ? OR CAST(patient_id AS CHAR) = ? LIMIT 1`;
         const visitsNikResult = await query(visitsNikQuery, [patientId, String(patientId)]);
         
         if (visitsNikResult.length > 0 && visitsNikResult[0].patient_nik) {
           patientNik = String(visitsNikResult[0].patient_nik).trim();
-          console.log(`[DEBUG] ✅ Found NIK from visits table: "${patientNik}"`);
-        } else {
-          console.log(`[DEBUG] ⚠️ No NIK found in visits table either, will search by patient_id only`);
         }
       }
     }
 
     if (fetchAll) {
       // Fetch all visits without pagination
-      if (useNik && patientNik) {
-        // Query using patient_nik field (from API data)
-        console.log(`[DEBUG] Using NIK-based query with NIK="${patientNik}"`);
-      } else if (useNik) {
-        console.log(`[DEBUG] NIK not found, will use patient_id only query`);
-      }
-      
       if (useNik && patientNik) {
         // Query using patient_nik field (from API data)
         visitsQuery = `
@@ -115,15 +87,6 @@ export async function GET(request, { params }) {
           ORDER BY v.visit_date DESC, v.visit_time DESC
         `;
         visits = await query(visitsQuery, [patientNik, patientId, String(patientId)]);
-        console.log(`[DEBUG] Query with NIK: Found ${visits.length} visits for NIK="${patientNik}" OR patient_id=${patientId}`);
-        if (visits.length > 0) {
-          console.log(`[DEBUG] Sample visit:`, {
-            id: visits[0].id,
-            visit_date: visits[0].visit_date,
-            patient_nik: visits[0].patient_nik,
-            patient_name: visits[0].patient_name
-          });
-        }
       } else {
         // Regular query using patient_id (support both INT and UUID)
         visitsQuery = `
@@ -161,7 +124,6 @@ export async function GET(request, { params }) {
           ORDER BY v.visit_date DESC, v.visit_time DESC
         `;
         visits = await query(visitsQuery, [patientId, String(patientId)]);
-        console.log(`[DEBUG] Query with patient_id only: Found ${visits.length} visits for patient_id=${patientId}`);
       }
       
       totalVisits = visits.length;
@@ -266,7 +228,6 @@ export async function GET(request, { params }) {
           LIMIT ? OFFSET ?
         `;
         visits = await query(visitsQuery, [patientId, String(patientId), Number(limit), Number(offset)]);
-        console.log(`[DEBUG] Pagination query with patient_id only: Found ${visits.length} visits`);
       }
     }
 

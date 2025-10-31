@@ -1,25 +1,27 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { getHealthCheck, getPoolStats, getCacheStats, getMemoryStats } from "@/lib/monitor";
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(request) {
   try {
-    // Test database connection
-    await query('SELECT 1 as test');
+    const health = await getHealthCheck();
+    const memory = getMemoryStats();
     
     return NextResponse.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      database: 'connected',
-      server: 'running'
+      ...health,
+      memory,
+      uptime: process.uptime(),
+      nodeVersion: process.version
     });
   } catch (error) {
-
-    return NextResponse.json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      database: 'disconnected',
-      server: 'running',
-      error: error.message
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        status: 'error',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      },
+      { status: 500 }
+    );
   }
-} 
+}

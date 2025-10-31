@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { query, rawQuery } from '@/lib/db';
+import { query } from '@/lib/db';
+import { queryWithPagination } from '@/lib/safeQuery';
 
 export async function GET(request) {
   try {
@@ -41,23 +42,11 @@ export async function GET(request) {
         updated_at
       FROM mobile_users 
       ${whereClause}
-      ORDER BY created_at DESC 
-      LIMIT ? OFFSET ?
+      ORDER BY created_at DESC
     `;
 
-    // Use raw query to avoid parameter binding issues with LIMIT/OFFSET
-    let finalQuery = sql;
-    
-    // Replace parameter placeholders with actual values
-    params.forEach((param) => {
-      const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
-      finalQuery = finalQuery.replace('?', value);
-    });
-    
-    // Replace LIMIT and OFFSET placeholders
-    finalQuery = finalQuery.replace('?', parseInt(limit, 10)).replace('?', parseInt(offset, 10));
-    
-    const users = await rawQuery(finalQuery);
+    // Use safe pagination helper to prevent SQL injection
+    const users = await queryWithPagination(sql, params, limit, offset);
     
     return NextResponse.json({
       users,
@@ -115,8 +104,9 @@ export async function POST(request) {
       );
     }
 
-    // Hash password (you should use bcrypt in production)
-    const hashedPassword = password; // For now, store as plain text
+    // Hash password with bcrypt for security
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const sql = `
       INSERT INTO mobile_users (

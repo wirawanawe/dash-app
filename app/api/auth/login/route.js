@@ -19,96 +19,59 @@ export async function POST(request) {
       );
     }
 
-    // Superadmin fallback untuk testing
-    if (email === "superadmin@phc.com" && password === "superadmin123") {
-      const superadminUser = {
-        id: "superadmin-001",
-        name: "Super Administrator",
-        email: "superadmin@phc.com",
-        role: "SUPERADMIN",
-        clinic_id: null,
-        clinic: null,
+    // SECURITY: Hardcoded credentials removed
+    // Use environment variables for test credentials if needed in development only
+    // For production, create users via database or CLI script
+    if (process.env.NODE_ENV === "development" && process.env.ALLOW_TEST_LOGIN === "true") {
+      // Only allow in development with explicit env flag
+      const testCredentials = {
+        "superadmin@phc.com": { password: process.env.TEST_SUPERADMIN_PASSWORD, role: "SUPERADMIN", id: "superadmin-001", name: "Super Administrator" },
+        "admin@phc.com": { password: process.env.TEST_ADMIN_PASSWORD, role: "ADMIN", id: "admin-001", name: "Administrator" }
       };
+      
+      const testUser = testCredentials[email];
+      if (testUser && password === testUser.password) {
+        const user = {
+          id: testUser.id,
+          name: testUser.name,
+          email: email,
+          role: testUser.role,
+          clinic_id: null,
+          clinic: null,
+        };
 
-      // Create a JWT token (1 hour expiry)
-      const token = await new SignJWT({
-        userId: superadminUser.id,
-        id: superadminUser.id,
-        name: superadminUser.name,
-        email: superadminUser.email,
-        role: superadminUser.role,
-        clinic_id: null, // Superadmin can see all clinics
-      })
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime("1h")
-        .sign(new TextEncoder().encode(process.env.JWT_SECRET));
+        const token = await new SignJWT({
+          userId: user.id,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          clinic_id: null,
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setIssuedAt()
+          .setExpirationTime("1h")
+          .sign(new TextEncoder().encode(process.env.JWT_SECRET));
 
-      const response = NextResponse.json(
-        {
-          success: true,
-          message: "Login berhasil",
-          user: superadminUser,
-        },
-        { status: 200 }
-      );
+        const response = NextResponse.json(
+          {
+            success: true,
+            message: "Login berhasil",
+            user: user,
+          },
+          { status: 200 }
+        );
 
-      const cookieOptions = getCookieOptions();
+        const cookieOptions = getCookieOptions();
+        response.cookies.set("token", token, cookieOptions);
+        response.cookies.set(
+          "lastActivity",
+          Date.now().toString(),
+          cookieOptions
+        );
 
-      response.cookies.set("token", token, cookieOptions);
-      response.cookies.set(
-        "lastActivity",
-        Date.now().toString(),
-        cookieOptions
-      );
-
-      return response;
-    }
-
-    // Admin fallback untuk testing saat database belum siap
-    if (email === "admin@phc.com" && password === "admin123") {
-      const adminUser = {
-        id: "admin-001",
-        name: "Administrator",
-        email: "admin@phc.com",
-        role: "ADMIN",
-        clinic_id: null,
-        clinic: null,
-      };
-
-      // Create a JWT token (1 hour expiry)
-      const token = await new SignJWT({
-        userId: adminUser.id,
-        id: adminUser.id,
-        name: adminUser.name,
-        email: adminUser.email,
-        role: adminUser.role,
-        clinic_id: null, // Admin can see all clinics
-      })
-        .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt()
-        .setExpirationTime("1h")
-        .sign(new TextEncoder().encode(process.env.JWT_SECRET));
-
-      const response = NextResponse.json(
-        {
-          success: true,
-          message: "Login berhasil",
-          user: adminUser,
-        },
-        { status: 200 }
-      );
-
-      const cookieOptions = getCookieOptions();
-
-      response.cookies.set("token", token, cookieOptions);
-      response.cookies.set(
-        "lastActivity",
-        Date.now().toString(),
-        cookieOptions
-      );
-
-      return response;
+        return response;
+      }
     }
 
     // Try database authentication

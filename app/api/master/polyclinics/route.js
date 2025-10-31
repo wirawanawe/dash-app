@@ -29,10 +29,6 @@ export async function GET() {
     `;
     
     const polyclinics = await query(sql);
-    console.log('Master Polyclinics with doctor count:', polyclinics.map(p => ({ 
-      name: p.name, 
-      doctor_count: p.doctor_count 
-    })));
     
     return NextResponse.json(polyclinics);
   } catch (error) {

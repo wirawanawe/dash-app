@@ -91,13 +91,13 @@ export default function VisitsPage() {
     try {
       setLoading(true);
 
-      // Build query parameters - Fetch ALL data (no pagination at API level)
+      // Build query parameters - Use proper server-side pagination
       const params = new URLSearchParams({
         search,
-        page: "1",           // Always fetch from page 1
-        limit: "all",        // Fetch all data (server-side no LIMIT)
-        sortBy: "date",      // Sort by date
-        sortOrder: "desc",   // Descending (terbaru dulu)
+        page: page.toString(),      // Use current page for server-side pagination
+        limit: limit.toString(),     // Use limit for server-side pagination (not "all")
+        sortBy: "date",              // Sort by date
+        sortOrder: "desc",           // Descending (terbaru dulu)
       });
 
       // Add date search if exists
@@ -157,23 +157,19 @@ export default function VisitsPage() {
         dataForClient = dataForClient.filter(v => (v?.facility?.name || "").toLowerCase() === wanted);
       }
 
-      // Store ALL visits data
-      setAllVisits(dataForClient);
+      // Use server-side pagination data directly (no need to fetch all)
+      setVisits(dataForClient);
       
-      // Get total from API pagination (actual total from external API)
-      const totalData = result.pagination?.total || dataForClient.length;
-      const fetchedData = dataForClient.length;
-      // Calculate pages based on fetched data (what we can actually display)
-      const totalPagesCalculated = Math.ceil(fetchedData / limit);
+      // Get pagination info from API response
+      const pagination = result.pagination || {};
+      const totalData = pagination.total || dataForClient.length;
+      const totalPagesCalculated = pagination.totalPages || Math.ceil(totalData / limit);
       
-      // Apply pagination to get current page data
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = dataForClient.slice(startIndex, endIndex);
-      
-      setVisits(paginatedData);
-      setMetadata({ total: totalData }); // Use actual total from API, not just fetched length
+      setMetadata({ total: totalData });
       setTotalPages(totalPagesCalculated);
+      
+      // For backwards compatibility, store in allVisits (but limited to current page)
+      setAllVisits(dataForClient);
 
     } catch (error) {
 
@@ -222,14 +218,14 @@ export default function VisitsPage() {
       const monthStart = `${startOfMonth.getFullYear()}-${String(startOfMonth.getMonth() + 1).padStart(2, '0')}-${String(startOfMonth.getDate()).padStart(2, '0')}`;
       const monthEnd = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
 
-      // Fetch all stats in parallel
+      // Fetch all stats in parallel (optimized - only fetch pagination info, not all data)
       const [totalResponse, todayResponse, monthlyResponse, facilityStatsResponse] = await Promise.all([
-        // Total: Fetch dengan limit besar, tanpa filter
-        fetch('/api/visits?limit=999999'),
-        // Today: Fetch dengan filter tanggal hari ini
-        fetch(`/api/visits?searchDate=${todayString}&limit=999999`),
-        // Monthly: Fetch dengan filter bulan ini
-        fetch(`/api/visits?tglawal=${monthStart}&tglakhir=${monthEnd}&limit=999999`),
+        // Total: Fetch dengan limit kecil untuk hanya mendapatkan pagination info
+        fetch('/api/visits?page=1&limit=1'),
+        // Today: Fetch dengan filter tanggal hari ini, limit kecil
+        fetch(`/api/visits?searchDate=${todayString}&page=1&limit=1`),
+        // Monthly: Fetch dengan filter bulan ini, limit kecil
+        fetch(`/api/visits?tglawal=${monthStart}&tglakhir=${monthEnd}&page=1&limit=1`),
         // Facility stats: Fetch breakdown by facility
         fetch('/api/visits/facility-stats'),
       ]);
@@ -274,21 +270,14 @@ export default function VisitsPage() {
     appliedFilters.facilityName,
   ]);
 
-  // Apply client-side pagination when page or limit changes
+  // Refetch data when page or limit changes (server-side pagination)
   useEffect(() => {
-    if (allVisits.length > 0) {
-      const totalData = allVisits.length;
-      const totalPagesCalculated = Math.ceil(totalData / limit);
-      
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = allVisits.slice(startIndex, endIndex);
-      
-      setVisits(paginatedData);
-      setTotalPages(totalPagesCalculated);
-
+    if (isLoaded) {
+      fetchVisits();
     }
-  }, [page, limit, allVisits]);
+  }, [page, limit]);
+  
+  // Note: Client-side pagination removed - now using server-side pagination
 
   useEffect(() => {
     fetchDoctorsAndClinics();
@@ -1069,31 +1058,25 @@ export default function VisitsPage() {
                   <table className="w-full min-w-max">
                     <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           No. Kunjungan
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Pasien
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Dokter
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Poli
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Klinik
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Diagnosa
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tanggal
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Aksi
                         </th>
                       </tr>
@@ -1101,7 +1084,7 @@ export default function VisitsPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {visits.length === 0 ? (
                         <tr>
-                          <td colSpan="9" className="px-6 py-12 text-center">
+                          <td colSpan="7" className="px-3 py-12 text-center">
                             <div className="flex flex-col items-center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                 <Calendar className="w-8 h-8 text-gray-400" />
@@ -1114,10 +1097,10 @@ export default function VisitsPage() {
                       ) : (
                         visits.map((visit) => (
                           <tr key={visit.uniqueId || visit.id} className="hover:bg-blue-50 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 py-4 whitespace-nowrap">
                               <div className="text-sm font-bold text-gray-900">{visit.visitNumber || visit.id}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 py-4 whitespace-nowrap">
                               <div className="text-sm font-semibold text-gray-900">
                                 {visit.patient?.name || "-"}
                               </div>
@@ -1132,22 +1115,21 @@ export default function VisitsPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {visit.doctor?.name || "-"}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {visit.clinic || visit.room || "-"}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="flex flex-col">
-                                <span className="font-semibold text-blue-600">{visit.facility?.name || "-"}</span>
-                                <span className="text-xs text-gray-500">{visit.facility?.code || "-"}</span>
+                                <span className="font-semibold">{visit.doctor?.name || "-"}</span>
+                                {visit.clinic || visit.room ? (
+                                  <span className="text-xs text-gray-500">Poli: {visit.clinic || visit.room}</span>
+                                ) : null}
+                                {visit.facility?.code ? (
+                                  <span className="text-xs text-gray-500">Klinik: {visit.facility.code}</span>
+                                ) : null}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={visit.diagnosis || visit.complaint || "-"}>
+                            <td className="px-3 py-4 text-sm text-gray-900 max-w-xs truncate" title={visit.diagnosis || visit.complaint || "-"}>
                               {visit.diagnosis || visit.complaint || "-"}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 py-4 whitespace-nowrap">
                               <span
                                 className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                                   visit.status === "Selesai"
@@ -1158,7 +1140,7 @@ export default function VisitsPage() {
                                 {visit.status || "Aktif"}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                               {visit.visitDate
                                 ? new Date(visit.visitDate).toLocaleDateString("id-ID", {
                                     year: "numeric",
@@ -1173,7 +1155,7 @@ export default function VisitsPage() {
                                   })
                                 : "-"}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                               <div className="flex items-center space-x-2">
                                 <button
                                   onClick={() => {

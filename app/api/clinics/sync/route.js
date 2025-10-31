@@ -30,11 +30,8 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 // POST /api/clinics/sync - Sync clinics from master faskes API
 export async function POST(request) {
   try {
-    console.log('Starting faskes synchronization...');
-
     // Step 1: Fetch data from master faskes API
     const apiUrl = 'https://api-ehr-klinik.doctorphc.id/master/faskes';
-    console.log(`Fetching data from: ${apiUrl}`);
     
     const response = await fetchWithRetry(apiUrl, {
       method: "GET",
@@ -49,7 +46,6 @@ export async function POST(request) {
     }
     
     const responseData = await response.json();
-    console.log('API Response received');
     
     // Extract data array from response
     // The API might return { data: [...] } or just [...]
@@ -62,8 +58,6 @@ export async function POST(request) {
       throw new Error('Invalid API response format');
     }
     
-    console.log(`Found ${faskesData.length} faskes records from API`);
-    
     if (faskesData.length === 0) {
       return NextResponse.json({
         success: false,
@@ -72,19 +66,15 @@ export async function POST(request) {
     }
 
     // Step 2: Delete all existing clinics data (including related data)
-    console.log('Deleting existing clinics data...');
-    
     // First, delete related data from clinic_polyclinics if exists
     try {
       await query('DELETE FROM clinic_polyclinics');
-      console.log('Deleted clinic_polyclinics relationships');
     } catch (error) {
-      console.log('No clinic_polyclinics to delete or table does not exist');
+      // Table may not exist, ignore error
     }
     
     // Delete all clinics
-    const deleteResult = await query('DELETE FROM clinics');
-    console.log(`Deleted ${deleteResult.affectedRows || 0} existing clinics`);
+    await query('DELETE FROM clinics');
 
     // Step 3: Insert new data from API
     let insertedCount = 0;
@@ -115,12 +105,10 @@ export async function POST(request) {
         
         insertedCount++;
       } catch (error) {
-        console.error(`Error inserting faskes ${faskes.nama_faskes}: ${error.message}`);
         errorCount++;
+        // Error already counted, continue with next faskes
       }
     }
-
-    console.log(`Synchronization complete: ${insertedCount} inserted, ${errorCount} errors`);
 
     return NextResponse.json({
       success: true,

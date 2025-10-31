@@ -45,15 +45,46 @@ const routePermissions = {
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
-  // Skip middleware for API routes, static files, and auth pages
+  // Skip middleware for static files and public auth pages only
+  // API routes should be handled by their own authentication
   if (
-    pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
     pathname === "/"
   ) {
+    return NextResponse.next();
+  }
+  
+  // Public API endpoints that don't require authentication
+  const publicApiEndpoints = [
+    "/api/health",
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/mobile/wellness/stats/public"
+  ];
+  
+  // Allow public API endpoints
+  if (pathname.startsWith("/api/") && publicApiEndpoints.some(ep => pathname.startsWith(ep))) {
+    return NextResponse.next();
+  }
+  
+  // For protected API routes, verify token exists (detailed auth check done in route)
+  if (pathname.startsWith("/api/")) {
+    const token = request.cookies.get("token");
+    const apiToken = request.cookies.get("api_token");
+    
+    // Check if token exists (authentication check will be done in the route itself)
+    if (!token && !apiToken) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.next();
   }
 

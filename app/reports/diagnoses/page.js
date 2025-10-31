@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import * as XLSX from "xlsx";
 
 export default function ReportsDiagnosesPage() {
   const [loading, setLoading] = useState(false);
@@ -87,7 +88,7 @@ export default function ReportsDiagnosesPage() {
     return rows;
   }, [diagnosisRows, monthsInRange]);
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     const headers = ['Diagnosis', ...monthsInRange.map(m => m.label), 'Total'];
     const rows = diagnosisPivot.map(r => {
       const obj = { 'Diagnosis': r.diagnosis };
@@ -95,22 +96,26 @@ export default function ReportsDiagnosesPage() {
       obj['Total'] = r.total;
       return obj;
     });
-    const esc = (v) => {
-      if (v == null) return '';
-      const s = String(v).replace(/"/g, '""');
-      if (s.search(/[",\n]/) >= 0) return `"${s}"`;
-      return s;
-    };
-    const csv = [headers.map(esc).join(',')]
-      .concat(rows.map(r => headers.map(h => esc(r[h])).join(',')))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'report-diagnosis.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    
+    // Create worksheet data
+    const worksheetData = [
+      headers,
+      ...rows.map(r => headers.map(h => r[h] || ''))
+    ];
+    
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+    
+    // Set column widths
+    const colWidths = headers.map(h => ({
+      wch: Math.max(h.length, 15)
+    }));
+    worksheet['!cols'] = colWidths;
+    
+    // Write file
+    XLSX.writeFile(workbook, 'report-diagnosis.xlsx');
   };
 
   return (
@@ -142,7 +147,7 @@ export default function ReportsDiagnosesPage() {
         <div className="bg-white rounded-2xl p-6 shadow">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Diagnosis per Bulan</h2>
-            <button onClick={exportCsv} className="px-4 py-2 rounded bg-blue-600 text-white">Download CSV</button>
+            <button onClick={exportExcel} className="px-4 py-2 rounded bg-blue-600 text-white">Download XLSX</button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

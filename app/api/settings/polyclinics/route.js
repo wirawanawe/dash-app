@@ -8,7 +8,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const clinicCode = searchParams.get('clinic_code');
     
-    console.log('Fetching polyclinics with clinic filter:', clinicCode);
     
     // Build the doctor count subquery with optional clinic filter
     const doctorCountSubquery = clinicCode
@@ -49,13 +48,6 @@ export async function GET(request) {
     
     const params = clinicCode ? [clinicCode] : [];
     const polyclinics = await query(sql, params);
-    
-    console.log('Polyclinics with doctor count (clinic:', clinicCode || 'all', '):', 
-      polyclinics.map(p => ({ 
-        name: p.name, 
-        doctor_count: p.doctor_count 
-      }))
-    );
     
     return NextResponse.json(polyclinics);
   } catch (error) {

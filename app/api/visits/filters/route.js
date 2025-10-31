@@ -6,8 +6,6 @@ export const dynamic = 'force-dynamic';
 // GET unique doctors and clinics from visits table for filtering
 export async function GET(request) {
   try {
-    console.log('📋 Fetching filter options from visits table...');
-    
     // Get unique doctors with their polyclinics from visits
     const doctorsQuery = `
       SELECT DISTINCT 
@@ -22,7 +20,6 @@ export async function GET(request) {
     `;
     
     const doctorsRaw = await query(doctorsQuery);
-    console.log(`👨‍⚕️ Found ${doctorsRaw.length} doctor-polyclinic combinations`);
     
     // Create a map of doctors with their associated polyclinics
     const doctorPoliMap = {};
@@ -50,7 +47,6 @@ export async function GET(request) {
     `;
     
     const clinics = await query(clinicsQuery);
-    console.log(`🏥 Found ${clinics.length} unique clinics/polyclinics`);
     
     // Format the response to include id, name, and polyclinics for doctors
     const formattedDoctors = Object.keys(doctorPoliMap).map((docName, index) => ({

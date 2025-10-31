@@ -15,9 +15,9 @@ const nextConfig = {
     },
   },
   env: {
-    JWT_SECRET:
-      process.env.JWT_SECRET || "supersecretkey123456789supersecretkey",
-          DB_HOST: process.env.DB_HOST || "dash.doctorphc.id",
+    // SECURITY: JWT_SECRET must be set in environment, no default fallback
+    JWT_SECRET: process.env.JWT_SECRET,
+    DB_HOST: process.env.DB_HOST || "dash.doctorphc.id",
     DB_USER: process.env.DB_USER || "root",
     DB_PASSWORD: process.env.DB_PASSWORD || "",
     DB_NAME: process.env.DB_NAME || "phc_dashboard",

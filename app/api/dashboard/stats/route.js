@@ -1,8 +1,37 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { responseCache } from "@/lib/cache";
+import { apiRateLimiter } from "@/lib/rateLimiter";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 60; // Revalidate every 60 seconds
 
 // GET - Get dashboard statistics
 export async function GET(request) {
+  // Rate limiting
+  const rateLimitResult = await apiRateLimiter(request);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: rateLimitResult.message },
+      { 
+        status: rateLimitResult.status,
+        headers: rateLimitResult.headers
+      }
+    );
+  }
+
+  // Check cache
+  const cacheKey = responseCache.generateKey('GET', '/api/dashboard/stats', {});
+  const cached = responseCache.get(cacheKey);
+  if (cached) {
+    const response = NextResponse.json(cached);
+    Object.entries(rateLimitResult.headers || {}).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    response.headers.set('X-Cache', 'HIT');
+    return response;
+  }
+
   try {
     // Get today's date
     const today = new Date();
@@ -118,7 +147,7 @@ export async function GET(request) {
       }
     };
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       data: stats,
       period: {
@@ -126,7 +155,18 @@ export async function GET(request) {
         monthStart,
         monthEnd
       }
+    };
+
+    // Cache the response (1 minute TTL for stats)
+    responseCache.set(cacheKey, responseData, 60 * 1000);
+
+    const response = NextResponse.json(responseData);
+    Object.entries(rateLimitResult.headers || {}).forEach(([key, value]) => {
+      response.headers.set(key, value);
     });
+    response.headers.set('X-Cache', 'MISS');
+    
+    return response;
   } catch (error) {
 
     return NextResponse.json(

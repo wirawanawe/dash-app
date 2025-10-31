@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { responseCache, queryCache } from "@/lib/cache";
+import { apiRateLimiter } from "@/lib/rateLimiter";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,18 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 
 // GET all visits from local cache database (fast loading)
 export async function GET(request) {
+  // Rate limiting
+  const rateLimitResult = await apiRateLimiter(request);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: rateLimitResult.message },
+      { 
+        status: rateLimitResult.status,
+        headers: rateLimitResult.headers
+      }
+    );
+  }
+
   // Extract query parameters outside try-catch so they're accessible in fallback
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || "";
@@ -46,6 +60,24 @@ export async function GET(request) {
   const status = searchParams.get("status");
   const doctorId = searchParams.get("doctorId");
   const clinic = searchParams.get("clinic");
+  
+  // Check cache only for non-search queries (searches should be fresh)
+  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic);
+  const cacheKey = responseCache.generateKey('GET', '/api/visits', {
+    page, limit, sortBy, sortOrder, search, searchDate, startDate, endDate, status, doctorId, clinic
+  });
+  
+  if (!hasSearchOrFilters) {
+    const cached = responseCache.get(cacheKey);
+    if (cached) {
+      const response = NextResponse.json(cached);
+      Object.entries(rateLimitResult.headers || {}).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      response.headers.set('X-Cache', 'HIT');
+      return response;
+    }
+  }
   
   try {
     // Build SQL query
@@ -99,10 +131,22 @@ export async function GET(request) {
       params.push(`%${clinic}%`, `%${clinic}%`);
     }
     
-    // Get total count for pagination
+    // Get total count for pagination (with caching)
     const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total');
-    const [countResult] = await query(countSql, params);
-    const totalVisits = countResult?.total || 0;
+    
+    // Create cache key from where clause
+    const whereClause = sql.includes('WHERE') ? sql.split('WHERE')[1].split('ORDER BY')[0].trim() : '';
+    const cacheKey = queryCache.generateKey('visits', whereClause, params);
+    
+    // Try cache first
+    let totalVisits = queryCache.get(cacheKey);
+    
+    if (totalVisits === null || totalVisits === undefined) {
+      const [countResult] = await query(countSql, params);
+      totalVisits = countResult?.total || 0;
+      // Cache for 2 minutes (shorter TTL for filtered queries)
+      queryCache.set(cacheKey, totalVisits, 2 * 60 * 1000);
+    }
     
     // Apply sorting
     if (sortBy === "date") {
@@ -215,7 +259,7 @@ export async function GET(request) {
     // Calculate pagination
     const totalPages = isFetchAll ? 1 : Math.ceil(totalVisits / limit);
 
-    return NextResponse.json({
+    const responseData = {
       data: visits,
       pagination: {
         total: totalVisits,
@@ -225,7 +269,20 @@ export async function GET(request) {
         hasNextPage: isFetchAll ? false : page < totalPages,
         hasPrevPage: isFetchAll ? false : page > 1,
       },
+    };
+
+    // Cache response only for non-search queries (30 seconds TTL)
+    if (!hasSearchOrFilters) {
+      responseCache.set(cacheKey, responseData, 30 * 1000);
+    }
+
+    const response = NextResponse.json(responseData);
+    Object.entries(rateLimitResult.headers || {}).forEach(([key, value]) => {
+      response.headers.set(key, value);
     });
+    response.headers.set('X-Cache', hasSearchOrFilters ? 'BYPASS' : 'MISS');
+    
+    return response;
   } catch (error) {
 
     // Fallback to local database if external API fails
