@@ -32,8 +32,10 @@ export async function GET(request) {
   const search = searchParams.get("search") || "";
   const searchDate = searchParams.get("searchDate") || "";
   const page = parseInt(searchParams.get("page") || "1");
-  const requestedLimit = parseInt(searchParams.get("limit") || "10");
-  // No limit cap - allow fetching all data
+  const rawLimit = searchParams.get("limit");
+  const isFetchAll = (searchParams.get("fetchAll") === "true") || (rawLimit && rawLimit.toLowerCase && rawLimit.toLowerCase() === "all");
+  const requestedLimit = parseInt(rawLimit || "10");
+  // No limit cap - allow fetching all data; when fetch-all, we'll skip LIMIT/OFFSET
   const limit = requestedLimit;
   const startDate = searchParams.get("tglawal") || "";
   const endDate = searchParams.get("tglakhir") || "";
@@ -111,11 +113,13 @@ export async function GET(request) {
       sql += ` ORDER BY patient_name ${sortOrder === "asc" ? "ASC" : "DESC"}`;
     }
     
-    // Apply pagination - ensure integers
-    const offset = Math.floor((page - 1) * limit);
-    sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+    // Apply pagination unless fetch-all requested
+    if (!isFetchAll) {
+      const offset = Math.floor((page - 1) * limit);
+      sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+    }
     
-    // Execute query (no params for LIMIT/OFFSET as they're interpolated)
+    // Execute query (no params for LIMIT/OFFSET when interpolated)
     const cachedVisits = await query(sql, params);
 
     // Transform cached data to match expected format
@@ -209,17 +213,17 @@ export async function GET(request) {
     });
 
     // Calculate pagination
-    const totalPages = Math.ceil(totalVisits / limit);
+    const totalPages = isFetchAll ? 1 : Math.ceil(totalVisits / limit);
 
     return NextResponse.json({
       data: visits,
       pagination: {
         total: totalVisits,
-        page,
-        limit,
+        page: isFetchAll ? 1 : page,
+        limit: isFetchAll ? totalVisits : limit,
         totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
+        hasNextPage: isFetchAll ? false : page < totalPages,
+        hasPrevPage: isFetchAll ? false : page > 1,
       },
     });
   } catch (error) {
@@ -304,13 +308,14 @@ export async function GET(request) {
       const countResult = await query(countSql, params);
       const totalVisits = countResult[0]?.total || 0;
 
-      // No cap limit - allow fetching all data
-      const safeLimit = limit;
-      const offset = (page - 1) * safeLimit;
-
-      // Add ordering and pagination
-      sql += " ORDER BY visit_date DESC, id DESC LIMIT ? OFFSET ?";
-      params.push(safeLimit, offset);
+      // Add ordering and optional pagination
+      sql += " ORDER BY visit_date DESC, id DESC";
+      if (!isFetchAll) {
+        const safeLimit = limit;
+        const offset = (page - 1) * safeLimit;
+        sql += " LIMIT ? OFFSET ?";
+        params.push(safeLimit, offset);
+      }
 
       const localVisits = await query(sql, params);
 
@@ -341,17 +346,17 @@ export async function GET(request) {
         },
       }));
 
-      const totalPages = Math.ceil(totalVisits / safeLimit);
+      const totalPages = isFetchAll ? 1 : Math.ceil(totalVisits / (limit || 1));
 
       return NextResponse.json({
         data: transformedVisits,
         pagination: {
-          page,
-          limit: safeLimit,
+          page: isFetchAll ? 1 : page,
+          limit: isFetchAll ? totalVisits : limit,
           total: totalVisits,
           totalPages,
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1,
+          hasNextPage: isFetchAll ? false : page < totalPages,
+          hasPrevPage: isFetchAll ? false : page > 1,
         },
       });
     } catch (dbError) {

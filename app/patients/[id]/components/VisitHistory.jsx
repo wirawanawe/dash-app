@@ -33,8 +33,8 @@ export default function VisitHistory({ mrNumber, patientId }) {
         setLoading(true);
         setError(null);
         
-        // Use the new paginated API endpoint
-        const response = await fetch(`/api/patients/${patientId}/visits?page=${currentPage}&limit=50`);
+        // Use useNik=true to fetch visits based on NIK (No.KTP) from the visits table
+        const response = await fetch(`/api/patients/${patientId}/visits?page=${currentPage}&limit=50&useNik=true`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

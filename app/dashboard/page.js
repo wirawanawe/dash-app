@@ -32,6 +32,7 @@ export default function Dashboard() {
     avgWaitTime: 0,
   });
   const [monthlyVisitsData, setMonthlyVisitsData] = useState([]);
+  const [facilitySeries, setFacilitySeries] = useState([]); // list of facility codes for multi-series chart
   const [mobileStats, setMobileStats] = useState({
     totalMobileUsers: 0,
     activeMobileUsers: 0,
@@ -117,7 +118,7 @@ export default function Dashboard() {
       const [todayVisits, monthlyVisits, allVisits] = await Promise.all([
         fetchVisits({ ...baseParams, searchDate: todayString, limit: 10000 }),
         fetchVisits({ ...baseParams, tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),
-        fetchVisits({ ...baseParams, limit: 999999 }), // Fetch semua data tanpa limit
+        fetchVisits({ ...baseParams, limit: 'all' }), // Fetch semua data tanpa limit
       ]);
 
       // Calculate statistics - Gunakan total dari pagination API, bukan length array
@@ -168,11 +169,20 @@ export default function Dashboard() {
         if (monthlyResponse.ok) {
           const monthlyData = await monthlyResponse.json();
           if (monthlyData.success) {
-            setMonthlyVisitsData(monthlyData.data);
+            setMonthlyVisitsData(monthlyData.data || []);
+            // Set facility series only when showing all clinics
+            if (!selectedClinic && monthlyData.meta?.facilities) {
+              setFacilitySeries(monthlyData.meta.facilities);
+            } else {
+              setFacilitySeries([]);
+            }
+          } else {
+            setFacilitySeries([]);
           }
         }
       } catch (err) {
         // Error fetching monthly data
+        setFacilitySeries([]);
       }
 
       setStats({
@@ -590,7 +600,7 @@ export default function Dashboard() {
                       fontWeight: '600',
                       fontSize: '16px'
                     }}
-                    formatter={(value) => [`${value} kunjungan`, 'Total']}
+                    formatter={(value, name) => [`${value} kunjungan`, name]}
                     labelFormatter={(label) => `Periode: ${label}`}
                   />
                   <Legend 
@@ -598,18 +608,37 @@ export default function Dashboard() {
                       paddingTop: '20px'
                     }}
                   />
-                  <Bar 
-                    dataKey="count" 
-                    fill="url(#colorGradient)" 
-                    name="Jumlah Kunjungan"
-                    radius={[8, 8, 0, 0]}
-                  />
-                  <defs>
-                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
-                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
-                    </linearGradient>
-                  </defs>
+                  {facilitySeries.length > 0 && !selectedClinic ? (
+                    <>
+                      {facilitySeries.map((code, idx) => {
+                        // color palette
+                        const palette = [
+                          '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#f43f5e', '#22c55e', '#eab308', '#a78bfa'
+                        ];
+                        const color = palette[idx % palette.length];
+                        const clinic = clinics.find(c => c.code === code);
+                        const name = clinic?.name || code;
+                        return (
+                          <Bar key={code} dataKey={code} fill={color} name={name} radius={[8, 8, 0, 0]} />
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <Bar 
+                        dataKey="count" 
+                        fill="url(#colorGradient)" 
+                        name="Jumlah Kunjungan"
+                        radius={[8, 8, 0, 0]}
+                      />
+                      <defs>
+                        <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
+                        </linearGradient>
+                      </defs>
+                    </>
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             ) : (

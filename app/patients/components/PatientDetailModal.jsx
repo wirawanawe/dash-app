@@ -51,6 +51,7 @@ export default function PatientDetailModal({ patient, onClose }) {
     startDate: "",
     endDate: ""
   });
+  const [clinicFilter, setClinicFilter] = useState("");
   
   // Family members state
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -121,59 +122,42 @@ export default function PatientDetailModal({ patient, onClose }) {
     }
   };
 
+  const getClinicOptions = () => {
+    const options = Array.from(
+      new Set(
+        (visitHistory || [])
+          .map(v => v?.clinic_name || v?.room || v?.Unit_Rawat?.[0]?.Nama_Unit)
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+    return options;
+  };
+
   const fetchVisitHistory = async () => {
-    if (!patient.mrNumber && !patient.mrn && !patient.id) return;
+    if (!patient.id) return;
     
     setLoadingVisits(true);
     try {
-      const mrNumber = patient.mrNumber || patient.mrn || patient.id;
       const patientId = patient.id;
-      
-      // Try to fetch from external API first (for legacy data)
       let visits = [];
       
+      // Fetch visits from internal database using NIK-based query
+      // This will fetch all visits where patient_nik matches OR patient_id matches
       try {
-        // Use the new fetchAll parameter to get all visits in one request
-        const externalResponse = await fetch(`/api/patients/visits?mrNumber=${mrNumber}&fetchAll=true`);
-        if (externalResponse.ok) {
-          const externalData = await externalResponse.json();
-          
-          // Handle different response formats from external API
-          if (Array.isArray(externalData)) {
-            visits = externalData;
-          } else if (externalData.data && Array.isArray(externalData.data)) {
-            visits = externalData.data;
-          } else if (externalData.visits && Array.isArray(externalData.visits)) {
-            visits = externalData.visits;
-          } else if (externalData.result && Array.isArray(externalData.result)) {
-            visits = externalData.result;
-          } else if (externalData.kunjungan && Array.isArray(externalData.kunjungan)) {
-            visits = externalData.kunjungan;
-          } else if (typeof externalData === 'object' && externalData !== null && !Array.isArray(externalData)) {
-            visits = [externalData];
+        const response = await fetch(`/api/patients/${patientId}/visits?limit=1000&page=1&useNik=true`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.data && Array.isArray(data.data)) {
+            visits = data.data;
           }
         }
-      } catch (externalError) {
-        // External API error
+      } catch (error) {
+        console.error("Error fetching visit history:", error);
       }
       
-      // If no visits from external API or patient has ID, try internal API
-      if (visits.length === 0 && patientId) {
-        try {
-          // Fetch all visits without pagination limit
-          const internalResponse = await fetch(`/api/patients/${patientId}/visits?limit=1000&page=1`);
-          if (internalResponse.ok) {
-            const internalData = await internalResponse.json();
-            if (internalData.data && Array.isArray(internalData.data)) {
-              visits = internalData.data;
-            }
-          }
-        } catch (internalError) {
-          // Internal API error
-        }
-      }
       setVisitHistory(visits);
     } catch (error) {
+      console.error("Error in fetchVisitHistory:", error);
       setVisitHistory([]);
     } finally {
       setLoadingVisits(false);
@@ -227,7 +211,7 @@ export default function PatientDetailModal({ patient, onClose }) {
       
       if (dateFilter.startDate || dateFilter.endDate) {
         filtered = visitHistory.filter(visit => {
-          const visitDate = new Date(visit.Tgl_Kunjungan);
+          const visitDate = new Date(visit.visit_date || visit.Tgl_Kunjungan);
           const startDate = dateFilter.startDate ? new Date(dateFilter.startDate) : null;
           const endDate = dateFilter.endDate ? new Date(dateFilter.endDate + 'T23:59:59') : null;
           
@@ -242,12 +226,19 @@ export default function PatientDetailModal({ patient, onClose }) {
           return true;
         });
       }
+
+      if (clinicFilter) {
+        filtered = filtered.filter(visit => {
+          const clinicName = visit?.clinic_name || visit?.room || visit?.Unit_Rawat?.[0]?.Nama_Unit || "";
+          return clinicName === clinicFilter;
+        });
+      }
       
       setFilteredVisits(filtered);
     } else {
       setFilteredVisits([]);
     }
-  }, [visitHistory, dateFilter]);
+  }, [visitHistory, dateFilter, clinicFilter]);
 
   const TabButton = ({ id, icon: Icon, label, isActive, onClick }) => (
     <button
@@ -1070,7 +1061,7 @@ export default function PatientDetailModal({ patient, onClose }) {
                       <FaCalendarAlt className="mr-2 text-gray-600" />
                       <span className="text-sm font-medium text-gray-700">Filter Pertanggal</span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
                           Dari Tanggal
@@ -1079,7 +1070,7 @@ export default function PatientDetailModal({ patient, onClose }) {
                           type="date"
                           value={dateFilter.startDate}
                           onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full text-black px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                       <div>
@@ -1090,12 +1081,27 @@ export default function PatientDetailModal({ patient, onClose }) {
                           type="date"
                           value={dateFilter.endDate}
                           onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full text-black px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Klinik/Unit
+                        </label>
+                        <select
+                          value={clinicFilter}
+                          onChange={(e) => setClinicFilter(e.target.value)}
+                          className="w-full text-black px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Semua Klinik</option>
+                          {getClinicOptions().map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex items-end space-x-2">
                         <button
-                          onClick={() => setDateFilter({ startDate: "", endDate: "" })}
+                          onClick={() => { setDateFilter({ startDate: "", endDate: "" }); setClinicFilter(""); }}
                           className="px-4 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200"
                         >
                           Reset Filter
@@ -1130,7 +1136,7 @@ export default function PatientDetailModal({ patient, onClose }) {
                         </button>
                       </div>
                     </div>
-                    {(dateFilter.startDate || dateFilter.endDate) && (
+                    {(dateFilter.startDate || dateFilter.endDate || clinicFilter) && (
                       <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">Filter Aktif:</span>
@@ -1142,6 +1148,8 @@ export default function PatientDetailModal({ patient, onClose }) {
                           {dateFilter.startDate && `Dari: ${formatDate(dateFilter.startDate)}`}
                           {dateFilter.startDate && dateFilter.endDate && " - "}
                           {dateFilter.endDate && `Sampai: ${formatDate(dateFilter.endDate)}`}
+                          {clinicFilter && (dateFilter.startDate || dateFilter.endDate) && ", "}
+                          {clinicFilter && `Klinik: ${clinicFilter}`}
                         </div>
                       </div>
                     )}
@@ -1213,44 +1221,44 @@ export default function PatientDetailModal({ patient, onClose }) {
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
-                                #{visit.No_Kunjungan || index + 1}
+                                #{visit.visit_number || visit.No_Kunjungan || index + 1}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {formatDate(visit.Tgl_Kunjungan)}
+                                {formatDate(visit.visit_date || visit.Tgl_Kunjungan)}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {visit.Unit_Rawat?.[0]?.Nama_Unit || "-"}
+                                {visit.clinic_name || visit.room || visit.Unit_Rawat?.[0]?.Nama_Unit || "-"}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {visit.Dokter?.[0]?.Nama_Dokter || "-"}
+                                {visit.doctor_name || visit.Dokter?.[0]?.Nama_Dokter || "-"}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {visit.Penjamin?.[0]?.Nama_Penjamin || "-"}
+                                {visit.payer || visit.Penjamin?.[0]?.Nama_Penjamin || "-"}
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.Rekam_Medis?.[0]?.Subject || "-"}>
-                                {visit.Rekam_Medis?.[0]?.Subject || "-"}
+                              <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.complaint || visit.Rekam_Medis?.[0]?.Subject || "-"}>
+                                {visit.complaint || visit.Rekam_Medis?.[0]?.Subject || "-"}
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.Rekam_Medis?.[0]?.Assesment || "-"}>
-                                {visit.Rekam_Medis?.[0]?.Assesment || "-"}
+                              <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.diagnosis || visit.assessment || visit.Rekam_Medis?.[0]?.Assesment || "-"}>
+                                {visit.diagnosis || visit.assessment || visit.Rekam_Medis?.[0]?.Assesment || "-"}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${
-                                visit.Keluar?.[0]?.Status ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                (visit.status === 'completed' || visit.status === 'Selesai' || visit.Keluar?.[0]?.Status) ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200"
                               }`}>
-                                {visit.Keluar?.[0]?.Status ? "Selesai" : "Aktif"}
+                                {(visit.status === 'completed' || visit.status === 'Selesai' || visit.Keluar?.[0]?.Status) ? "Selesai" : "Aktif"}
                               </span>
                             </td>
                           </tr>

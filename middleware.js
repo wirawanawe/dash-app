@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyJwtToken } from "./lib/auth";
 
 // Role hierarchy: Superadmin > Admin > Doctor > Staff
 const roleHierarchy = {
@@ -41,7 +42,7 @@ const routePermissions = {
   "/dashboard": "STAFF",
 };
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
   // Skip middleware for API routes, static files, and auth pages
@@ -56,12 +57,27 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Check if user is authenticated
+  // Check if user is authenticated and token is valid (1-hour session)
   const token = request.cookies.get("token");
   const apiToken = request.cookies.get("api_token");
 
   if (!token && !apiToken) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const url = new URL("/login", request.url);
+    url.searchParams.set("expired", "1");
+    return NextResponse.redirect(url);
+  }
+
+  // If token exists, verify it; if invalid/expired, force logout
+  if (token?.value) {
+    const payload = await verifyJwtToken(token.value);
+    if (!payload) {
+      const res = NextResponse.redirect(new URL("/login?expired=1", request.url));
+      // Clear cookies to ensure full logout
+      res.cookies.set("token", "", { path: "/", maxAge: 0 });
+      res.cookies.set("api_token", "", { path: "/", maxAge: 0 });
+      res.cookies.set("lastActivity", "", { path: "/", maxAge: 0 });
+      return res;
+    }
   }
 
   // For protected routes, check role permissions

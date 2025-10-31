@@ -64,6 +64,7 @@ export default function VisitsPage() {
     clinic: "",
     startDate: "",
     endDate: "",
+    facilityName: "",
   });
   const [appliedFilters, setAppliedFilters] = useState({
     status: "",
@@ -71,17 +72,20 @@ export default function VisitsPage() {
     clinic: "",
     startDate: "",
     endDate: "",
+    facilityName: "",
   });
   const [showFilters, setShowFilters] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [allDoctors, setAllDoctors] = useState([]); // Store all doctors
   const [clinics, setClinics] = useState([]);
+  const [facilityNames, setFacilityNames] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     today: 0,
     monthly: 0,
   });
+  const [facilityStats, setFacilityStats] = useState([]);
 
   const fetchVisits = async () => {
     try {
@@ -91,7 +95,7 @@ export default function VisitsPage() {
       const params = new URLSearchParams({
         search,
         page: "1",           // Always fetch from page 1
-        limit: "999999",     // Fetch all data (no limit)
+        limit: "all",        // Fetch all data (server-side no LIMIT)
         sortBy: "date",      // Sort by date
         sortOrder: "desc",   // Descending (terbaru dulu)
       });
@@ -124,6 +128,11 @@ export default function VisitsPage() {
         params.append("clinic", appliedFilters.clinic);
       }
 
+      // Add facility name (faskes) filter if exists
+      if (appliedFilters.facilityName) {
+        params.append("facilityName", appliedFilters.facilityName);
+      }
+
       const response = await fetch(`/api/visits?${params.toString()}`);
 
       if (!response.ok) {
@@ -141,19 +150,26 @@ export default function VisitsPage() {
         throw new Error("Invalid data format");
       }
 
+      // Apply optional client-side filter for facility name
+      let dataForClient = result.data || [];
+      if (appliedFilters.facilityName) {
+        const wanted = appliedFilters.facilityName.toLowerCase();
+        dataForClient = dataForClient.filter(v => (v?.facility?.name || "").toLowerCase() === wanted);
+      }
+
       // Store ALL visits data
-      setAllVisits(result.data);
+      setAllVisits(dataForClient);
       
       // Get total from API pagination (actual total from external API)
-      const totalData = result.pagination?.total || result.data.length;
-      const fetchedData = result.data.length;
+      const totalData = result.pagination?.total || dataForClient.length;
+      const fetchedData = dataForClient.length;
       // Calculate pages based on fetched data (what we can actually display)
       const totalPagesCalculated = Math.ceil(fetchedData / limit);
       
       // Apply pagination to get current page data
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
-      const paginatedData = result.data.slice(startIndex, endIndex);
+      const paginatedData = dataForClient.slice(startIndex, endIndex);
       
       setVisits(paginatedData);
       setMetadata({ total: totalData }); // Use actual total from API, not just fetched length
@@ -207,19 +223,22 @@ export default function VisitsPage() {
       const monthEnd = `${endOfMonth.getFullYear()}-${String(endOfMonth.getMonth() + 1).padStart(2, '0')}-${String(endOfMonth.getDate()).padStart(2, '0')}`;
 
       // Fetch all stats in parallel
-      const [totalResponse, todayResponse, monthlyResponse] = await Promise.all([
+      const [totalResponse, todayResponse, monthlyResponse, facilityStatsResponse] = await Promise.all([
         // Total: Fetch dengan limit besar, tanpa filter
         fetch('/api/visits?limit=999999'),
         // Today: Fetch dengan filter tanggal hari ini
         fetch(`/api/visits?searchDate=${todayString}&limit=999999`),
         // Monthly: Fetch dengan filter bulan ini
         fetch(`/api/visits?tglawal=${monthStart}&tglakhir=${monthEnd}&limit=999999`),
+        // Facility stats: Fetch breakdown by facility
+        fetch('/api/visits/facility-stats'),
       ]);
 
-      const [totalData, todayData, monthlyData] = await Promise.all([
+      const [totalData, todayData, monthlyData, facilityData] = await Promise.all([
         totalResponse.json(),
         todayResponse.json(),
         monthlyResponse.json(),
+        facilityStatsResponse.json(),
       ]);
 
       const totalCount = totalData.pagination?.total || 0;
@@ -229,6 +248,11 @@ export default function VisitsPage() {
         today: todayData.pagination?.total || 0,
         monthly: monthlyData.pagination?.total || 0,
       });
+
+      // Set facility stats
+      if (facilityData.success && facilityData.data) {
+        setFacilityStats(facilityData.data);
+      }
 
     } catch (error) {
 
@@ -247,6 +271,7 @@ export default function VisitsPage() {
     appliedFilters.status,
     appliedFilters.doctorId,
     appliedFilters.clinic,
+    appliedFilters.facilityName,
   ]);
 
   // Apply client-side pagination when page or limit changes
@@ -269,6 +294,14 @@ export default function VisitsPage() {
     fetchDoctorsAndClinics();
     fetchStats(); // Fetch stats on initial load
   }, []);
+
+  // Derive unique facility names (nama faskes) from current dataset
+  useEffect(() => {
+    const names = Array.from(
+      new Set((allVisits || []).map(v => v?.facility?.name).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+    setFacilityNames(names);
+  }, [allVisits]);
 
   // Refetch stats when visits data changes (e.g., after add/edit/delete)
   useEffect(() => {
@@ -411,26 +444,48 @@ export default function VisitsPage() {
       [name]: value,
     }));
     
-    // If Poli/clinic is changed, filter the doctors list
-    if (name === 'clinic') {
-      if (value) {
-        // Filter doctors based on selected Poli
-        const filteredDoctors = allDoctors.filter(doctor => 
-          doctor.polyclinics && doctor.polyclinics.includes(value)
-        );
+    // Recompute doctor options when Poli or Faskes changes
+    if (name === 'clinic' || name === 'facilityName') {
+      const nextFilters = { ...filters, [name]: value };
+
+      const hasClinic = !!nextFilters.clinic;
+      const hasFacility = !!nextFilters.facilityName;
+
+      if (hasClinic && hasFacility) {
+        // When both clinic and facility are selected, show doctors that appear
+        // in visits matching BOTH the selected clinic and facility
+        const allowedDoctorNames = Array.from(new Set(
+          (allVisits || [])
+            .filter(v =>
+              (v?.clinic || v?.room || '') === nextFilters.clinic &&
+              (v?.facility?.name || '') === nextFilters.facilityName
+            )
+            .map(v => v?.doctor?.name)
+            .filter(Boolean)
+        ));
+
+        const filteredDoctors = (allDoctors || []).filter(d => allowedDoctorNames.includes(d.name));
         setDoctors(filteredDoctors);
-        
-        // Reset doctor filter if current selected doctor is not in the filtered list
-        if (filters.doctorId && !filteredDoctors.some(d => d.name === filters.doctorId)) {
-          setFilters(prev => ({
-            ...prev,
-            [name]: value,
-            doctorId: '', // Reset doctor selection
-          }));
+
+        if (nextFilters.doctorId && !filteredDoctors.some(d => d.name === nextFilters.doctorId)) {
+          setFilters(prev => ({ ...prev, doctorId: '' }));
         }
-      } else {
-        // If Poli is cleared, show all doctors
-        setDoctors(allDoctors);
+      } else if (name === 'clinic') {
+        // Backward-compatible behavior: filter by clinic only
+        if (value) {
+          const filteredDoctors = allDoctors.filter(doctor => 
+            doctor.polyclinics && doctor.polyclinics.includes(value)
+          );
+          setDoctors(filteredDoctors);
+          if (filters.doctorId && !filteredDoctors.some(d => d.name === filters.doctorId)) {
+            setFilters(prev => ({ ...prev, doctorId: '' }));
+          }
+        } else {
+          setDoctors(allDoctors);
+        }
+      } else if (name === 'facilityName') {
+        // If only facility changes (no clinic), keep current behavior (do not narrow by facility only)
+        // so users can optionally select clinic to narrow further. No-op here.
       }
     }
     // Don't reset page or apply filters automatically
@@ -443,6 +498,7 @@ export default function VisitsPage() {
       clinic: "",
       startDate: "",
       endDate: "",
+      facilityName: "",
     });
     setAppliedFilters({
       status: "",
@@ -450,6 +506,7 @@ export default function VisitsPage() {
       clinic: "",
       startDate: "",
       endDate: "",
+      facilityName: "",
     });
     // Reset doctors list to show all doctors
     setDoctors(allDoctors);
@@ -593,6 +650,18 @@ export default function VisitsPage() {
               <p className="text-xs text-gray-500 mt-1">
                 Semua waktu
               </p>
+              {facilityStats.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {facilityStats.map((facility, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 font-medium">{facility.facilityCode}</span>
+                        <span className="text-gray-900 font-bold">{facility.total}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -619,6 +688,18 @@ export default function VisitsPage() {
               <p className="text-xs text-gray-500 mt-1">
                 {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
               </p>
+              {facilityStats.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {facilityStats.map((facility, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 font-medium">{facility.facilityCode}</span>
+                        <span className="text-gray-900 font-bold">{facility.monthly}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -645,6 +726,18 @@ export default function VisitsPage() {
               <p className="text-xs text-gray-500 mt-1">
                 {new Date().toLocaleDateString('id-ID')}
               </p>
+              {facilityStats.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {facilityStats.map((facility, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 font-medium">{facility.facilityCode}</span>
+                        <span className="text-gray-900 font-bold">{facility.today}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -769,6 +862,24 @@ export default function VisitsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Faskes
+                    </label>
+                    <select
+                      name="facilityName"
+                      value={filters.facilityName}
+                      onChange={handleFilterChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-black focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white/50 backdrop-blur-sm"
+                    >
+                      <option value="">Semua Faskes</option>
+                      {facilityNames.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Dokter
                     </label>
                     <select
@@ -828,7 +939,8 @@ export default function VisitsPage() {
             appliedFilters.endDate ||
             appliedFilters.status ||
             appliedFilters.doctorId ||
-            appliedFilters.clinic) && (
+            appliedFilters.clinic ||
+            appliedFilters.facilityName) && (
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="text-sm text-gray-600">Filter aktif:</span>
               {appliedFilters.startDate && (
@@ -898,6 +1010,20 @@ export default function VisitsPage() {
                       setDoctors(allDoctors);
                     }}
                     className="ml-2 text-orange-600 hover:text-orange-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {appliedFilters.facilityName && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  Faskes: {appliedFilters.facilityName}
+                  <button
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, facilityName: "" }));
+                      setAppliedFilters((prev) => ({ ...prev, facilityName: "" }));
+                    }}
+                    className="ml-2 text-amber-600 hover:text-amber-800"
                   >
                     ×
                   </button>

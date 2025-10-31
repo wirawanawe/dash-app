@@ -43,7 +43,8 @@ export default function PatientVisitHistory({ patientId }) {
     setError(null);
 
     try {
-      const url = `/api/patients/${patientId}/visits?page=${currentPage}&limit=50`;
+      // Use useNik=true to fetch visits based on NIK (No.KTP) from the visits table
+      const url = `/api/patients/${patientId}/visits?page=${currentPage}&limit=50&useNik=true`;
 
       const response = await fetch(url);
 

@@ -29,6 +29,8 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 export async function POST(request) {
   const startTime = Date.now();
   let syncLogId = null;
+  let failedCount = 0;
+  const sampleErrors = [];
   
   try {
 
@@ -102,7 +104,22 @@ export async function POST(request) {
       }
     }
 
-    // Step 3: Save to database
+    // Step 3: Preflight: ensure required columns exist in visits table
+    const requiredColumns = [
+      'external_id','visit_number','unique_id','patient_nik','patient_name','patient_nip',
+      'patient_no_peserta','patient_nama_peserta','patient_gender','patient_birth_date',
+      'patient_department','diagnosis','complaint','treatment','notes','assessment','status',
+      'clinic','room','visit_date','doctor_name','facility_code','facility_name','physical_exam',
+      'external_created_at','external_updated_at','synced_at'
+    ];
+    const columnsResult = await query(`SHOW COLUMNS FROM visits`);
+    const existingColumns = new Set(columnsResult.map(c => c.Field));
+    const missing = requiredColumns.filter(c => !existingColumns.has(c));
+    if (missing.length > 0) {
+      throw new Error(`Missing required columns in visits table: ${missing.join(', ')}`);
+    }
+
+    // Step 4: Save to database
     let insertedCount = 0;
     let updatedCount = 0;
     
@@ -273,7 +290,13 @@ export async function POST(request) {
             insertedCount++;
           }
         } catch (error) {
-
+          failedCount++;
+          if (sampleErrors.length < 5) {
+            sampleErrors.push({
+              external_id: visit?.ID || visit?.No_Kunjungan || null,
+              message: error.message,
+            });
+          }
         }
       }
 
@@ -289,10 +312,11 @@ export async function POST(request) {
         records_fetched = ?,
         records_updated = ?,
         records_inserted = ?,
+        records_failed = ?,
         completed_at = NOW(),
         duration_seconds = ?
       WHERE id = ?`,
-      [rawVisits.length, updatedCount, insertedCount, durationSeconds, syncLogId]
+      [rawVisits.length, updatedCount, insertedCount, failedCount, durationSeconds, syncLogId]
     );
     
     // Update sync schedule
@@ -310,8 +334,10 @@ export async function POST(request) {
         fetched: rawVisits.length,
         inserted: insertedCount,
         updated: updatedCount,
+        failed: failedCount,
         duration_seconds: durationSeconds
-      }
+      },
+      sampleErrors
     });
     
   } catch (error) {

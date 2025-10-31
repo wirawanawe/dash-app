@@ -9,49 +9,97 @@ export async function GET(request) {
     // Get facility_code from query params if provided
     const { searchParams } = new URL(request.url);
     const facilityCode = searchParams.get('facility_code');
-    
-    console.log('Fetching monthly visits with facility filter:', facilityCode);
-    
-    // Build SQL query with optional facility filter
-    let monthlyVisitsSql = `
+
+    // Build the last 12 months timeline (including current month), zero-filled
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1); // first day 11 months ago
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);    // last day current month
+
+    const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+    const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+      months.push({ month: key, label });
+    }
+
+    if (facilityCode) {
+      // Single clinic: aggregate by month and zero-fill
+      let sql = `
+        SELECT 
+          DATE_FORMAT(visit_date, '%Y-%m') as month,
+          COUNT(*) as count
+        FROM visits
+        WHERE DATE(visit_date) BETWEEN ? AND ?
+          AND facility_code = ?
+        GROUP BY DATE_FORMAT(visit_date, '%Y-%m')
+        ORDER BY month ASC
+      `;
+      const rows = await query(sql, [startStr, endStr, facilityCode]);
+      const countsByMonth = new Map(rows.map(r => [r.month, parseInt(r.count)]));
+
+      const data = months.map(m => ({
+        month: m.month,
+        label: m.label,
+        count: countsByMonth.get(m.month) || 0,
+      }));
+
+      return NextResponse.json({ success: true, data });
+    }
+
+    // All clinics: group by facility and month, zero-fill across 12 months
+    let sql = `
       SELECT 
         DATE_FORMAT(visit_date, '%Y-%m') as month,
+        facility_code as facilityCode,
         COUNT(*) as count
       FROM visits
-      WHERE visit_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-    `;
-    
-    const params = [];
-    
-    // Add facility filter if provided
-    if (facilityCode) {
-      monthlyVisitsSql += ` AND facility_code = ?`;
-      params.push(facilityCode);
-    }
-    
-    monthlyVisitsSql += `
-      GROUP BY DATE_FORMAT(visit_date, '%Y-%m')
+      WHERE DATE(visit_date) BETWEEN ? AND ?
+      GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), facility_code
       ORDER BY month ASC
     `;
+    const rows = await query(sql, [startStr, endStr]);
 
-    const monthlyData = await query(monthlyVisitsSql, params);
+    // Determine distinct facilities present in the data
+    const facilitySet = new Set(rows.map(r => r.facilityCode).filter(Boolean));
+    const facilityCodes = Array.from(facilitySet);
 
-    // Format data for chart
-    const formattedData = monthlyData.map(item => ({
-      month: item.month,
-      count: parseInt(item.count),
-      // Format bulan untuk display (e.g., "Jan 2024")
-      label: new Date(item.month + '-01').toLocaleDateString('id-ID', { 
-        month: 'short', 
-        year: 'numeric' 
-      })
-    }));
+    // Build chart rows with each facility as a separate series key
+    const monthRowMap = new Map(months.map(m => [m.month, { month: m.month, label: m.label }]));
+    // Initialize each month row with zero for each facility
+    monthRowMap.forEach(row => {
+      facilityCodes.forEach(code => {
+        row[code] = 0;
+      });
+      row.total = 0;
+    });
 
-    console.log(`Monthly visits data points: ${formattedData.length} (facility: ${facilityCode || 'all'})`);
+    rows.forEach(r => {
+      const row = monthRowMap.get(r.month);
+      if (!row) return;
+      const code = r.facilityCode || 'unknown';
+      if (row[code] === undefined) {
+        // Newly seen code after initialization: extend all rows
+        monthRowMap.forEach(rr => { rr[code] = 0; });
+        facilitySet.add(code);
+      }
+      const count = parseInt(r.count);
+      row[code] = (row[code] || 0) + count;
+      row.total += count;
+    });
+
+    const data = Array.from(monthRowMap.values());
+    const facilities = Array.from(facilitySet);
 
     return NextResponse.json({
       success: true,
-      data: formattedData
+      data,
+      meta: {
+        facilities,
+      }
     });
 
   } catch (error) {

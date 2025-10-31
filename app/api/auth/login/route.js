@@ -30,7 +30,7 @@ export async function POST(request) {
         clinic: null,
       };
 
-      // Create a JWT token
+      // Create a JWT token (1 hour expiry)
       const token = await new SignJWT({
         userId: superadminUser.id,
         id: superadminUser.id,
@@ -41,7 +41,7 @@ export async function POST(request) {
       })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("1d")
+        .setExpirationTime("1h")
         .sign(new TextEncoder().encode(process.env.JWT_SECRET));
 
       const response = NextResponse.json(
@@ -76,7 +76,7 @@ export async function POST(request) {
         clinic: null,
       };
 
-      // Create a JWT token
+      // Create a JWT token (1 hour expiry)
       const token = await new SignJWT({
         userId: adminUser.id,
         id: adminUser.id,
@@ -87,7 +87,7 @@ export async function POST(request) {
       })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("1d")
+        .setExpirationTime("1h")
         .sign(new TextEncoder().encode(process.env.JWT_SECRET));
 
       const response = NextResponse.json(
@@ -165,7 +165,7 @@ export async function POST(request) {
         }
       }
 
-      // Create a JWT token
+      // Create a JWT token (1 hour expiry)
       const token = await new SignJWT({
         userId: user.id,
         id: user.id,
@@ -176,7 +176,7 @@ export async function POST(request) {
       })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("1d")
+        .setExpirationTime("1h")
         .sign(new TextEncoder().encode(process.env.JWT_SECRET));
 
       // Format response user

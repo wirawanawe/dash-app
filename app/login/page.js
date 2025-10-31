@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { useAuth } from "@/components/Providers";
@@ -15,6 +15,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,6 +34,14 @@ export default function LoginPage() {
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Show popup when redirected due to expired session
+  useEffect(() => {
+    const expired = searchParams?.get("expired");
+    if (expired === "1") {
+      toast.error("Waktu login sudah habis. Silakan login kembali.");
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
