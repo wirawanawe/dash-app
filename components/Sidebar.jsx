@@ -23,6 +23,7 @@ import {
   FaUser,
   FaUserGraduate,
   FaTimes,
+  FaChartBar,
 } from "react-icons/fa";
 import { FaShield } from "react-icons/fa6";
 import { useAuth } from "./Providers";
@@ -53,6 +54,24 @@ const Sidebar = ({ onClose, collapsed = false, onToggleCollapse }) => {
 
   // Check if user has permission to access a menu
   const hasPermission = (menuKey) => {
+    // Role-based access for specific menus (bypass permission check)
+    const roleBasedAccess = {
+      'reports': ['ADMIN', 'SUPERADMIN'],
+      'users': ['ADMIN', 'SUPERADMIN'],
+      'settings': ['ADMIN', 'SUPERADMIN'],
+      'mobile': ['ADMIN', 'SUPERADMIN'],
+      'doctors': ['ADMIN', 'SUPERADMIN'],
+      'clinics': ['ADMIN', 'SUPERADMIN'],
+    };
+    
+    // Check role-based access first
+    if (roleBasedAccess[menuKey]) {
+      const allowedRoles = roleBasedAccess[menuKey];
+      if (user?.role && allowedRoles.includes(user.role.toUpperCase())) {
+        return true;
+      }
+    }
+    
     // If no permissions set, show all menus (backward compatibility)
     if (Object.keys(userPermissions).length === 0) {
       return true;
@@ -109,7 +128,7 @@ const Sidebar = ({ onClose, collapsed = false, onToggleCollapse }) => {
     },
     {
       title: "Reports",
-      icon: <FaCalendarCheck />,
+      icon: <FaChartBar />,
       submenu: [
         { title: "Report Kunjungan", path: "/reports/visits", menuKey: "reports" },
         { title: "Report Diagnosis", path: "/reports/diagnoses", menuKey: "reports" },

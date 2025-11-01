@@ -30,6 +30,7 @@ const routePermissions = {
   "/doctors": "ADMIN",
   "/clinics": "ADMIN",
   "/mobile": "ADMIN",
+  "/reports": "ADMIN",
   
   // Doctor and above routes
   "/examinations": "DOCTOR",
