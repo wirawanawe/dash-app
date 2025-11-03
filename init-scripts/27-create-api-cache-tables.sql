@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS sync_logs (
   records_fetched INT DEFAULT 0,
   records_updated INT DEFAULT 0,
   records_inserted INT DEFAULT 0,
+  records_failed INT DEFAULT 0,
   error_message TEXT,
   started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   completed_at TIMESTAMP NULL,

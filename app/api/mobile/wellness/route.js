@@ -36,7 +36,7 @@ export async function GET(request) {
     }
     
     // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM wellness_activities ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM available_habit_activities ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = countResult[0].total;
     
@@ -45,7 +45,7 @@ export async function GET(request) {
       SELECT 
         id, title, description, category, duration_minutes, 
         difficulty, points, is_active, created_at, updated_at
-      FROM wellness_activities 
+      FROM available_habit_activities 
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
@@ -81,9 +81,9 @@ export async function GET(request) {
     });
     
   } catch (error) {
-
+    console.error('❌ Error fetching wellness activities:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch wellness activities' },
+      { success: false, message: 'Failed to fetch wellness activities', error: error.message },
       { status: 500 }
     );
   }
@@ -111,7 +111,7 @@ export async function POST(request) {
     }
     
     const insertQuery = `
-      INSERT INTO wellness_activities (
+      INSERT INTO available_habit_activities (
         title, description, category, duration_minutes, 
         difficulty, points, is_active, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
@@ -119,7 +119,7 @@ export async function POST(request) {
     
     const result = await query(insertQuery, [
       name, description, category, duration_minutes || null,
-      difficulty || 'medium', points || 0, is_active
+      difficulty || 'easy', points || 0, is_active
     ]);
     
     return NextResponse.json({
@@ -129,9 +129,9 @@ export async function POST(request) {
     });
     
   } catch (error) {
-
+    console.error('❌ Error creating wellness activity:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to create wellness activity' },
+      { success: false, message: 'Failed to create wellness activity', error: error.message },
       { status: 500 }
     );
   }

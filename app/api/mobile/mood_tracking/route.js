@@ -20,7 +20,7 @@ export async function GET(request) {
         params.push(`%${search}%`, `%${search}%`);
       }
       if (mood) {
-        conditions.push('mood = ?');
+        conditions.push('mood_level = ?');
         params.push(mood);
       }
       whereClause = `WHERE ${conditions.join(' AND ')}`;
@@ -36,17 +36,22 @@ export async function GET(request) {
       SELECT 
         mt.id,
         mt.user_id,
-        mt.mood,
+        mt.mood_level as mood,
+        mt.stress_level,
         mt.energy_level,
-        mt.recorded_at,
+        mt.sleep_quality,
+        mt.tracking_date as recorded_at,
         mt.notes,
+        mt.activities,
+        mt.weather,
+        mt.location,
         mt.created_at,
         mt.updated_at,
         mu.name as user_name
       FROM mood_tracking mt
       LEFT JOIN mobile_users mu ON mt.user_id = mu.id
       ${whereClause}
-      ORDER BY mt.recorded_at DESC 
+      ORDER BY mt.tracking_date DESC 
       LIMIT ? OFFSET ?
     `;
 
@@ -74,9 +79,9 @@ export async function GET(request) {
       }
     });
   } catch (error) {
-
+    console.error('❌ Error fetching mood tracking data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch mood tracking data' },
+      { success: false, error: 'Failed to fetch mood tracking data', details: error.message },
       { status: 500 }
     );
   }
@@ -103,15 +108,19 @@ export async function POST(request) {
 
     const sql = `
       INSERT INTO mood_tracking (
-        user_id, mood, energy_level, recorded_at, notes, created_at, updated_at
+        user_id, mood_level, energy_level, tracking_date, notes, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
     `;
+
+    const trackingDate = recorded_at ? 
+      new Date(recorded_at).toISOString().split('T')[0] : 
+      new Date().toISOString().split('T')[0];
 
     const result = await query(sql, [
       user_id,
       mood,
       energy_level || null,
-      recorded_at || new Date().toISOString(),
+      trackingDate,
       notes || null
     ]);
 
@@ -121,9 +130,9 @@ export async function POST(request) {
       id: result.insertId
     });
   } catch (error) {
-
+    console.error('❌ Error creating mood tracking data:', error);
     return NextResponse.json(
-      { error: 'Failed to create mood tracking data' },
+      { success: false, error: 'Failed to create mood tracking data', details: error.message },
       { status: 500 }
     );
   }

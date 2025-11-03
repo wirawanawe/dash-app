@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
+import { syncOnPageLoad, syncOnNavigation } from "@/utils/syncUtils";
 
 const AuthContext = createContext();
 
@@ -92,12 +93,24 @@ export function Providers({ children }) {
     }
   };
 
-  // Check auth on mount
+  // Check auth on mount and trigger initial sync
   useEffect(() => {
     if (!mounted) return;
     checkAuth();
+    
+    // Trigger sync on page load/refresh
+    syncOnPageLoad();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
+
+  // Trigger sync on page navigation
+  useEffect(() => {
+    if (!mounted || !user) return;
+    
+    // Sync when user navigates to a new page
+    syncOnNavigation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, mounted, user]);
 
   // Setup activity tracking and session timeout
   useEffect(() => {

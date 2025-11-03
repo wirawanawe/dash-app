@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { useAuth } from "@/components/Providers";
+import { syncOnLogin } from "@/utils/syncUtils";
 import { 
   Mail, 
   Lock, 
@@ -86,6 +87,10 @@ export default function LoginClient() {
 
       setUser(userData);
       toast.success("Login berhasil! Selamat datang di PHC Dashboard");
+      
+      // Trigger sync after successful login
+      syncOnLogin();
+      
       router.push("/dashboard");
     } catch (error) {
       toast.error(error.message || "Login gagal");
