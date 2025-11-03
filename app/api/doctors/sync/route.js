@@ -158,31 +158,24 @@ export async function POST(request) {
         const primaryClinicName = doctor.clinics[0];
         const clinicId = primaryClinicName ? clinicIdMap.get(primaryClinicName) : null;
         
-        // Check if doctor already exists
-        const existing = await query(
-          'SELECT id, clinic_id FROM doctors WHERE name = ? LIMIT 1',
-          [doctor.name]
+        // Use INSERT ... ON DUPLICATE KEY UPDATE to handle both insert and update atomically
+        // Only update clinic_id if the new value is not null (preserve existing clinic_id)
+        const result = await query(
+          `INSERT INTO doctors (name, specialist, license_number, clinic_id, created_at, updated_at) 
+           VALUES (?, NULL, NULL, ?, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+             clinic_id = COALESCE(?, clinic_id),
+             updated_at = NOW()`,
+          [doctor.name, clinicId, clinicId]
         );
         
-        if (existing.length > 0) {
-          // Update doctor with clinic_id if it's null or different
-          if (!existing[0].clinic_id && clinicId) {
-            await query(
-              `UPDATE doctors SET clinic_id = ?, updated_at = NOW() WHERE id = ?`,
-              [clinicId, existing[0].id]
-            );
-            updatedCount++;
-          } else {
-            skippedCount++;
-          }
-        } else {
-          // Insert new doctor with clinic_id
-          await query(
-            `INSERT INTO doctors (name, specialist, license_number, clinic_id, created_at, updated_at) 
-             VALUES (?, NULL, NULL, ?, NOW(), NOW())`,
-            [doctor.name, clinicId]
-          );
+        // affectedRows: 1 = inserted, 2 = updated, 0 = no change
+        if (result.affectedRows === 1) {
           addedCount++;
+        } else if (result.affectedRows === 2) {
+          updatedCount++;
+        } else {
+          skippedCount++;
         }
       } catch (error) {
         console.error(`Error saving doctor ${doctor.name}:`, error);

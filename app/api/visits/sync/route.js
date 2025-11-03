@@ -132,15 +132,8 @@ export async function POST(request) {
         try {
           const externalId = visit.ID || visit.No_Kunjungan;
           if (!externalId) {
-
             continue;
           }
-          
-          // Check if visit already exists
-          const existing = await query(
-            `SELECT id FROM visits WHERE external_id = ? LIMIT 1`,
-            [externalId]
-          );
           
           // Prepare data
           const visitData = {
@@ -183,111 +176,82 @@ export async function POST(request) {
             external_updated_at: visit.audittrail?.updated_at || null,
           };
           
-          if (existing.length > 0) {
-            // Update existing record
-            await query(
-              `UPDATE visits SET
-                visit_number = ?,
-                unique_id = ?,
-                patient_nik = ?,
-                patient_name = ?,
-                patient_nip = ?,
-                patient_no_peserta = ?,
-                patient_nama_peserta = ?,
-                patient_gender = ?,
-                patient_birth_date = ?,
-                patient_department = ?,
-                diagnosis = ?,
-                complaint = ?,
-                treatment = ?,
-                notes = ?,
-                assessment = ?,
-                status = ?,
-                clinic = ?,
-                room = ?,
-                visit_date = ?,
-                doctor_name = ?,
-                facility_code = ?,
-                facility_name = ?,
-                physical_exam = ?,
-                external_created_at = ?,
-                external_updated_at = ?,
-                synced_at = NOW()
-              WHERE external_id = ?`,
-              [
-                visitData.visit_number,
-                visitData.unique_id,
-                visitData.patient_nik,
-                visitData.patient_name,
-                visitData.patient_nip,
-                visitData.patient_no_peserta,
-                visitData.patient_nama_peserta,
-                visitData.patient_gender,
-                visitData.patient_birth_date,
-                visitData.patient_department,
-                visitData.diagnosis,
-                visitData.complaint,
-                visitData.treatment,
-                visitData.notes,
-                visitData.assessment,
-                visitData.status,
-                visitData.clinic,
-                visitData.room,
-                visitData.visit_date,
-                visitData.doctor_name,
-                visitData.facility_code,
-                visitData.facility_name,
-                visitData.physical_exam,
-                visitData.external_created_at,
-                visitData.external_updated_at,
-                visitData.external_id
-              ]
-            );
-            updatedCount++;
-          } else {
-            // Insert new record
-            await query(
-              `INSERT INTO visits (
-                external_id, visit_number, unique_id,
-                patient_nik, patient_name, patient_nip,
-                patient_no_peserta, patient_nama_peserta,
-                patient_gender, patient_birth_date, patient_department,
-                diagnosis, complaint, treatment, notes, assessment,
-                status, clinic, room, visit_date,
-                doctor_name, facility_code, facility_name,
-                physical_exam, external_created_at, external_updated_at,
-                synced_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-              [
-                visitData.external_id,
-                visitData.visit_number,
-                visitData.unique_id,
-                visitData.patient_nik,
-                visitData.patient_name,
-                visitData.patient_nip,
-                visitData.patient_no_peserta,
-                visitData.patient_nama_peserta,
-                visitData.patient_gender,
-                visitData.patient_birth_date,
-                visitData.patient_department,
-                visitData.diagnosis,
-                visitData.complaint,
-                visitData.treatment,
-                visitData.notes,
-                visitData.assessment,
-                visitData.status,
-                visitData.clinic,
-                visitData.room,
-                visitData.visit_date,
-                visitData.doctor_name,
-                visitData.facility_code,
-                visitData.facility_name,
-                visitData.physical_exam,
-                visitData.external_created_at,
-                visitData.external_updated_at
-              ]
-            );
+          // Use INSERT ... ON DUPLICATE KEY UPDATE to handle both insert and update atomically
+          // This prevents race conditions and duplicate entry errors
+          const result = await query(
+            `INSERT INTO visits (
+              external_id, visit_number, unique_id,
+              patient_nik, patient_name, patient_nip,
+              patient_no_peserta, patient_nama_peserta,
+              patient_gender, patient_birth_date, patient_department,
+              diagnosis, complaint, treatment, notes, assessment,
+              status, clinic, room, visit_date,
+              doctor_name, facility_code, facility_name,
+              physical_exam, external_created_at, external_updated_at,
+              synced_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+              visit_number = VALUES(visit_number),
+              unique_id = VALUES(unique_id),
+              patient_nik = VALUES(patient_nik),
+              patient_name = VALUES(patient_name),
+              patient_nip = VALUES(patient_nip),
+              patient_no_peserta = VALUES(patient_no_peserta),
+              patient_nama_peserta = VALUES(patient_nama_peserta),
+              patient_gender = VALUES(patient_gender),
+              patient_birth_date = VALUES(patient_birth_date),
+              patient_department = VALUES(patient_department),
+              diagnosis = VALUES(diagnosis),
+              complaint = VALUES(complaint),
+              treatment = VALUES(treatment),
+              notes = VALUES(notes),
+              assessment = VALUES(assessment),
+              status = VALUES(status),
+              clinic = VALUES(clinic),
+              room = VALUES(room),
+              visit_date = VALUES(visit_date),
+              doctor_name = VALUES(doctor_name),
+              facility_code = VALUES(facility_code),
+              facility_name = VALUES(facility_name),
+              physical_exam = VALUES(physical_exam),
+              external_created_at = VALUES(external_created_at),
+              external_updated_at = VALUES(external_updated_at),
+              synced_at = NOW()`,
+            [
+              visitData.external_id,
+              visitData.visit_number,
+              visitData.unique_id,
+              visitData.patient_nik,
+              visitData.patient_name,
+              visitData.patient_nip,
+              visitData.patient_no_peserta,
+              visitData.patient_nama_peserta,
+              visitData.patient_gender,
+              visitData.patient_birth_date,
+              visitData.patient_department,
+              visitData.diagnosis,
+              visitData.complaint,
+              visitData.treatment,
+              visitData.notes,
+              visitData.assessment,
+              visitData.status,
+              visitData.clinic,
+              visitData.room,
+              visitData.visit_date,
+              visitData.doctor_name,
+              visitData.facility_code,
+              visitData.facility_name,
+              visitData.physical_exam,
+              visitData.external_created_at,
+              visitData.external_updated_at
+            ]
+          );
+          
+          // affectedRows: 1 = inserted, 2 = updated
+          if (result.affectedRows === 1) {
             insertedCount++;
+          } else if (result.affectedRows === 2) {
+            updatedCount++;
           }
         } catch (error) {
           failedCount++;

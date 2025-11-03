@@ -114,12 +114,6 @@ export async function POST(request) {
             continue;
           }
           
-          // Check if patient already exists
-          const existing = await query(
-            `SELECT id FROM patients WHERE external_id = ? LIMIT 1`,
-            [String(externalId)]
-          );
-          
           // Prepare data - handle different field name formats
           const rawGender = patient.gender || patient.JENIS_KELAMIN || patient.Jenis_Kelamin || '';
           // Map gender to ENUM format (handle Indonesian: Laki-laki/Perempuan)
@@ -161,69 +155,51 @@ export async function POST(request) {
             external_updated_at: patient.updated_at || patient.UPDATED_AT || null,
           };
           
-          if (existing.length > 0) {
-            // Update existing record
-            await query(
-              `UPDATE patients SET
-                mrn = ?,
-                nik = ?,
-                name = ?,
-                nip = ?,
-                no_peserta = ?,
-                nama_peserta = ?,
-                bagian = ?,
-                birthdate = ?,
-                gender = ?,
-                address = ?,
-                phone = ?,
-                email = ?,
-                insurance_number = ?,
-                updated_at = NOW()
-              WHERE external_id = ?`,
-              [
-                patientData.mrn,
-                patientData.nik,
-                patientData.name,
-                patientData.nip,
-                patientData.no_peserta,
-                patientData.nama_peserta,
-                patientData.bagian,
-                patientData.birth_date,
-                patientData.gender,
-                patientData.address,
-                patientData.phone,
-                patientData.email,
-                patientData.insurance,
-                patientData.external_id
-              ]
-            );
-            updatedCount++;
-          } else {
-            // Insert new record
-            await query(
-              `INSERT INTO patients (
-                external_id, mrn, nik, name, nip, no_peserta, nama_peserta, bagian,
-                birthdate, gender, address, phone, email, insurance_number,
-                created_at, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-              [
-                patientData.external_id,
-                patientData.mrn,
-                patientData.nik,
-                patientData.name,
-                patientData.nip,
-                patientData.no_peserta,
-                patientData.nama_peserta,
-                patientData.bagian,
-                patientData.birth_date,
-                patientData.gender,
-                patientData.address,
-                patientData.phone,
-                patientData.email,
-                patientData.insurance
-              ]
-            );
+          // Use INSERT ... ON DUPLICATE KEY UPDATE to handle both insert and update atomically
+          const result = await query(
+            `INSERT INTO patients (
+              external_id, mrn, nik, name, nip, no_peserta, nama_peserta, bagian,
+              birthdate, gender, address, phone, email, insurance_number,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+              mrn = VALUES(mrn),
+              nik = VALUES(nik),
+              name = VALUES(name),
+              nip = VALUES(nip),
+              no_peserta = VALUES(no_peserta),
+              nama_peserta = VALUES(nama_peserta),
+              bagian = VALUES(bagian),
+              birthdate = VALUES(birthdate),
+              gender = VALUES(gender),
+              address = VALUES(address),
+              phone = VALUES(phone),
+              email = VALUES(email),
+              insurance_number = VALUES(insurance_number),
+              updated_at = NOW()`,
+            [
+              patientData.external_id,
+              patientData.mrn,
+              patientData.nik,
+              patientData.name,
+              patientData.nip,
+              patientData.no_peserta,
+              patientData.nama_peserta,
+              patientData.bagian,
+              patientData.birth_date,
+              patientData.gender,
+              patientData.address,
+              patientData.phone,
+              patientData.email,
+              patientData.insurance
+            ]
+          );
+          
+          // affectedRows: 1 = inserted, 2 = updated
+          if (result.affectedRows === 1) {
             insertedCount++;
+          } else if (result.affectedRows === 2) {
+            updatedCount++;
           }
         } catch (error) {
           // Error processing patient
