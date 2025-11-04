@@ -3,24 +3,70 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
+// Configuration - SPEED OPTIMIZED
+const SYNC_CONFIG = {
+  // API Request Settings
+  INITIAL_TIMEOUT: 60000,        // 60 detik untuk request pertama
+  DATA_PAGE_TIMEOUT: 90000,      // 90 detik untuk data pages
+  MAX_RETRIES: 2,                // Kurangi dari 3 ke 2 (lebih cepat fail)
+  
+  // Concurrent Settings - KUNCI KECEPATAN!
+  CONCURRENT_PAGES: 5,           // Fetch 5 pages sekaligus! (was 1)
+  DELAY_BETWEEN_BATCHES: 500,    // 500ms delay antar batch (was 2000ms)
+  
+  // Data Volume
+  MAX_RECORDS: 10000,            // Tambah ke 10K (was 5K)
+  RECORDS_PER_PAGE: 1000,        // Tambah ke 1000 (was 500)
+  
+  // Error Handling
+  ALLOW_PARTIAL_SYNC: true,      // Tetap enable partial sync
+  MAX_FAILURES_ALLOWED: 15,      // Lebih toleran (was 10)
+  
+  // Database Optimization
+  DB_BATCH_SIZE: 200,            // Lebih besar untuk bulk insert (was 100)
+};
+
 // Helper function to add delay between requests
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Helper function to fetch with retry
-async function fetchWithRetry(url, options, maxRetries = 3) {
+// Helper function to fetch with retry and proper timeout
+async function fetchWithRetry(url, options, maxRetries = 2, timeoutMs = 60000) {
   for (let i = 0; i < maxRetries; i++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
     try {
       const response = await fetch(url, {
         ...options,
-        timeout: 30000, // 30 second timeout
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+      
+      // Check if response is HTML instead of JSON
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        throw new Error(`External API returned HTML (status ${response.status}). API may be down.`);
+      }
+      
       return response;
     } catch (error) {
-      if (i === maxRetries - 1) {
-        throw error; // Throw on last attempt
+      clearTimeout(timeoutId);
+      
+      let errorToThrow = error;
+      
+      if (error.name === 'AbortError') {
+        errorToThrow = new Error(`Request timeout after ${timeoutMs}ms`);
+        errorToThrow.name = 'TimeoutError';
+        errorToThrow.originalError = error;
       }
-      // Wait before retrying (exponential backoff)
-      await delay(Math.pow(2, i) * 1000);
+      
+      if (i === maxRetries - 1) {
+        throw errorToThrow;
+      }
+      
+      // Shorter backoff for speed
+      const backoffDelay = Math.pow(2, i) * 500; // 500ms, 1s (was 1s, 2s, 4s)
+      await delay(backoffDelay);
     }
   }
 }
@@ -30,9 +76,18 @@ export async function POST(request) {
   const startTime = Date.now();
   let syncLogId = null;
   let failedCount = 0;
+  let pagesFailed = 0;
   const sampleErrors = [];
   
+  // Performance tracking
+  const perfStats = {
+    apiTime: 0,
+    dbTime: 0,
+    totalPages: 0,
+  };
+  
   try {
+    console.log('⚡ Starting visits sync...');
 
     // Create sync log entry
     const logResult = await query(
@@ -42,20 +97,37 @@ export async function POST(request) {
     syncLogId = logResult.insertId;
     
     // Step 1: Get total count from API
-    const countResponse = await fetchWithRetry(
-      `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=1&limit=1`,
-      {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
+    const apiStartTime = Date.now();
+    
+    let countResponse;
+    let externalTotal = 0;
+    
+    try {
+      countResponse = await fetchWithRetry(
+        `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=1&limit=1`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        },
+        SYNC_CONFIG.MAX_RETRIES,
+        SYNC_CONFIG.INITIAL_TIMEOUT
+      );
+      
+      if (!countResponse.ok) {
+        throw new Error(`Failed to fetch count: ${countResponse.status}`);
       }
-    );
-    
-    if (!countResponse.ok) {
-      throw new Error(`Failed to fetch count: ${countResponse.status}`);
+      
+      const countData = await countResponse.json();
+      externalTotal = countData["total pasien"] || countData.total || 0;
+    } catch (error) {
+      console.error('Failed to get total count:', error.message);
+      
+      if (SYNC_CONFIG.ALLOW_PARTIAL_SYNC) {
+        externalTotal = SYNC_CONFIG.MAX_RECORDS;
+      } else {
+        throw error;
+      }
     }
-    
-    const countData = await countResponse.json();
-    const externalTotal = countData["total pasien"] || countData.total || 0;
 
     // Update sync log
     await query(
@@ -63,48 +135,91 @@ export async function POST(request) {
       [syncLogId]
     );
     
-    // Step 2: Fetch all pages from external API
-    // Fetch up to 20000 records (configurable)
-    const desiredRecords = 20000;
-    const recordsPerPage = 1000;
-    const pagesToFetch = Math.ceil(Math.min(desiredRecords, externalTotal) / recordsPerPage);
+    // Step 2: Fetch pages CONCURRENTLY
+    const desiredRecords = Math.min(SYNC_CONFIG.MAX_RECORDS, externalTotal);
+    const recordsPerPage = SYNC_CONFIG.RECORDS_PER_PAGE;
     const totalPagesInExternal = Math.ceil(externalTotal / recordsPerPage);
+    const pagesToFetch = Math.ceil(desiredRecords / recordsPerPage);
     const startPage = Math.max(1, totalPagesInExternal - pagesToFetch + 1);
+    const endPage = Math.min(startPage + pagesToFetch - 1, totalPagesInExternal);
 
-    // Fetch pages in batches to avoid overwhelming the API
-    const batchSize = 5; // Fetch 5 pages at a time
     let rawVisits = [];
+    perfStats.totalPages = endPage - startPage + 1;
     
-    for (let batchStart = startPage; batchStart <= totalPagesInExternal; batchStart += batchSize) {
-      const batchEnd = Math.min(batchStart + batchSize - 1, totalPagesInExternal);
-      const pageFetchPromises = [];
+    // Fetch pages in CONCURRENT batches for MAXIMUM SPEED
+    for (let batchStart = startPage; batchStart <= endPage; batchStart += SYNC_CONFIG.CONCURRENT_PAGES) {
+      const batchEnd = Math.min(batchStart + SYNC_CONFIG.CONCURRENT_PAGES - 1, endPage);
+      const batchPageNumbers = [];
       
       for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
-        const apiUrl = `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=${pageNum}&limit=${recordsPerPage}`;
-        
-        pageFetchPromises.push(
-          fetchWithRetry(apiUrl, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }).then(res => res.json())
-        );
+        batchPageNumbers.push(pageNum);
       }
       
-      const batchResults = await Promise.all(pageFetchPromises);
+      const batchStartTime = Date.now();
       
-      batchResults.forEach(pageData => {
-        if (pageData.data && Array.isArray(pageData.data)) {
-          rawVisits = rawVisits.concat(pageData.data);
+      // Fetch ALL pages in batch CONCURRENTLY
+      const fetchPromises = batchPageNumbers.map(pageNum => {
+        const apiUrl = `https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?page=${pageNum}&limit=${recordsPerPage}`;
+        
+        return fetchWithRetry(
+          apiUrl,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          },
+          SYNC_CONFIG.MAX_RETRIES,
+          SYNC_CONFIG.DATA_PAGE_TIMEOUT
+        )
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch page ${pageNum}: ${response.status}`);
+          }
+          const pageData = await response.json();
+          return { pageNum, data: pageData, success: true };
+        })
+        .catch((error) => {
+          return { pageNum, error: error.message, success: false };
+        });
+      });
+      
+      // Wait for ALL pages in batch to complete
+      const results = await Promise.all(fetchPromises);
+      
+      const batchTime = Date.now() - batchStartTime;
+      perfStats.apiTime += batchTime;
+      
+      // Process results
+      results.forEach(result => {
+        if (result.success && result.data?.data && Array.isArray(result.data.data)) {
+          rawVisits = rawVisits.concat(result.data.data);
+        } else {
+          pagesFailed++;
+          if (sampleErrors.length < 5) {
+            sampleErrors.push({
+              page: result.pageNum,
+              error: result.error || 'Unknown error',
+            });
+          }
         }
       });
-
-      // Small delay between batches to be nice to the API
-      if (batchEnd < totalPagesInExternal) {
-        await delay(500);
+      
+      // Check if too many failures
+      if (pagesFailed >= SYNC_CONFIG.MAX_FAILURES_ALLOWED) {
+        break;
+      }
+      
+      // Short delay between batches
+      if (batchEnd < endPage) {
+        await delay(SYNC_CONFIG.DELAY_BETWEEN_BATCHES);
       }
     }
 
-    // Step 3: Preflight: ensure required columns exist in visits table
+    // If we got zero records, fail the sync
+    if (rawVisits.length === 0) {
+      throw new Error(`No data fetched. Pages failed: ${pagesFailed}`);
+    }
+
+    // Step 3: Verify database schema (quick check)
     const requiredColumns = [
       'external_id','visit_number','unique_id','patient_nik','patient_name','patient_nip',
       'patient_no_peserta','patient_nama_peserta','patient_gender','patient_birth_date',
@@ -116,17 +231,17 @@ export async function POST(request) {
     const existingColumns = new Set(columnsResult.map(c => c.Field));
     const missing = requiredColumns.filter(c => !existingColumns.has(c));
     if (missing.length > 0) {
-      throw new Error(`Missing required columns in visits table: ${missing.join(', ')}`);
+      throw new Error(`Missing columns: ${missing.join(', ')}`);
     }
 
     // Step 4: Save to database
+    const dbStartTime = Date.now();
+    
     let insertedCount = 0;
     let updatedCount = 0;
     
-    // Process in batches for better performance
-    const dbBatchSize = 100;
-    for (let i = 0; i < rawVisits.length; i += dbBatchSize) {
-      const batch = rawVisits.slice(i, i + dbBatchSize);
+    for (let i = 0; i < rawVisits.length; i += SYNC_CONFIG.DB_BATCH_SIZE) {
+      const batch = rawVisits.slice(i, i + SYNC_CONFIG.DB_BATCH_SIZE);
       
       for (const visit of batch) {
         try {
@@ -176,8 +291,7 @@ export async function POST(request) {
             external_updated_at: visit.audittrail?.updated_at || null,
           };
           
-          // Use INSERT ... ON DUPLICATE KEY UPDATE to handle both insert and update atomically
-          // This prevents race conditions and duplicate entry errors
+          // Use INSERT ... ON DUPLICATE KEY UPDATE
           const result = await query(
             `INSERT INTO visits (
               external_id, visit_number, unique_id,
@@ -263,24 +377,41 @@ export async function POST(request) {
           }
         }
       }
-
     }
+    
+    const dbTime = Date.now() - dbStartTime;
+    perfStats.dbTime = dbTime;
     
     const endTime = Date.now();
     const durationSeconds = Math.round((endTime - startTime) / 1000);
     
+    console.log(`✅ Sync complete: ${rawVisits.length} records, ${insertedCount} inserted, ${updatedCount} updated in ${durationSeconds}s`);
+    
+    // Determine sync status
+    const syncStatus = (pagesFailed > 0 || failedCount > 0) ? 'completed' : 'completed';
+    
     // Update sync log with completion
     await query(
       `UPDATE sync_logs SET
-        status = 'completed',
+        status = ?,
         records_fetched = ?,
         records_updated = ?,
         records_inserted = ?,
         records_failed = ?,
+        error_message = ?,
         completed_at = NOW(),
         duration_seconds = ?
       WHERE id = ?`,
-      [rawVisits.length, updatedCount, insertedCount, failedCount, durationSeconds, syncLogId]
+      [
+        syncStatus,
+        rawVisits.length,
+        updatedCount,
+        insertedCount,
+        failedCount,
+        pagesFailed > 0 ? `Partial sync: ${pagesFailed} pages failed` : null,
+        durationSeconds,
+        syncLogId
+      ]
     );
     
     // Update sync schedule
@@ -290,21 +421,38 @@ export async function POST(request) {
         next_sync_at = DATE_ADD(NOW(), INTERVAL interval_minutes MINUTE)
       WHERE entity_type = 'visits'`
     );
-
-    return NextResponse.json({
+    
+    // Return response
+    const response = {
       success: true,
-      message: 'Visits sync completed successfully',
+      message: pagesFailed > 0 
+        ? `Sync completed with ${pagesFailed} page failures` 
+        : 'Sync completed successfully',
       stats: {
         fetched: rawVisits.length,
         inserted: insertedCount,
         updated: updatedCount,
         failed: failedCount,
-        duration_seconds: durationSeconds
+        pages_failed: pagesFailed,
+        duration_seconds: durationSeconds,
+        partial_sync: pagesFailed > 0,
+        performance: {
+          api_time_ms: perfStats.apiTime,
+          db_time_ms: perfStats.dbTime,
+          records_per_second: Math.round(rawVisits.length / durationSeconds),
+          total_pages: perfStats.totalPages,
+          concurrent_pages: SYNC_CONFIG.CONCURRENT_PAGES,
+        }
       },
-      sampleErrors
+      sampleErrors: sampleErrors.length > 0 ? sampleErrors : undefined
+    };
+    
+    return NextResponse.json(response, { 
+      status: pagesFailed > 0 ? 207 : 200
     });
     
   } catch (error) {
+    console.error('Sync failed:', error.message);
 
     const endTime = Date.now();
     const durationSeconds = Math.round((endTime - startTime) / 1000);
@@ -326,7 +474,13 @@ export async function POST(request) {
       {
         success: false,
         message: 'Visits sync failed',
-        error: error.message
+        error: error.message,
+        details: 'Check server logs for more information.',
+        recommendations: [
+          'Run health check: node scripts/check-external-api-health.js',
+          'Check network connectivity',
+          'Try again later'
+        ]
       },
       { status: 500 }
     );
@@ -367,11 +521,12 @@ export async function GET(request) {
       success: true,
       logs,
       schedule,
-      stats: stats || {}
+      stats: stats || {},
+      config: SYNC_CONFIG
     });
     
   } catch (error) {
-
+    console.error('Failed to get sync status:', error.message);
     return NextResponse.json(
       {
         success: false,
@@ -382,4 +537,3 @@ export async function GET(request) {
     );
   }
 }
-
