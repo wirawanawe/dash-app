@@ -60,11 +60,12 @@ export async function GET(request) {
   const status = searchParams.get("status");
   const doctorId = searchParams.get("doctorId");
   const clinic = searchParams.get("clinic");
+  const facilityName = searchParams.get("facilityName");
   
   // Check cache only for non-search queries (searches should be fresh)
-  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic);
+  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic || facilityName);
   const cacheKey = responseCache.generateKey('GET', '/api/visits', {
-    page, limit, sortBy, sortOrder, search, searchDate, startDate, endDate, status, doctorId, clinic
+    page, limit, sortBy, sortOrder, search, searchDate, startDate, endDate, status, doctorId, clinic, facilityName
   });
   
   if (!hasSearchOrFilters) {
@@ -129,6 +130,12 @@ export async function GET(request) {
     if (clinic) {
       sql += ` AND (clinic LIKE ? OR room LIKE ?)`;
       params.push(`%${clinic}%`, `%${clinic}%`);
+    }
+    
+    // Apply facility name filter
+    if (facilityName) {
+      sql += ` AND facility_name = ?`;
+      params.push(facilityName);
     }
     
     // Get total count for pagination (with caching)
@@ -354,6 +361,12 @@ export async function GET(request) {
       if (doctorId) {
         conditions.push("doctor_name LIKE ?");
         params.push(`%${doctorId}%`);
+      }
+      
+      // Add facility name filter (exact match)
+      if (facilityName) {
+        conditions.push("facility_name = ?");
+        params.push(facilityName);
       }
 
       if (conditions.length > 0) {

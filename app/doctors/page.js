@@ -45,6 +45,10 @@ export default function DoctorsPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [clinics, setClinics] = useState([]);
+  const [polyclinics, setPolyclinics] = useState([]);
+  const [selectedClinic, setSelectedClinic] = useState("");
+  const [selectedPolyclinic, setSelectedPolyclinic] = useState("");
 
   useEffect(() => {
     fetchDoctors();
@@ -142,22 +146,29 @@ export default function DoctorsPage() {
       const url = "/api/doctors" + (selectedDoctor ? `/${selectedDoctor.id}` : "");
       const method = selectedDoctor ? "PUT" : "POST";
 
-      await createCrudOperation(
-        method,
-        url,
-        formData,
-        () => fetchDoctors(),
-        { setLoading: setIsLoading }
-      );
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to save doctor");
+      }
 
       toast.success(
         selectedDoctor
           ? "Dokter berhasil diupdate"
           : "Dokter berhasil ditambahkan"
       );
+      
       setShowForm(false);
+      setSelectedDoctor(null);
+      fetchDoctors();
     } catch (error) {
-
       toast.error(error.message || "Gagal menyimpan dokter");
     }
   };
@@ -165,17 +176,18 @@ export default function DoctorsPage() {
   const handleDelete = async (id) => {
     if (confirm("Apakah Anda yakin ingin menghapus dokter ini?")) {
       try {
-        await createCrudOperation(
-          "DELETE",
-          `/api/doctors/${id}`,
-          null,
-          () => fetchDoctors(),
-          { setLoading: setIsLoading }
-        );
+        const response = await fetch(`/api/doctors/${id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || "Failed to delete doctor");
+        }
         
         toast.success("Dokter berhasil dihapus");
+        fetchDoctors();
       } catch (error) {
-
         toast.error("Gagal menghapus dokter");
       }
     }
@@ -677,14 +689,18 @@ export default function DoctorsPage() {
 
         {/* Doctor Form Modal */}
         {showForm && (
-          <DoctorForm
-            doctor={selectedDoctor}
-            onSubmit={handleSubmit}
-            onCancel={() => {
-              setSelectedDoctor(null);
-              setShowForm(false);
-            }}
-          />
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+              <DoctorForm
+                doctor={selectedDoctor}
+                onSubmit={handleSubmit}
+                onCancel={() => {
+                  setSelectedDoctor(null);
+                  setShowForm(false);
+                }}
+              />
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

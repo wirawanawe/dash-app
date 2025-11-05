@@ -53,6 +53,22 @@ export async function POST(request) {
       );
     }
 
+    // Check if code already exists (prevent duplicate)
+    const [existing] = await query(
+      'SELECT id, name, code FROM polyclinics WHERE code = ?',
+      [data.code]
+    );
+    
+    if (existing) {
+      return NextResponse.json(
+        { 
+          error: `Kode poli "${data.code}" sudah digunakan oleh "${existing.name}". Gunakan kode yang berbeda.`,
+          existingPoli: existing
+        },
+        { status: 409 } // 409 Conflict
+      );
+    }
+
     const sql = `
       INSERT INTO polyclinics (name, code, description, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, NOW(), NOW())
@@ -60,7 +76,7 @@ export async function POST(request) {
     
     const params = [
       data.name,
-      data.code,
+      data.code.toUpperCase(), // Uppercase untuk consistency
       data.description || null,
       data.status || 'Aktif'
     ];
@@ -76,6 +92,13 @@ export async function POST(request) {
 
     return NextResponse.json(newPolyclinic, { status: 201 });
   } catch (error) {
+    // Handle duplicate key error from database
+    if (error.message.includes('Duplicate entry') || error.message.includes('unique_code')) {
+      return NextResponse.json(
+        { error: "Kode poli sudah ada. Gunakan kode yang berbeda." },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json(
       { error: "Gagal menambahkan poli" },

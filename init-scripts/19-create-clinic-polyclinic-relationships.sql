@@ -28,20 +28,18 @@ CREATE TABLE IF NOT EXISTS clinic_polyclinics (
 ALTER TABLE polyclinics 
 ADD COLUMN status VARCHAR(20) DEFAULT 'Aktif' AFTER description;
 
--- Insert some sample polyclinics if they don't exist
+-- Insert universal polyclinics (dapat digunakan di semua klinik)
+-- CATATAN: Poli adalah UNIVERSAL, bukan spesifik ke satu klinik
+-- Jangan gunakan kode klinik (KD, TSK, UIT) sebagai kode poli!
 INSERT IGNORE INTO polyclinics (name, code, description, status) VALUES
-('Poli Umum', 'POLI-UMUM', 'Pelayanan kesehatan umum untuk berbagai keluhan', 'Aktif'),
-('Poli Gigi', 'POLI-GIGI', 'Pelayanan kesehatan gigi dan mulut', 'Aktif'),
-('Poli Anak', 'POLI-ANAK', 'Pelayanan kesehatan khusus anak-anak', 'Aktif'),
-('Poli Kebidanan', 'POLI-KBIDANAN', 'Pelayanan kesehatan ibu hamil dan kandungan', 'Aktif'),
-('Poli Bedah', 'POLI-BEDAH', 'Pelayanan kesehatan bedah umum', 'Aktif'),
-('Poli Jantung', 'POLI-JANTUNG', 'Pelayanan kesehatan jantung dan pembuluh darah', 'Aktif'),
-('Poli Saraf', 'POLI-SARAF', 'Pelayanan kesehatan saraf dan otak', 'Aktif'),
-('Poli Kulit', 'POLI-KULIT', 'Pelayanan kesehatan kulit dan kelamin', 'Aktif'),
-('Poli Mata', 'POLI-MATA', 'Pelayanan kesehatan mata', 'Aktif'),
-('Poli THT', 'POLI-THT', 'Pelayanan kesehatan telinga, hidung, dan tenggorokan', 'Aktif'),
-('Poli Ortopedi', 'POLI-ORTOPEDI', 'Pelayanan kesehatan tulang dan sendi', 'Aktif'),
-('Poli Psikiatri', 'POLI-PSIKIATRI', 'Pelayanan kesehatan jiwa', 'Aktif');
+('UMUM', 'POLI-UMUM', 'Pelayanan kesehatan umum', 'Aktif'),
+('GIGI', 'POLI-GIGI', 'Pelayanan kesehatan gigi dan mulut', 'Aktif'),
+('ANAK', 'POLI-ANAK', 'Pelayanan kesehatan anak', 'Aktif'),
+('KEBIDANAN', 'POLI-KEBIDANAN', 'Pelayanan kesehatan ibu dan anak', 'Aktif'),
+('BEDAH', 'POLI-BEDAH', 'Pelayanan bedah umum', 'Aktif'),
+('JANTUNG', 'POLI-JANTUNG', 'Pelayanan kesehatan jantung', 'Aktif'),
+('MATA', 'POLI-MATA', 'Pelayanan kesehatan mata', 'Aktif'),
+('THT', 'POLI-THT', 'Pelayanan telinga, hidung, tenggorokan', 'Aktif');
 
 -- Create indexes for better performance
 CREATE INDEX idx_doctors_polyclinic ON doctors(polyclinic_id);

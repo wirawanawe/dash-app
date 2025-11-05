@@ -110,14 +110,21 @@ export default function DoctorForm({ doctor, onSubmit, onCancel }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-6">
+    <div className="bg-white rounded-3xl overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-6 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-white flex items-center">
           {doctor ? "Edit Dokter" : "Tambah Dokter Baru"}
         </h2>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-white hover:text-gray-200 transition-colors text-2xl"
+        >
+          ✕
+        </button>
       </div>
       
-      <form onSubmit={handleSubmit} className="p-6">
+      <form onSubmit={handleSubmit} className="p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">

@@ -79,12 +79,12 @@ export function Providers({ children }) {
 
   // Trigger sync on page navigation
   useEffect(() => {
-    if (!mounted || !user) return;
+    if (!mounted) return;
     
     // Sync when user navigates to a new page
     syncOnNavigation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, mounted, user]);
+  }, [pathname, mounted]);
 
   // No session timeout - stateless server, only JWT token authentication
 

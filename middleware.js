@@ -107,6 +107,7 @@ export async function middleware(request) {
   const apiToken = request.cookies.get("api_token");
 
   if (!token && !apiToken) {
+    console.log(`[Auth] No token found for ${pathname}, redirecting to login`);
     const url = new URL("/login", request.url);
     return NextResponse.redirect(url);
   }
@@ -115,12 +116,14 @@ export async function middleware(request) {
   if (token?.value) {
     const payload = await verifyJwtToken(token.value);
     if (!payload) {
+      console.log(`[Auth] Invalid/expired token for ${pathname}, forcing logout`);
       const res = NextResponse.redirect(new URL("/login", request.url));
       // Clear cookies to ensure full logout
       res.cookies.set("token", "", { path: "/", maxAge: 0 });
       res.cookies.set("api_token", "", { path: "/", maxAge: 0 });
       return res;
     }
+    console.log(`[Auth] Valid token for ${pathname}, user: ${payload.name || payload.email}`);
   }
 
   // For protected routes, check role permissions

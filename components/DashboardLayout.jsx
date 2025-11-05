@@ -11,9 +11,17 @@ const DashboardLayout = ({ children }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Mark as mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Handle responsive behavior with improved breakpoints
   useEffect(() => {
+    if (!mounted) return;
+    
     const handleResize = () => {
       const width = window.innerWidth;
       setIsMobile(width < 768); // md breakpoint
@@ -28,10 +36,12 @@ const DashboardLayout = ({ children }) => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [mounted]);
 
   // Load persisted collapsed state
   useEffect(() => {
+    if (!mounted) return;
+    
     try {
       const stored = localStorage.getItem('sidebar:collapsed');
       if (stored !== null) {
@@ -40,19 +50,23 @@ const DashboardLayout = ({ children }) => {
     } catch (_) {
       // ignore
     }
-  }, []);
+  }, [mounted]);
 
   // Persist collapsed state
   useEffect(() => {
+    if (!mounted) return;
+    
     try {
       localStorage.setItem('sidebar:collapsed', isSidebarCollapsed ? '1' : '0');
     } catch (_) {
       // ignore
     }
-  }, [isSidebarCollapsed]);
+  }, [isSidebarCollapsed, mounted]);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
+    if (!mounted) return;
+    
     const handleClickOutside = (event) => {
       if (isMobile && isSidebarOpen && 
           !event.target.closest('.sidebar-container') && 
@@ -70,10 +84,12 @@ const DashboardLayout = ({ children }) => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isMobile, isSidebarOpen]);
+  }, [isMobile, isSidebarOpen, mounted]);
 
   // Prevent body scroll when sidebar is open on mobile
   useEffect(() => {
+    if (!mounted) return;
+    
     if (isMobile && isSidebarOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -83,7 +99,7 @@ const DashboardLayout = ({ children }) => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isMobile, isSidebarOpen]);
+  }, [isMobile, isSidebarOpen, mounted]);
 
   return (
     <div className="flex min-h-screen bg-gray-100 overflow-x-hidden dashboard-container">

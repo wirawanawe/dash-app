@@ -151,16 +151,7 @@ export default function PolyclinicsPage() {
                     Nama
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Kode
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
                     Deskripsi
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Klinik
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
-                    Dokter
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-black uppercase tracking-wider">
                     Status
@@ -171,60 +162,55 @@ export default function PolyclinicsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {Array.isArray(polyclinics) &&
+                {Array.isArray(polyclinics) && polyclinics.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                      Tidak ada data poli
+                    </td>
+                  </tr>
+                ) : (
+                  Array.isArray(polyclinics) &&
                   polyclinics.map((polyclinic) => (
-                    <tr key={polyclinic.id}>
-                      <td className="px-6 py-4 text-black whitespace-nowrap">
-                        {polyclinic.name}
-                      </td>
-                      <td className="px-6 py-4 text-black whitespace-nowrap">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">
-                          {polyclinic.code}
-                        </span>
+                    <tr key={polyclinic.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-black">
+                        <div className="font-semibold">{polyclinic.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Kode: {polyclinic.code}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-black">
-                        <div className="max-w-xs truncate" title={polyclinic.description}>
+                        <div className="max-w-md" title={polyclinic.description}>
                           {polyclinic.description || "-"}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-black whitespace-nowrap">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                          {polyclinic.clinic_count || 0} klinik
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-black whitespace-nowrap">
-                        <span 
-                          className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs cursor-help" 
-                          title={`Total ${polyclinic.doctor_count || 0} dokter unik yang pernah melayani di poli ${polyclinic.name} dari semua klinik berdasarkan data kunjungan`}
-                        >
-                          {polyclinic.doctor_count || 0} dokter
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-black whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded text-xs ${
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                           polyclinic.status === 'Aktif' 
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {polyclinic.status}
+                          {polyclinic.status || 'Aktif'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-black whitespace-nowrap">
-                        <button
-                          onClick={() => handleEdit(polyclinic)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(polyclinic.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Hapus
-                        </button>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => handleEdit(polyclinic)}
+                            className="text-blue-600 hover:text-blue-900 font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(polyclinic.id)}
+                            className="text-red-600 hover:text-red-900 font-medium"
+                          >
+                            Hapus
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>

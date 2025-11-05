@@ -150,26 +150,20 @@ export default function VisitsPage() {
         throw new Error("Invalid data format");
       }
 
-      // Apply optional client-side filter for facility name
-      let dataForClient = result.data || [];
-      if (appliedFilters.facilityName) {
-        const wanted = appliedFilters.facilityName.toLowerCase();
-        dataForClient = dataForClient.filter(v => (v?.facility?.name || "").toLowerCase() === wanted);
-      }
-
-      // Use server-side pagination data directly (no need to fetch all)
-      setVisits(dataForClient);
+      // Use server-side pagination data directly (facility filter already handled by API)
+      const visitsData = result.data || [];
+      setVisits(visitsData);
       
       // Get pagination info from API response
       const pagination = result.pagination || {};
-      const totalData = pagination.total || dataForClient.length;
+      const totalData = pagination.total || visitsData.length;
       const totalPagesCalculated = pagination.totalPages || Math.ceil(totalData / limit);
       
       setMetadata({ total: totalData });
       setTotalPages(totalPagesCalculated);
       
       // For backwards compatibility, store in allVisits (but limited to current page)
-      setAllVisits(dataForClient);
+      setAllVisits(visitsData);
 
     } catch (error) {
 
@@ -676,9 +670,11 @@ export default function VisitsPage() {
                 {stats.monthly}
               </p>
               <p className="text-sm text-gray-600 font-medium">Kunjungan Bulan Ini</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-              </p>
+              {isLoaded && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </p>
+              )}
               {facilityStats.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -714,9 +710,11 @@ export default function VisitsPage() {
                 {stats.today}
               </p>
               <p className="text-sm text-gray-600 font-medium">Kunjungan Hari Ini</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {new Date().toLocaleDateString('id-ID')}
-              </p>
+              {isLoaded && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date().toLocaleDateString('id-ID')}
+                </p>
+              )}
               {facilityStats.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="space-y-1 max-h-32 overflow-y-auto">
