@@ -1,4 +1,4 @@
-import { query } from './lib/db.js';
+import { query } from '../lib/db.js';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import dotenv from 'dotenv';

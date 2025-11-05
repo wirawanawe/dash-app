@@ -46,6 +46,20 @@ const routePermissions = {
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
+  // Redirect root path to login
+  if (pathname === "/") {
+    const token = request.cookies.get("token");
+    const apiToken = request.cookies.get("api_token");
+    
+    // If already authenticated, redirect to dashboard
+    if (token || apiToken) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    
+    // Otherwise redirect to login
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+  
   // Skip middleware for static files and public auth pages only
   // API routes should be handled by their own authentication
   if (
@@ -54,8 +68,7 @@ export async function middleware(request) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password") ||
-    pathname === "/"
+    pathname.startsWith("/reset-password")
   ) {
     return NextResponse.next();
   }
