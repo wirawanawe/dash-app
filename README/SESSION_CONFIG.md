@@ -2,179 +2,181 @@
 
 ## Overview
 
-Sistem session management dalam aplikasi ini mengatur durasi login user dan otomatis logout user saat tidak ada aktivitas dalam periode tertentu.
+Sistem ini menggunakan **stateless authentication** dengan JWT token. Server tidak menyimpan session dan selalu dalam keadaan up. Hanya user yang memiliki session di client side (JWT token).
 
 ## Konfigurasi Saat Ini
 
-**Session Timeout**: **1 jam (60 menit)**
+**Authentication Method**: **JWT Token Only (Stateless)**
+**Session Timeout**: **Tidak ada** (Server stateless, hanya JWT token expiry yang berlaku)
 
-## File yang Mengatur Session
+## File yang Mengatur Authentication
 
 ### 1. Middleware (`middleware.js`)
 
-Mengatur session timeout di level server-side untuk proteksi route:
+Server-side JWT verification untuk proteksi route:
 
 ```javascript
-const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam (60 menit)
+// Stateless - hanya verify JWT token
+const payload = await verifyJwtToken(token.value);
 ```
 
 **Fungsi:**
 
-- Memeriksa `lastActivity` cookie pada setiap request
-- Redirect ke login jika session expired
-- Update `lastActivity` cookie saat user masih aktif
+- Verify JWT token pada setiap request
+- Redirect ke login jika token invalid/expired
+- Tidak menyimpan session atau activity tracking
 
 ### 2. Providers (`components/Providers.jsx`)
 
-Mengatur session timeout di level client-side untuk user experience:
+Client-side authentication state management:
 
 ```javascript
-const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 jam (60 menit)
+// Stateless authentication - no session tracking on client
 ```
 
 **Fungsi:**
 
-- Track aktivitas user (mouse, keyboard, click, scroll)
-- Cek session timeout setiap 30 detik
-- Tampilkan notifikasi saat session expired
-- Auto logout dan redirect ke login
+- Manage user authentication state
+- Handle login/logout
+- Tidak ada activity tracking
+- Tidak ada auto-logout berdasarkan waktu
 
-## Cara Kerja Session Management
+## Cara Kerja Stateless Authentication
 
-### 1. Activity Tracking
+### 1. JWT Token Based
 
-System akan track aktivitas user melalui:
+System menggunakan JWT token untuk authentication:
 
-- **Mouse movement** (`mousemove`)
-- **Keyboard input** (`keypress`)
-- **Click events** (`click`)
-- **Scroll events** (`scroll`)
+- **Access Token**: Token dengan expiry (90 hari untuk web, 7-30 hari untuk mobile)
+- **Refresh Token**: Token untuk mendapatkan access token baru (365 hari)
+- **No Activity Tracking**: Server tidak track aktivitas user
+- **No Session Storage**: Server tidak menyimpan session
 
-### 2. Session Validation
+### 2. Token Validation
 
-- **Server-side**: Middleware check setiap request
-- **Client-side**: Interval check setiap 30 detik
-- **Cookie**: `lastActivity` menyimpan timestamp terakhir
+- **Server-side**: Middleware verify JWT token setiap request
+- **Client-side**: Token disimpan di cookie/storage
+- **No Auto-Logout**: User tidak akan logout otomatis karena inactivity
 
-### 3. Session Expiry Flow
+### 3. Authentication Flow
 
-1. User tidak aktif selama 1 jam
-2. System detect session expired
-3. Auto logout user
-4. Clear cookies dan session data
-5. Redirect ke halaman login
-6. Tampilkan notifikasi: "Sesi Anda telah berakhir. Silakan login kembali."
+1. User login → Dapatkan JWT token
+2. Token disimpan di cookie/storage
+3. Setiap request → Token dikirim ke server
+4. Server verify token → Allow/Deny access
+5. Token expired → User perlu login lagi
+6. Manual logout → Token dihapus dari client
 
 ## Riwayat Perubahan
 
-| Tanggal | Durasi    | Keterangan                         |
-| ------- | --------- | ---------------------------------- |
-| Awal    | 5 menit   | Default setting untuk testing      |
-| Terbaru | **1 jam** | Update sesuai kebutuhan production |
+| Tanggal     | Method                  | Keterangan                                    |
+| ----------- | ----------------------- | --------------------------------------------- |
+| Awal        | Session (5 menit)       | Default setting untuk testing                 |
+| Update 1    | Session (1 jam)         | Update sesuai kebutuhan production            |
+| **Terbaru** | **JWT Only (Stateless)** | **Server stateless, no session timeout**      |
 
-## Mengubah Session Timeout
+## Mengubah JWT Token Expiry
 
-Untuk mengubah durasi session, edit kedua file berikut:
+Untuk mengubah durasi JWT token, edit file backend:
 
-### 1. Update Middleware
-
-```javascript
-// middleware.js
-const SESSION_TIMEOUT = [DURASI] * 60 * 1000; // dalam milidetik
-```
-
-### 2. Update Providers
+### Backend Auth Routes
 
 ```javascript
-// components/Providers.jsx
-const SESSION_TIMEOUT = [DURASI] * 60 * 1000; // dalam milidetik
+// backend/routes/auth.js atau app/api/auth/login/route.js
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, jwtSecret, {
+    expiresIn: "90d", // Ubah sesuai kebutuhan
+  });
+};
 ```
 
-### Contoh Durasi Umum:
+### Contoh Durasi JWT Umum:
 
-- **15 menit**: `15 * 60 * 1000`
-- **30 menit**: `30 * 60 * 1000`
-- **1 jam**: `60 * 60 * 1000`
-- **2 jam**: `2 * 60 * 60 * 1000`
-- **4 jam**: `4 * 60 * 60 * 1000`
-- **8 jam**: `8 * 60 * 60 * 1000`
+- **7 hari**: `"7d"`
+- **30 hari**: `"30d"`
+- **90 hari**: `"90d"` (current web)
+- **365 hari**: `"365d"`
 
 ## Security Considerations
 
-### 1. Auto Logout
+### 1. JWT Token Security
 
-- Melindungi akun dari akses unauthorized
-- Mencegah session hijacking pada device shared
-- Compliance dengan standar security
+- Token harus disimpan dengan aman (httpOnly cookies untuk web)
+- Token expired otomatis berdasarkan waktu yang ditentukan
+- Refresh token untuk mendapatkan access token baru tanpa login ulang
 
-### 2. Activity Detection
+### 2. Stateless Benefits
 
-- Real-time detection aktivitas user
-- Granular tracking untuk akurasi
-- Tidak mengganggu user experience
+- Server tidak perlu menyimpan session data
+- Scalable - server bisa di-scale horizontal tanpa masalah
+- No session hijacking karena tidak ada session storage
+- Server selalu up, tidak ada session timeout
 
-### 3. Server-Client Sync
+### 3. Token Validation
 
-- Double validation (server + client)
-- Consistent session state
-- Graceful handling session conflicts
+- Setiap request divalidasi dengan JWT verification
+- Invalid/expired token akan ditolak otomatis
+- User harus login ulang jika token expired
 
 ## Best Practices
 
 ### 1. Development Environment
 
-- Gunakan session pendek (5-15 menit) untuk testing
+- Gunakan JWT dengan expiry lebih pendek untuk testing (7 hari)
 - Easy logout untuk development workflow
-- Console logging untuk debugging
+- Console logging untuk debugging token issues
 
 ### 2. Production Environment
 
-- Session yang reasonable (30 menit - 2 jam)
-- Balance antara security dan user experience
-- Monitor session patterns
+- JWT expiry yang reasonable (30-90 hari untuk web, 7-30 hari untuk mobile)
+- Implement refresh token untuk seamless user experience
+- Monitor JWT expiration dan token validation failures
 
 ### 3. User Experience
 
-- Clear notification saat session expired
-- Auto-save data sebelum logout
-- Remember last page untuk redirect after login
+- User tetap login selama JWT masih valid
+- Tidak ada auto-logout karena inactivity
+- Clear notification saat token expired
+- Refresh token untuk perpanjang session tanpa login ulang
 
 ## Troubleshooting
 
-### Session Expired Terlalu Cepat
+### Token Expired Terlalu Cepat
 
-- Cek apakah activity tracking berfungsi
-- Pastikan kedua file (middleware + providers) sinkron
-- Validasi cookie `lastActivity` tersimpan
+- Cek JWT expiry setting di backend
+- Pastikan JWT_SECRET konsisten
+- Validasi token generation logic
 
-### Session Tidak Expired
+### Token Tidak Expired
 
-- Cek logic validation di middleware
-- Pastikan interval check berjalan
-- Debug dengan console.log timestamp
+- Cek JWT expiry time setting
+- Pastikan token validation berjalan
+- Debug dengan decode JWT token
 
-### Auto Logout Tidak Berfungsi
+### User Tidak Bisa Access Protected Routes
 
-- Cek network request ke `/api/auth/logout`
-- Pastikan error handling tidak memblokir logout
-- Validasi cookie clearing process
+- Cek apakah token tersimpan di cookie
+- Validasi JWT token di middleware
+- Pastikan token belum expired
+- Check browser console untuk error
 
 ## Monitoring & Analytics
 
-### 1. Session Duration Metrics
+### 1. Token Usage Metrics
 
-- Average session length
-- Peak activity hours
-- User behavior patterns
+- Token generation frequency
+- Token expiration rate
+- Refresh token usage patterns
 
 ### 2. Security Metrics
 
-- Session timeout frequency
-- Concurrent sessions per user
-- Suspicious activity detection
+- Failed token validations
+- Expired token attempts
+- Suspicious token activity
 
 ### 3. Performance Impact
 
-- Cookie storage size
-- Client-side memory usage
-- Server-side validation overhead
+- Stateless server - minimal overhead
+- No session storage required
+- Fast token verification
+- Scalable architecture

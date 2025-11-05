@@ -168,4 +168,52 @@ export async function POST(request) {
       { status: 500 }
     );
   }
+}
+
+// DELETE - Delete today's water tracking entries
+export async function DELETE(request) {
+  try {
+    // Get user information from token
+    const userPayload = await getUserFromToken(request);
+    
+    if (!userPayload || !userPayload.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Authentication required",
+        },
+        { status: 401 }
+      );
+    }
+
+    const userId = userPayload.id;
+    const { tracking_date } = await request.json();
+    const today = tracking_date || new Date().toISOString().split('T')[0];
+
+    console.log(`🔄 Resetting water entries to 0 for user ${userId} on ${today}`);
+
+    // Update water tracking entries to 0ml (soft reset) instead of deleting
+    const result = await query(
+      `UPDATE water_tracking SET amount_ml = 0, updated_at = NOW() WHERE user_id = ? AND tracking_date = ?`,
+      [userId, today]
+    );
+
+    console.log(`✅ Reset ${result.affectedRows} water entries to 0ml`);
+
+    return NextResponse.json({
+      success: true,
+      message: `${result.affectedRows} water entries reset to 0ml successfully`,
+      reset_count: result.affectedRows,
+    });
+  } catch (error) {
+    console.error("❌ Error resetting water entries:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Gagal mereset water tracking entries",
+        error: error.message,
+      },
+      { status: 500 }
+    );
+  }
 } 

@@ -89,13 +89,12 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // Check if user is authenticated and token is valid (1-hour session)
+  // Check if user is authenticated via JWT token (stateless - no session)
   const token = request.cookies.get("token");
   const apiToken = request.cookies.get("api_token");
 
   if (!token && !apiToken) {
     const url = new URL("/login", request.url);
-    url.searchParams.set("expired", "1");
     return NextResponse.redirect(url);
   }
 
@@ -103,11 +102,10 @@ export async function middleware(request) {
   if (token?.value) {
     const payload = await verifyJwtToken(token.value);
     if (!payload) {
-      const res = NextResponse.redirect(new URL("/login?expired=1", request.url));
+      const res = NextResponse.redirect(new URL("/login", request.url));
       // Clear cookies to ensure full logout
       res.cookies.set("token", "", { path: "/", maxAge: 0 });
       res.cookies.set("api_token", "", { path: "/", maxAge: 0 });
-      res.cookies.set("lastActivity", "", { path: "/", maxAge: 0 });
       return res;
     }
   }

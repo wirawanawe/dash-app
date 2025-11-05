@@ -384,14 +384,16 @@ export default function VisitsPage() {
           `Inserted: ${result.stats?.inserted || 0}, Updated: ${result.stats?.updated || 0}`,
           { 
             id: 'sync-toast',
-            duration: 6000
+            duration: 3000
           }
         );
         
-        // Refresh data setelah sync
-        await fetchVisits();
-        await fetchStats();
-        setSyncProgress(null);
+        setSyncProgress('Memuat ulang halaman...');
+        
+        // Refresh halaman untuk menampilkan data terbaru
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         throw new Error(result.message || 'Sync gagal');
       }
