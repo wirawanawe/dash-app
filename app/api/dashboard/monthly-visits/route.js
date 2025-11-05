@@ -51,6 +51,7 @@ export async function GET(request) {
     }
 
     // All clinics: group by facility and month, zero-fill across 12 months
+    // Filter out visits without valid facility_code
     let sql = `
       SELECT 
         DATE_FORMAT(visit_date, '%Y-%m') as month,
@@ -58,13 +59,15 @@ export async function GET(request) {
         COUNT(*) as count
       FROM visits
       WHERE DATE(visit_date) BETWEEN ? AND ?
+        AND facility_code IS NOT NULL
+        AND facility_code != ''
       GROUP BY DATE_FORMAT(visit_date, '%Y-%m'), facility_code
       ORDER BY month ASC
     `;
     const rows = await query(sql, [startStr, endStr]);
 
-    // Determine distinct facilities present in the data
-    const facilitySet = new Set(rows.map(r => r.facilityCode).filter(Boolean));
+    // Determine distinct facilities present in the data (sudah pasti valid karena di-filter di SQL)
+    const facilitySet = new Set(rows.map(r => r.facilityCode));
     const facilityCodes = Array.from(facilitySet);
 
     // Build chart rows with each facility as a separate series key
@@ -80,7 +83,11 @@ export async function GET(request) {
     rows.forEach(r => {
       const row = monthRowMap.get(r.month);
       if (!row) return;
-      const code = r.facilityCode || 'unknown';
+      
+      // Skip jika facilityCode tidak valid (seharusnya sudah di-filter di SQL, tapi double check)
+      const code = r.facilityCode;
+      if (!code) return;
+      
       if (row[code] === undefined) {
         // Newly seen code after initialization: extend all rows
         monthRowMap.forEach(rr => { rr[code] = 0; });
