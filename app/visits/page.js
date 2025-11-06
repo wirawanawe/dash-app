@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -87,7 +87,7 @@ export default function VisitsPage() {
   });
   const [facilityStats, setFacilityStats] = useState([]);
 
-  const fetchVisits = async () => {
+  const fetchVisits = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -175,7 +175,7 @@ export default function VisitsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, page, limit, searchDate, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.status, appliedFilters.doctorId, appliedFilters.clinic, appliedFilters.facilityName]);
 
   const fetchDoctorsAndClinics = async () => {
     try {
@@ -200,7 +200,7 @@ export default function VisitsPage() {
     }
   };
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       // Get today's date in YYYY-MM-DD format (local timezone, not UTC)
       const today = new Date();
@@ -247,29 +247,13 @@ export default function VisitsPage() {
     } catch (error) {
 
     }
-  };
+  }, []); // No dependencies - stats are independent
 
-  // Fetch data when search/filters change (not when page/limit changes)
+  // Fetch data when search/filters change (including page/limit)
   useEffect(() => {
     fetchVisits();
     setIsLoaded(true);
-  }, [
-    search,
-    searchDate,
-    appliedFilters.startDate,
-    appliedFilters.endDate,
-    appliedFilters.status,
-    appliedFilters.doctorId,
-    appliedFilters.clinic,
-    appliedFilters.facilityName,
-  ]);
-
-  // Refetch data when page or limit changes (server-side pagination)
-  useEffect(() => {
-    if (isLoaded) {
-      fetchVisits();
-    }
-  }, [page, limit]);
+  }, [fetchVisits]);
   
   // Note: Client-side pagination removed - now using server-side pagination
 
@@ -287,11 +271,13 @@ export default function VisitsPage() {
   }, [allVisits]);
 
   // Refetch stats when visits data changes (e.g., after add/edit/delete)
-  useEffect(() => {
-    if (isLoaded) {
-      fetchStats();
-    }
-  }, [visits.length]);
+  // Removed: This was causing excessive re-renders and high CPU usage
+  // Stats will be fetched on initial load only
+  // useEffect(() => {
+  //   if (isLoaded) {
+  //     fetchStats();
+  //   }
+  // }, [visits.length]);
 
   const handleSearch = (e) => {
     e.preventDefault();

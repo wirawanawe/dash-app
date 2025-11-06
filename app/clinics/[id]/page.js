@@ -167,6 +167,9 @@ export default function ClinicDetailPage() {
   const formatOperatingHours = (operatingHours) => {
     if (!operatingHours) return "Tidak tersedia";
     
+    // Only calculate on client-side to prevent hydration mismatch
+    if (typeof window === 'undefined') return "Memuat...";
+    
     try {
       const hours = typeof operatingHours === 'string' ? JSON.parse(operatingHours) : operatingHours;
       const today = new Date().toLocaleDateString('en-US', { weekday: 'lowercase' });

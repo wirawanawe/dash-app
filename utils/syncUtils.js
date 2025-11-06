@@ -134,16 +134,21 @@ export function syncOnLogin() {
 /**
  * Trigger sync on page navigation
  * This is called when user navigates between pages
+ * NOTE: Disabled to prevent high CPU usage
  */
 export function syncOnNavigation() {
+  // Disabled: Navigation sync was causing high CPU usage
+  // Background sync on page load is sufficient
+  return;
+  
   // Use setTimeout to avoid blocking navigation
-  setTimeout(() => {
-    syncVisits(true).then(result => {
-      if (result.success && !result.skipped) {
-        console.log('✅ Background sync completed on navigation');
-      }
-    });
-  }, 1000); // Wait 1 second after navigation
+  // setTimeout(() => {
+  //   syncVisits(true).then(result => {
+  //     if (result.success && !result.skipped) {
+  //       console.log('✅ Background sync completed on navigation');
+  //     }
+  //   });
+  // }, 1000); // Wait 1 second after navigation
 }
 
 /**
