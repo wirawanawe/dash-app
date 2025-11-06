@@ -114,16 +114,23 @@ export async function middleware(request) {
 
   // If token exists, verify it; if invalid/expired, force logout
   if (token?.value) {
-    const payload = await verifyJwtToken(token.value);
-    if (!payload) {
-      console.log(`[Auth] Invalid/expired token for ${pathname}, forcing logout`);
-      const res = NextResponse.redirect(new URL("/login", request.url));
-      // Clear cookies to ensure full logout
-      res.cookies.set("token", "", { path: "/", maxAge: 0 });
-      res.cookies.set("api_token", "", { path: "/", maxAge: 0 });
-      return res;
+    try {
+      const payload = await verifyJwtToken(token.value);
+      if (!payload) {
+        console.log(`[Auth] Invalid/expired token for ${pathname}, forcing logout`);
+        const res = NextResponse.redirect(new URL("/login", request.url));
+        // Clear cookies to ensure full logout
+        res.cookies.set("token", "", { path: "/", maxAge: 0 });
+        res.cookies.set("api_token", "", { path: "/", maxAge: 0 });
+        return res;
+      }
+      console.log(`[Auth] Valid token for ${pathname}, user: ${payload.name || payload.email}`);
+    } catch (error) {
+      console.error(`[Auth] Token verification error for ${pathname}:`, error);
+      // If there's an error verifying (not just invalid), allow through
+      // The API routes will do their own verification
+      return NextResponse.next();
     }
-    console.log(`[Auth] Valid token for ${pathname}, user: ${payload.name || payload.email}`);
   }
 
   // For protected routes, check role permissions

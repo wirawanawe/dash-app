@@ -232,11 +232,22 @@ export default function VisitsPage() {
       ]);
 
       const totalCount = totalData.pagination?.total || 0;
+      const todayCount = todayData.pagination?.total || 0;
+      const monthlyCount = monthlyData.pagination?.total || 0;
+
+      console.log('[Stats Debug]', {
+        todayString,
+        todayCount,
+        monthlyCount,
+        totalCount,
+        todayResponse: todayData,
+        facilityData: facilityData.data
+      });
 
       setStats({
         total: totalCount,
-        today: todayData.pagination?.total || 0,
-        monthly: monthlyData.pagination?.total || 0,
+        today: todayCount,
+        monthly: monthlyCount,
       });
 
       // Set facility stats
@@ -245,7 +256,7 @@ export default function VisitsPage() {
       }
 
     } catch (error) {
-
+      console.error('[Stats Error]', error);
     }
   }, []); // No dependencies - stats are independent
 
@@ -260,7 +271,7 @@ export default function VisitsPage() {
   useEffect(() => {
     fetchDoctorsAndClinics();
     fetchStats(); // Fetch stats on initial load
-  }, []);
+  }, [fetchStats]);
 
   // Derive unique facility names (nama faskes) from current dataset
   useEffect(() => {
@@ -341,17 +352,18 @@ export default function VisitsPage() {
 
   const handleSyncData = async () => {
     // Confirm before syncing
-    if (!confirm('Sync data dari API eksternal? Proses ini mungkin memakan waktu beberapa menit.')) {
+    if (!confirm('Sync data dari API eksternal? Data akan diproses di background secara otomatis.')) {
       return;
     }
 
     try {
       setSyncing(true);
-      setSyncProgress('Memulai sinkronisasi...');
+      setSyncProgress('Menambahkan job sync ke queue...');
       
-      toast.loading('Sinkronisasi data dimulai...', { id: 'sync-toast' });
+      toast.loading('Menambahkan sync job...', { id: 'sync-toast' });
       
-      const response = await fetch('/api/visits/sync', {
+      // Use async sync endpoint (incremental by default)
+      const response = await fetch('/api/visits/sync-async?mode=incremental', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -360,22 +372,25 @@ export default function VisitsPage() {
 
       if (response.ok && result.success) {
         toast.success(
-          `✅ Sync berhasil! ${result.message}\n` +
-          `Inserted: ${result.stats?.inserted || 0}, Updated: ${result.stats?.updated || 0}`,
+          `✅ Sync job berhasil dijadwalkan!\n` +
+          `Job ID: ${result.job?.id}\n` +
+          `Mode: ${result.job?.mode}\n` +
+          `Data akan di-sync di background secara otomatis.`,
           { 
             id: 'sync-toast',
-            duration: 3000
+            duration: 4000
           }
         );
         
-        setSyncProgress('Memuat ulang halaman...');
+        setSyncProgress('Job sync telah dijadwalkan. Refresh halaman dalam beberapa menit untuk melihat data terbaru.');
         
-        // Refresh halaman untuk menampilkan data terbaru
+        // Optional: Auto-refresh setelah delay
         setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+          setSyncProgress(null);
+          toast.success('Tip: Refresh halaman untuk melihat data terbaru', { duration: 3000 });
+        }, 3000);
       } else {
-        throw new Error(result.message || 'Sync gagal');
+        throw new Error(result.error || 'Gagal menambahkan sync job');
       }
     } catch (error) {
       console.error('Sync error:', error);

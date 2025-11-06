@@ -91,7 +91,11 @@ export default function LoginClient() {
       // Trigger sync after successful login
       syncOnLogin();
       
-      router.push("/dashboard");
+      // Wait a bit to ensure cookie is set before redirecting
+      // This prevents redirect loop due to cookie timing issues
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 300);
     } catch (error) {
       toast.error(error.message || "Login gagal");
     } finally {
