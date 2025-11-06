@@ -11,14 +11,19 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(async () => {
-  // Start background worker for job queue processing
-  console.log('🚀 Initializing background worker...');
-  try {
-    await startBackgroundWorker();
-    console.log('✅ Background worker initialized');
-  } catch (error) {
-    console.error('❌ Failed to start background worker:', error);
-    // Continue server startup even if worker fails
+  // Background worker disabled by default to prevent CPU overload
+  // Enable only if needed by setting ENABLE_BACKGROUND_WORKER=true in .env
+  if (process.env.ENABLE_BACKGROUND_WORKER === 'true') {
+    console.log('🚀 Initializing background worker...');
+    try {
+      await startBackgroundWorker();
+      console.log('✅ Background worker initialized');
+    } catch (error) {
+      console.error('❌ Failed to start background worker:', error);
+      // Continue server startup even if worker fails
+    }
+  } else {
+    console.log('⚠️  Background worker disabled (set ENABLE_BACKGROUND_WORKER=true to enable)');
   }
   
   createServer(async (req, res) => {

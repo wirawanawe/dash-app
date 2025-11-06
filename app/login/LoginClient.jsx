@@ -150,8 +150,13 @@ export default function LoginClient() {
                 alt="PHC Logo"
                 className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-lg"
                 onLoad={handleLogoLoad}
-                onError={handleLogoError}
-                style={{ display: 'block', maxWidth: '100%', height: 'auto', opacity: isLoaded && logoLoaded ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }}
+                onError={(e) => {
+                  console.log('Logo failed to load, trying alternate...');
+                  e.target.onerror = null; // Prevent infinite loop
+                  e.target.src = '/icon-phc.png'; // Fallback to icon-phc.png
+                  handleLogoError();
+                }}
+                style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
               />
             </div>
 
