@@ -3,27 +3,27 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-// Configuration - SPEED OPTIMIZED
+// Configuration - CPU FRIENDLY (UPDATED for low CPU usage)
 const SYNC_CONFIG = {
   // API Request Settings
   INITIAL_TIMEOUT: 60000,        // 60 detik untuk request pertama
   DATA_PAGE_TIMEOUT: 90000,      // 90 detik untuk data pages
-  MAX_RETRIES: 2,                // Kurangi dari 3 ke 2 (lebih cepat fail)
+  MAX_RETRIES: 2,                // Max 2 retries
   
-  // Concurrent Settings - KUNCI KECEPATAN!
-  CONCURRENT_PAGES: 5,           // Fetch 5 pages sekaligus! (was 1)
-  DELAY_BETWEEN_BATCHES: 500,    // 500ms delay antar batch (was 2000ms)
+  // Concurrent Settings - CONSERVATIVE for low CPU!
+  CONCURRENT_PAGES: 1,           // Sequential only (NO concurrent!)
+  DELAY_BETWEEN_BATCHES: 3000,   // 3 seconds delay (was 500ms) - CPU relief!
   
-  // Data Volume
-  MAX_RECORDS: 10000,            // Tambah ke 10K (was 5K)
-  RECORDS_PER_PAGE: 1000,        // Tambah ke 1000 (was 500)
+  // Data Volume - REDUCED for stability
+  MAX_RECORDS: 500,              // Reduced from 10K to 500
+  RECORDS_PER_PAGE: 50,          // Reduced from 1000 to 50
   
   // Error Handling
-  ALLOW_PARTIAL_SYNC: true,      // Tetap enable partial sync
-  MAX_FAILURES_ALLOWED: 15,      // Lebih toleran (was 10)
+  ALLOW_PARTIAL_SYNC: true,      // Keep partial sync enabled
+  MAX_FAILURES_ALLOWED: 10,      // Max 10 failures
   
-  // Database Optimization
-  DB_BATCH_SIZE: 200,            // Lebih besar untuk bulk insert (was 100)
+  // Database Optimization - SMALLER batches for low CPU
+  DB_BATCH_SIZE: 30,             // Reduced from 200 to 30
 };
 
 // Helper function to add delay between requests

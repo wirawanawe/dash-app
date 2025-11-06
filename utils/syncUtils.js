@@ -62,10 +62,11 @@ export async function syncVisits(silent = true) {
     }
 
     if (!silent) {
-      console.log('Starting visits sync...');
+      console.log('Starting visits sync (async mode - CPU friendly)...');
     }
 
-    const response = await fetch(SYNC_ENDPOINTS.visits, {
+    // Use async endpoint to prevent CPU overload
+    const response = await fetch(`${SYNC_ENDPOINTS.visits}-async?mode=incremental`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -102,33 +103,44 @@ export async function syncVisits(silent = true) {
 /**
  * Trigger sync on page load/refresh
  * This is called when the page is loaded or refreshed
+ * DISABLED to prevent CPU overload - use manual sync instead
  */
 export function syncOnPageLoad() {
-  // Use setTimeout to avoid blocking the main thread
-  setTimeout(() => {
-    syncVisits(true).then(result => {
-      if (result.success && !result.skipped) {
-        console.log('✅ Background sync completed on page load');
-      }
-    });
-  }, 2000); // Wait 2 seconds after page load
+  // DISABLED: Auto-sync can cause high CPU usage
+  // Users should manually trigger sync via UI button
+  console.log('⚠️  Auto-sync on page load is disabled (use manual sync button)');
+  return;
+  
+  // Original code commented out:
+  // setTimeout(() => {
+  //   syncVisits(true).then(result => {
+  //     if (result.success && !result.skipped) {
+  //       console.log('✅ Background sync completed on page load');
+  //     }
+  //   });
+  // }, 2000);
 }
 
 /**
  * Trigger sync on login
  * This is called when a user successfully logs in
+ * DISABLED to prevent CPU overload - use manual sync instead
  */
 export function syncOnLogin() {
-  // Force sync on login by clearing last sync time
-  localStorage.removeItem(SYNC_STORAGE_KEY);
+  // DISABLED: Auto-sync on login can cause high CPU usage
+  // Users should manually trigger sync if needed
+  console.log('⚠️  Auto-sync on login is disabled (use manual sync button)');
+  return;
   
-  setTimeout(() => {
-    syncVisits(false).then(result => {
-      if (result.success) {
-        console.log('✅ Sync completed after login');
-      }
-    });
-  }, 1000); // Wait 1 second after login
+  // Original code commented out:
+  // localStorage.removeItem(SYNC_STORAGE_KEY);
+  // setTimeout(() => {
+  //   syncVisits(false).then(result => {
+  //     if (result.success) {
+  //       console.log('✅ Sync completed after login');
+  //     }
+  //   });
+  // }, 1000);
 }
 
 /**
