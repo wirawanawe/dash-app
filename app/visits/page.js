@@ -1064,6 +1064,9 @@ export default function VisitsPage() {
                           Pasien
                         </th>
                         <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          NIK
+                        </th>
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Dokter
                         </th>
                         <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1083,7 +1086,7 @@ export default function VisitsPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {visits.length === 0 ? (
                         <tr>
-                          <td colSpan="7" className="px-3 py-12 text-center">
+                          <td colSpan="8" className="px-3 py-12 text-center">
                             <div className="flex flex-col items-center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                 <Calendar className="w-8 h-8 text-gray-400" />
@@ -1103,9 +1106,9 @@ export default function VisitsPage() {
                               <div className="text-sm font-semibold text-gray-900">
                                 {visit.patient?.name || "-"}
                               </div>
-                              {visit.patient?.nik && (
+                              {visit.patient?.noPeserta && (
                                 <div className="text-sm text-gray-500">
-                                  NIK: {visit.patient.nik}
+                                  No. Peserta: {visit.patient.noPeserta}
                                 </div>
                               )}
                               {visit.patient?.nip && (
@@ -1113,6 +1116,9 @@ export default function VisitsPage() {
                                   NIP: {visit.patient.nip}
                                 </div>
                               )}
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {visit.patient?.nik || "-"}
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className="flex flex-col">
