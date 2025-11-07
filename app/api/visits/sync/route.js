@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { invalidateTableCache, responseCache } from "@/lib/cache";
 
 export const dynamic = 'force-dynamic';
 
@@ -423,6 +424,14 @@ export async function POST(request) {
     );
     
     // Return response
+    // Invalidate caches so new data is visible immediately
+    try {
+      invalidateTableCache('visits');
+      responseCache.clear();
+    } catch (cacheError) {
+      console.error('Failed to invalidate cache after sync:', cacheError);
+    }
+
     const response = {
       success: true,
       message: pagesFailed > 0 
@@ -494,12 +503,12 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit') || '10');
     
     // Get latest sync logs
+    const safeLimit = Math.max(1, Math.min(100, limit));
     const logs = await query(
       `SELECT * FROM sync_logs 
        WHERE entity_type = 'visits' 
        ORDER BY started_at DESC 
-       LIMIT ?`,
-      [limit]
+       LIMIT ${safeLimit}`
     );
     
     // Get sync schedule

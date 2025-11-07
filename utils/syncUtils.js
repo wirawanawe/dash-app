@@ -50,7 +50,7 @@ export function updateLastSyncTime() {
 export async function syncVisits(silent = true) {
   try {
     // Check if sync is needed
-    if (!shouldSync()) {
+    if (silent && !shouldSync()) {
       if (!silent) {
         console.log('Sync skipped: Not enough time since last sync');
       }
@@ -62,11 +62,11 @@ export async function syncVisits(silent = true) {
     }
 
     if (!silent) {
-      console.log('Starting visits sync (async mode - CPU friendly)...');
+      console.log('Starting visits sync (direct low-CPU mode)...');
     }
 
-    // Use async endpoint to prevent CPU overload
-    const response = await fetch(`${SYNC_ENDPOINTS.visits}-async?mode=incremental`, {
+    // Call direct sync endpoint (CPU friendly config applied server-side)
+    const response = await fetch(SYNC_ENDPOINTS.visits, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
