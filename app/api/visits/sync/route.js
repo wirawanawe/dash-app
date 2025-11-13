@@ -74,6 +74,228 @@ const serializeConfig = (config) => ({
   MAX_RECORDS: Number.isFinite(config.MAX_RECORDS) ? config.MAX_RECORDS : 'all',
 });
 
+const normalizePrescriptions = (value) => {
+  if (!value) return [];
+
+  const parseSegment = (segment, overrides = {}) => {
+    const raw = (segment || "").trim();
+    if (!raw) return null;
+
+    let name = raw;
+    let quantity = "";
+    let unit = "";
+
+    const parenMatch = raw.match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      name = raw.slice(0, parenMatch.index).trim();
+      const inner = parenMatch[1].trim();
+      const tokens = inner.split(/\s+/).filter(Boolean);
+
+      if (tokens.length >= 2) {
+        const qtyIndex = tokens.findIndex(
+          (token, idx) => /^\d+(\.\d+)?$/.test(token) && idx < tokens.length - 1
+        );
+        if (qtyIndex !== -1) {
+          quantity = tokens[qtyIndex];
+          unit = tokens.slice(qtyIndex + 1).join(" ") || "";
+        } else if (/^\d+(\.\d+)?$/.test(tokens[tokens.length - 1])) {
+          quantity = tokens[tokens.length - 1];
+          unit = tokens.slice(0, tokens.length - 1).join(" ");
+        } else {
+          unit = tokens.join(" ");
+        }
+      } else if (tokens.length === 1) {
+        if (/^\d+(\.\d+)?$/.test(tokens[0])) {
+          quantity = tokens[0];
+        } else {
+          unit = tokens[0];
+        }
+      }
+    }
+
+    return {
+      name: overrides.name || name || raw,
+      quantity: overrides.quantity || quantity,
+      unit: overrides.unit || unit,
+      raw: overrides.raw || raw,
+    };
+  };
+
+  const pushRaw = (list, raw, overrides = {}) => {
+    if (!raw) return;
+    raw
+      .split(/;/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const parsed = parseSegment(part, { ...overrides, raw: part });
+        if (parsed) list.push(parsed);
+      });
+  };
+
+  const result = [];
+
+  const handleValue = (input) => {
+    if (!input) return;
+
+    if (Array.isArray(input)) {
+      input.forEach((item) => {
+        if (item && typeof item === "object") {
+          const rawString = (item.raw || item.name || "").trim();
+          if (rawString && rawString.includes(";")) {
+            pushRaw(result, rawString, { ...item, name: undefined });
+          } else {
+            const parsed = parseSegment(rawString || item.raw || item.name || "", item);
+            if (parsed) result.push(parsed);
+          }
+        } else if (typeof item === "string") {
+          pushRaw(result, item);
+        }
+      });
+      return;
+    }
+
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (!trimmed) return;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          handleValue(parsed);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      pushRaw(result, trimmed);
+      return;
+    }
+
+    if (typeof input === "object") {
+      handleValue(Object.values(input));
+    }
+  };
+
+  handleValue(value);
+  return result;
+};
+
+const normalizePrescriptions = (value) => {
+  if (!value) return [];
+
+  const toStringList = (input) => {
+    if (Array.isArray(input)) {
+      return input
+        .map((item) =>
+          typeof item === "string"
+            ? item
+            : item === null || item === undefined
+            ? ""
+            : String(item)
+        )
+        .filter(Boolean);
+    }
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) =>
+              typeof item === "string"
+                ? item
+                : item === null || item === undefined
+                ? ""
+                : String(item)
+            )
+            .filter(Boolean);
+        }
+      } catch {
+        // ignore and fallback
+      }
+      return trimmed
+        .split(/;|\n|,/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+    }
+    if (typeof input === "object") {
+      return Object.values(input)
+        .map((item) =>
+          typeof item === "string"
+            ? item
+            : item === null || item === undefined
+            ? ""
+            : String(item)
+        )
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const parseItem = (rawValue) => {
+    const raw = (rawValue || "").trim();
+    if (!raw) return null;
+
+    let name = raw;
+    let quantity = "";
+    let unit = "";
+
+    const parenMatch = raw.match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      name = raw.slice(0, parenMatch.index).trim();
+      const inner = parenMatch[1].trim();
+      const tokens = inner.split(/\s+/).filter(Boolean);
+
+      if (tokens.length >= 2) {
+        const qtyIndex = tokens.findIndex((token, idx) =>
+          /^\d+(\.\d+)?$/.test(token) && idx < tokens.length - 1
+        );
+        if (qtyIndex !== -1) {
+          quantity = tokens[qtyIndex];
+          unit = tokens.slice(qtyIndex + 1).join(" ") || "";
+        } else if (/^\d+(\.\d+)?$/.test(tokens[tokens.length - 1])) {
+          quantity = tokens[tokens.length - 1];
+          unit = tokens.slice(0, tokens.length - 1).join(" ");
+        } else {
+          unit = tokens.join(" ");
+        }
+      } else if (tokens.length === 1) {
+        if (/^\d+(\.\d+)?$/.test(tokens[0])) {
+          quantity = tokens[0];
+        } else {
+          unit = tokens[0];
+        }
+      }
+    } else {
+      const tokens = raw.split(/\s+/).filter(Boolean);
+      if (tokens.length >= 2) {
+        const last = tokens[tokens.length - 1];
+        const secondLast = tokens[tokens.length - 2];
+        if (/^\d+(\.\d+)?$/.test(secondLast)) {
+          quantity = secondLast;
+          unit = last.replace(/[()]/g, "");
+          name = tokens.slice(0, tokens.length - 2).join(" ");
+        } else if (/^\d+(\.\d+)?$/.test(last)) {
+          quantity = last;
+          name = tokens.slice(0, tokens.length - 1).join(" ");
+        }
+      }
+    }
+
+    return {
+      name: name || raw,
+      quantity,
+      unit,
+      raw,
+    };
+  };
+
+  return toStringList(value)
+    .map(parseItem)
+    .filter(Boolean);
+};
+
 const COLUMN_DEFINITIONS = {
   external_id: "ADD COLUMN external_id VARCHAR(100) UNIQUE COMMENT 'ID from external API'",
   visit_number: "ADD COLUMN visit_number VARCHAR(100) COMMENT 'No_Kunjungan from API'",
@@ -194,7 +416,7 @@ export async function POST(request) {
     dbTime: 0,
     totalPages: 0,
   };
-
+  
   let totalRecords = 0;
   let totalPages = 0;
   let fetchedRecords = 0;
@@ -503,12 +725,9 @@ export async function POST(request) {
             continue;
           }
           
-          const rawPrescriptions = visit.Resep || visit.resep || visit.Prescription || visit.prescription || [];
-          const normalizedPrescriptions = Array.isArray(rawPrescriptions)
-            ? rawPrescriptions
-            : rawPrescriptions
-            ? [rawPrescriptions]
-            : [];
+          const normalizedPrescriptions = parsePrescriptionsField(
+            visit.Resep || visit.resep || visit.Prescription || visit.prescription
+          );
           
           // Prepare data
           const visitData = {

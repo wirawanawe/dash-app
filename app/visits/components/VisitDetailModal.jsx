@@ -39,8 +39,160 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
   FaMinusCircle,
+  FaPills,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
+
+const parsePrescriptionSegment = (segment, overrides = {}) => {
+  const raw = (segment || "").trim();
+  if (!raw) return null;
+
+  let name = raw;
+  let quantity = "";
+  let unit = "";
+
+  const parenMatch = raw.match(/\(([^)]+)\)\s*$/);
+  if (parenMatch) {
+    name = raw.slice(0, parenMatch.index).trim();
+    const inner = parenMatch[1].trim();
+    const tokens = inner.split(/\s+/).filter(Boolean);
+
+    if (tokens.length >= 2) {
+      const qtyIndex = tokens.findIndex(
+        (token, idx) => /^\d+(\.\d+)?$/.test(token) && idx < tokens.length - 1
+      );
+      if (qtyIndex !== -1) {
+        quantity = tokens[qtyIndex];
+        unit = tokens.slice(qtyIndex + 1).join(" ") || "";
+      } else if (/^\d+(\.\d+)?$/.test(tokens[tokens.length - 1])) {
+        quantity = tokens[tokens.length - 1];
+        unit = tokens.slice(0, tokens.length - 1).join(" ");
+      } else {
+        unit = tokens.join(" ");
+      }
+    } else if (tokens.length === 1) {
+      if (/^\d+(\.\d+)?$/.test(tokens[0])) {
+        quantity = tokens[0];
+      } else {
+        unit = tokens[0];
+      }
+    }
+  } else {
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    if (tokens.length >= 2) {
+      const last = tokens[tokens.length - 1];
+      const secondLast = tokens[tokens.length - 2];
+      if (/^\d+(\.\d+)?$/.test(secondLast)) {
+        quantity = secondLast;
+        unit = last.replace(/[()]/g, "");
+        name = tokens.slice(0, tokens.length - 2).join(" ");
+      } else if (/^\d+(\.\d+)?$/.test(last)) {
+        quantity = last;
+        name = tokens.slice(0, tokens.length - 1).join(" ");
+      }
+    }
+  }
+
+  return {
+    name: overrides.name || name || raw,
+    quantity: overrides.quantity || quantity,
+    unit: overrides.unit || unit,
+    raw: overrides.raw || raw,
+  };
+};
+
+const expandPrescriptions = (prescriptions = []) => {
+  const rows = [];
+  prescriptions.forEach((item) => {
+    if (!item) return;
+
+    if (typeof item === "string") {
+      item
+        .split(/;/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .forEach((part) => {
+          const parsed = parsePrescriptionSegment(part);
+          if (parsed) rows.push(parsed);
+        });
+      return;
+    }
+
+    if (Array.isArray(item)) {
+      rows.push(...expandPrescriptions(item));
+      return;
+    }
+
+    if (typeof item === "object") {
+      const raw = (item.raw || item.name || "").trim();
+      if (raw && raw.includes(";")) {
+        raw
+          .split(/;/)
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .forEach((part) => {
+            const parsed = parsePrescriptionSegment(part, {
+              ...item,
+              raw: part,
+              name: undefined,
+            });
+            if (parsed) rows.push(parsed);
+          });
+      } else {
+        const parsed = parsePrescriptionSegment(raw || item.raw || item.name || "", item);
+        if (parsed) rows.push(parsed);
+      }
+    }
+  });
+  return rows;
+};
+
+const expandDiagnoses = (diagnosesSource) => {
+  if (!diagnosesSource) return [];
+
+  const rows = [];
+  const pushFromString = (raw) => {
+    if (!raw) return;
+    const cleaned = raw.replace(/^\(|\)$/g, "");
+    cleaned
+      .split(/;/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const match = part.match(/^\(?\s*([A-Za-z0-9\.\-]+)\s*-\s*(.+?)\)?$/);
+        if (match) {
+          rows.push({
+            icd: match[1].trim(),
+            description: match[2].trim(),
+            raw: part.replace(/^\(|\)$/g, "").trim(),
+          });
+        } else {
+          rows.push({
+            icd: "",
+            description: part.replace(/^\(|\)$/g, "").trim(),
+            raw: part.replace(/^\(|\)$/g, "").trim(),
+          });
+        }
+      });
+  };
+
+  if (Array.isArray(diagnosesSource)) {
+    diagnosesSource.forEach((item) => {
+      if (!item) return;
+      if (typeof item === "string") {
+        pushFromString(item);
+      } else if (typeof item === "object") {
+        pushFromString(item.raw || item.description || item.icd || "");
+      }
+    });
+  } else if (typeof diagnosesSource === "string") {
+    pushFromString(diagnosesSource);
+  } else if (typeof diagnosesSource === "object") {
+    pushFromString(Object.values(diagnosesSource).join("; "));
+  }
+
+  return rows;
+};
 
 export default function VisitDetailModal({ visit, onClose }) {
   if (!visit) return null;
@@ -121,6 +273,9 @@ export default function VisitDetailModal({ visit, onClose }) {
 
   const bmi = calculateBMI();
   const bmiCategory = bmi ? getBMICategory(bmi) : null;
+
+  const prescriptionRows = expandPrescriptions(visit.prescriptions);
+  const diagnosisRows = expandDiagnoses(visit.diagnoses || visit.diagnosis);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-modal-backdrop-fade-in">
@@ -311,21 +466,86 @@ export default function VisitDetailModal({ visit, onClose }) {
                 <FaNotesMedical className="text-blue-600 mr-3 text-xl" />
                 <h3 className="text-xl font-semibold text-gray-900">Diagnosa Medis</h3>
               </div>
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <p className="text-gray-800 leading-relaxed whitespace-pre-line">{visit.diagnosis || visit.complaint || "-"}</p>
-              </div>
+              {diagnosisRows.length > 0 && (
+                <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
+                  <table className="min-w-full border border-gray-200 rounded-lg">
+                    <thead className="bg-blue-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase tracking-wide">No</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase tracking-wide">ICD</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase tracking-wide">Diagnosa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {diagnosisRows.map((item, idx) => (
+                        <tr key={`${item.raw || item.description}-${idx}`} className="hover:bg-blue-50 transition-colors duration-150">
+                          <td className="px-3 py-2 text-xs font-medium text-gray-600">{idx + 1}</td>
+                          <td className="px-3 py-2 text-sm text-gray-800">{item.icd || "-"}</td>
+                          <td className="px-3 py-2 text-sm text-gray-800">{item.description || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
+            {prescriptionRows.length > 0 && (
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center mb-6">
+                  <FaPills className="text-purple-600 mr-3 text-xl" />
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Resep Obat ({prescriptionRows.length})
+                  </h3>
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
+                  <table className="min-w-full border border-gray-200 rounded-lg">
+                    <thead className="bg-purple-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">
+                          No
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">
+                          Nama Obat
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">
+                          Qty
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase tracking-wide">
+                          Satuan
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {prescriptionRows.map((item, idx) => {
+                        const name = item.name || item.raw || "-";
+                        const qty = item.quantity || "-";
+                        const unit = item.unit || "-";
+                        return (
+                          <tr key={`${item.raw || name}-${idx}`} className="hover:bg-purple-50 transition-colors duration-150">
+                            <td className="px-3 py-2 text-xs font-medium text-gray-600">{idx + 1}</td>
+                            <td className="px-3 py-2 text-sm text-gray-800">{name}</td>
+                            <td className="px-3 py-2 text-sm text-gray-800">{qty || "-"}</td>
+                            <td className="px-3 py-2 text-sm text-gray-800">{unit || "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Physical Examination */}
-            {visit.physicalExam && (
+            {/* {visit.physicalExam && (
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-6">
                   <FaHeartbeat className="text-green-600 mr-3 text-xl" />
                   <h3 className="text-xl font-semibold text-gray-900">Pemeriksaan Fisik</h3>
-                </div>
+                </div> */}
                 
                 {/* BMI Calculation */}
-                {bmi && (
+                {/* {bmi && (
                   <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm animate-bmi-pulse">
                     <div className="flex items-center justify-between">
                       <div>
@@ -340,10 +560,10 @@ export default function VisitDetailModal({ visit, onClose }) {
                       </div>
                     </div>
                   </div>
-                )}
+                )} */}
                 
                 {/* Vital Signs Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                     <div className="flex items-center mb-2">
                       <FaWeight className="text-blue-500 mr-2" />
@@ -409,10 +629,10 @@ export default function VisitDetailModal({ visit, onClose }) {
                     </div>
                     <div className="text-lg font-semibold text-gray-900">{visit.physicalExam.respirationRate || "0"} rpm</div>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Eyes and Ears */}
-                {(visit.physicalExam.eyes || visit.physicalExam.ears) && (
+                {/* {(visit.physicalExam.eyes || visit.physicalExam.ears) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {visit.physicalExam.eyes && (
                       <div>
@@ -439,10 +659,10 @@ export default function VisitDetailModal({ visit, onClose }) {
                   </div>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Referral Information */}
-            {(visit.referral?.source?.type !== "-" || visit.referral?.destination?.notes) && (
+            {/* {(visit.referral?.source?.type !== "-" || visit.referral?.destination?.notes) && (
               <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-6">
                   <FaExchangeAlt className="text-yellow-600 mr-3 text-xl" />
@@ -468,10 +688,10 @@ export default function VisitDetailModal({ visit, onClose }) {
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Sick Leave & Health Certificate */}
-            {(visit.sickLeave?.status || visit.healthCertificate) && (
+            {/* {(visit.sickLeave?.status || visit.healthCertificate) && (
               <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-6">
                   <FaCertificate className="text-purple-600 mr-3 text-xl" />
@@ -516,10 +736,10 @@ export default function VisitDetailModal({ visit, onClose }) {
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Cancellation Information */}
-            {visit.cancellation?.reason && (
+            {/* {visit.cancellation?.reason && (
               <div className="bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-xl border border-red-200 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-6">
                   <FaExclamationTriangle className="text-red-600 mr-3 text-xl" />
@@ -538,10 +758,10 @@ export default function VisitDetailModal({ visit, onClose }) {
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Audit Trail */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
+            {/* <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300">
               <div className="flex items-center mb-6">
                 <FaHistory className="text-gray-600 mr-3 text-xl" />
                 <h3 className="text-xl font-semibold text-gray-900">Audit Trail</h3>
@@ -556,7 +776,7 @@ export default function VisitDetailModal({ visit, onClose }) {
                   <p className="text-gray-800">{formatDate(visit.updatedAt)}</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 

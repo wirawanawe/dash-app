@@ -431,7 +431,7 @@ export default function VisitsPage() {
     return null;
   }, []);
 
-  const startProgressPolling = useCallback(() => {
+  const startProgressPolling = useCallback((modeKey = 'aggressive') => {
     clearProgressPolling();
     progressIntervalRef.current = setInterval(() => {
       fetchLatestProgress();
@@ -445,24 +445,16 @@ export default function VisitsPage() {
     };
   }, [clearProgressPolling]);
 
-  const handleSyncData = async (mode = 'full') => {
-    const modeLabel = mode === 'aggressive' ? 'Aggressive' : mode === 'full' ? 'Full' : 'Limited';
-    const confirmationMessage =
-      mode === 'aggressive'
-        ? 'Jalankan sync cepat (aggressive)? Beban API/CPU mungkin lebih tinggi.'
-        : 'Sync data dari API eksternal? Data akan diproses di background secara otomatis.';
-
+const handleSyncData = async (mode = 'aggressive') => {
+    const modeLabel = 'Aggressive';
+    const confirmationMessage = 'Jalankan sync cepat (aggressive)? Beban API/CPU mungkin lebih tinggi.';
     if (!confirm(confirmationMessage)) {
       return;
     }
 
     try {
       setSyncing(true);
-      setSyncStatusMessage(
-        mode === 'aggressive'
-          ? 'Menjalankan sync cepat (aggressive). Harap pantau jika terjadi beban tinggi.'
-          : 'Menjalankan full sync data kunjungan (server akan otomatis menahan beban CPU)...'
-      );
+      setSyncStatusMessage('Menjalankan sync cepat (aggressive). Harap pantau jika terjadi beban tinggi.');
       setSyncStats({
         total: 0,
         fetched: 0,
@@ -473,19 +465,14 @@ export default function VisitsPage() {
         failed: 0,
       });
       
-      toast.loading(
-        mode === 'aggressive'
-          ? 'Sync cepat: menarik data dengan konfigurasi agresif...'
-          : 'Mengambil seluruh data kunjungan dari API...',
-        { id: 'sync-toast' }
-      );
+      toast.loading('Sync cepat: menarik data dengan konfigurasi agresif...', { id: 'sync-toast' });
       
       const syncPromise = fetch(`/api/visits/sync?mode=${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
 
-      startProgressPolling();
+      startProgressPolling('aggressive');
 
       const response = await syncPromise;
       const result = await response.json();
@@ -717,20 +704,12 @@ export default function VisitsPage() {
             <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
              
               <button
-                onClick={() => handleSyncData('full')}
-                disabled={syncing}
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
-                {syncing ? 'Syncing...' : 'Sync (Full)'}
-              </button>
-              <button
                 onClick={() => handleSyncData('aggressive')}
                 disabled={syncing}
                 className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
-                {syncing ? 'Syncing...' : 'Sync Cepat (Aggressive)'}
+                {syncing ? 'Syncing...' : 'Sync Data'}
               </button>
             </div>
           </div>
@@ -1257,7 +1236,7 @@ export default function VisitsPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {visits.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="px-3 py-12 text-center">
+                          <td colSpan="9" className="px-3 py-12 text-center">
                             <div className="flex flex-col items-center">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                 <Calendar className="w-8 h-8 text-gray-400" />

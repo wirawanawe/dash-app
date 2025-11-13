@@ -76,6 +76,112 @@ const COLUMN_DEFINITIONS = {
   synced_at: "ADD COLUMN synced_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
 };
 
+const normalizePrescriptions = (value) => {
+  if (!value) return [];
+
+  const parseSegment = (segment, overrides = {}) => {
+    const raw = (segment || "").trim();
+    if (!raw) return null;
+
+    let name = raw;
+    let quantity = "";
+    let unit = "";
+
+    const parenMatch = raw.match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      name = raw.slice(0, parenMatch.index).trim();
+      const inner = parenMatch[1].trim();
+      const tokens = inner.split(/\s+/).filter(Boolean);
+
+      if (tokens.length >= 2) {
+        const qtyIndex = tokens.findIndex(
+          (token, idx) => /^\d+(\.\d+)?$/.test(token) && idx < tokens.length - 1
+        );
+        if (qtyIndex !== -1) {
+          quantity = tokens[qtyIndex];
+          unit = tokens.slice(qtyIndex + 1).join(" ") || "";
+        } else if (/^\d+(\.\d+)?$/.test(tokens[tokens.length - 1])) {
+          quantity = tokens[tokens.length - 1];
+          unit = tokens.slice(0, tokens.length - 1).join(" ");
+        } else {
+          unit = tokens.join(" ");
+        }
+      } else if (tokens.length === 1) {
+        if (/^\d+(\.\d+)?$/.test(tokens[0])) {
+          quantity = tokens[0];
+        } else {
+          unit = tokens[0];
+        }
+      }
+    }
+
+    return {
+      name: overrides.name || name || raw,
+      quantity: overrides.quantity || quantity,
+      unit: overrides.unit || unit,
+      raw: overrides.raw || raw,
+    };
+  };
+
+  const pushRaw = (list, raw, overrides = {}) => {
+    if (!raw) return;
+    raw
+      .split(/;/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const parsed = parseSegment(part, { ...overrides, raw: part });
+        if (parsed) list.push(parsed);
+      });
+  };
+
+  const result = [];
+
+  const handleValue = (input) => {
+    if (!input) return;
+
+    if (Array.isArray(input)) {
+      input.forEach((item) => {
+        if (item && typeof item === "object") {
+          const rawString = (item.raw || item.name || "").trim();
+          if (rawString && rawString.includes(";")) {
+            pushRaw(result, rawString, { ...item, name: undefined });
+          } else {
+            const parsed = parseSegment(rawString || item.raw || item.name || "", item);
+            if (parsed) result.push(parsed);
+          }
+        } else if (typeof item === "string") {
+          pushRaw(result, item);
+        }
+      });
+      return;
+    }
+
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (!trimmed) return;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          handleValue(parsed);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      pushRaw(result, trimmed);
+      return;
+    }
+
+    if (typeof input === "object") {
+      handleValue(Object.values(input));
+    }
+  };
+
+  handleValue(value);
+  return result;
+};
+
 async function downloadAllVisits() {
   console.log(`⬇️  Downloading visits from ${API_URL}`);
   await fs.promises.mkdir(OUTPUT_DIR, { recursive: true });
@@ -157,18 +263,9 @@ function chunk(array, size) {
 }
 
 function normalizeVisit(visit) {
-  const rawPrescriptions =
-    visit.Resep ||
-    visit.resep ||
-    visit.Prescription ||
-    visit.prescription ||
-    [];
-
-  const normalizedPrescriptions = Array.isArray(rawPrescriptions)
-    ? rawPrescriptions
-    : rawPrescriptions
-    ? [rawPrescriptions]
-    : [];
+  const normalizedPrescriptions = normalizePrescriptions(
+    visit.Resep || visit.resep || visit.Prescription || visit.prescription
+  );
 
   const externalId = visit.ID || visit.No_Kunjungan;
   if (!externalId) {

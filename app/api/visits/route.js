@@ -27,6 +27,198 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
   }
 }
 
+const normalizePrescriptionList = (value) => {
+  if (!value) return [];
+
+  const parseSegment = (segment, overrides = {}) => {
+    const raw = (segment || "").trim();
+    if (!raw) return null;
+
+    let name = raw;
+    let quantity = "";
+    let unit = "";
+
+    const parenMatch = raw.match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      name = raw.slice(0, parenMatch.index).trim();
+      const inner = parenMatch[1].trim();
+      const tokens = inner.split(/\s+/).filter(Boolean);
+
+      if (tokens.length >= 2) {
+        const qtyIndex = tokens.findIndex(
+          (token, idx) => /^\d+(\.\d+)?$/.test(token) && idx < tokens.length - 1
+        );
+        if (qtyIndex !== -1) {
+          quantity = tokens[qtyIndex];
+          unit = tokens.slice(qtyIndex + 1).join(" ") || "";
+        } else if (/^\d+(\.\d+)?$/.test(tokens[tokens.length - 1])) {
+          quantity = tokens[tokens.length - 1];
+          unit = tokens.slice(0, tokens.length - 1).join(" ");
+        } else {
+          unit = tokens.join(" ");
+        }
+      } else if (tokens.length === 1) {
+        if (/^\d+(\.\d+)?$/.test(tokens[0])) {
+          quantity = tokens[0];
+        } else {
+          unit = tokens[0];
+        }
+      }
+  }
+
+    const normalized = {
+      name: overrides.name || name || raw,
+      quantity: overrides.quantity || quantity,
+      unit: overrides.unit || unit,
+      raw: overrides.raw || raw,
+    };
+
+    return normalized;
+  };
+
+  const pushRaw = (list, raw) => {
+    if (!raw) return;
+    raw
+      .split(/;/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const parsed = parseSegment(part);
+        if (parsed) list.push(parsed);
+      });
+  };
+
+  const result = [];
+
+  const handleValue = (input) => {
+    if (!input) return;
+
+    if (Array.isArray(input)) {
+      input.forEach((item) => {
+        if (item && typeof item === "object") {
+          const rawString = (item.raw || item.name || "").trim();
+          if (rawString && rawString.includes(";")) {
+            rawString
+              .split(/;/)
+              .map((part) => part.trim())
+              .filter(Boolean)
+              .forEach((part) => {
+                const parsed = parseSegment(part, {
+                  ...item,
+                  raw: part,
+                  name: undefined,
+                });
+                if (parsed) {
+                  result.push(parsed);
+                }
+              });
+          } else {
+            const parsed = parseSegment(rawString || item.raw || item.name || "", item);
+            if (parsed) result.push(parsed);
+          }
+        } else if (typeof item === "string") {
+          pushRaw(result, item);
+        }
+      });
+      return;
+    }
+
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      if (!trimmed) return;
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          handleValue(parsed);
+          return;
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+      pushRaw(result, trimmed);
+      return;
+    }
+
+    if (typeof input === "object") {
+      handleValue(Object.values(input));
+    }
+  };
+
+  handleValue(value);
+  return result;
+};
+
+const normalizeDiagnoses = (value) => {
+  if (!value) return [];
+
+  const pushRaw = (list, raw) => {
+    if (!raw) return;
+    const cleaned = raw.replace(/^\(|\)$/g, "");
+    cleaned
+      .split(/;/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const match = part.match(/^\(?\s*([A-Za-z0-9\.\-]+)\s*-\s*(.+?)\)?$/);
+        if (match) {
+          list.push({
+            icd: match[1].trim(),
+            description: match[2].trim(),
+            raw: part.replace(/^\(|\)$/g, "").trim(),
+          });
+        } else {
+          list.push({
+            icd: "",
+            description: part.replace(/^\(|\)$/g, "").trim(),
+            raw: part.replace(/^\(|\)$/g, "").trim(),
+          });
+        }
+      });
+  };
+
+  const result = [];
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      if (!item) return;
+      if (typeof item === "string") {
+        pushRaw(result, item);
+      } else if (typeof item === "object") {
+        pushRaw(result, item.raw || item.description || item.icd || "");
+      }
+    });
+    return result;
+  }
+
+  if (typeof value === "string") {
+    pushRaw(result, value);
+    return result;
+  }
+
+  if (typeof value === "object") {
+    pushRaw(result, Object.values(value).join("; "));
+    return result;
+  }
+
+  return result;
+};
+
+const parsePrescriptionsField = (value) => {
+  if (!value) return [];
+
+  // Handle case where value is already array of structured objects
+  if (Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null)) {
+    return value.map((item) => ({
+      name: item.name || item.raw || "",
+      quantity: item.quantity || "",
+      unit: item.unit || "",
+      raw: item.raw || item.name || "",
+    }));
+  }
+
+  return normalizePrescriptionList(value);
+};
+
 // GET all visits from local cache database (fast loading)
 export async function GET(request) {
   // Rate limiting
@@ -193,12 +385,15 @@ export async function GET(request) {
         };
       }
       
+      const prescriptions = parsePrescriptionsField(visit.prescriptions || visit.resep);
+      const diagnoses = normalizeDiagnoses(visit.diagnosis);
       return {
         id: visit.visit_number || visit.external_id,
         uniqueId: visit.unique_id || visit.external_id,
         visitNumber: visit.visit_number,
         complaint: visit.complaint || "-",
         diagnosis: visit.diagnosis || "-",
+        diagnoses,
         treatment: visit.treatment || "-",
         notes: visit.notes || "-",
         assessment: visit.assessment || "-",
@@ -238,6 +433,10 @@ export async function GET(request) {
           name: "-",
         },
         physicalExam,
+        prescriptions,
+        diagnoses,
+        prescriptionCount: prescriptions.length || visit.prescription_count || 0,
+        diagnoses,
         referral: {
           source: {
             type: "",
@@ -316,6 +515,8 @@ export async function GET(request) {
           treatment, notes, complaint, assessment,
           patient_name, patient_nik, doctor_name,
           clinic, room, visit_number,
+          facility_name, facility_code,
+          prescriptions, prescription_count,
           created_at, updated_at
         FROM visits
         WHERE external_id IS NOT NULL
@@ -390,31 +591,58 @@ export async function GET(request) {
       const localVisits = await query(sql, params);
 
       // Transform local visits to match expected format
-      const transformedVisits = localVisits.map(visit => ({
-        id: visit.id,
-        visitDate: visit.visit_date,
-        patientName: visit.patient_name,
-        patientId: visit.patient_id,
-        doctorName: visit.doctor_name,
-        doctorId: visit.doctor_id,
-        status: visit.status,
-        complaint: visit.diagnosis || "-",
-        diagnosis: visit.diagnosis || "-",
-        treatment: visit.treatment || "-",
-        notes: visit.notes || "-",
-        room: "-",
-        clinic: "-",
-        created_at: visit.created_at,
-        updated_at: visit.updated_at,
-        patient: {
-          id: visit.patient_id,
-          name: visit.patient_name,
-        },
-        doctor: {
-          id: visit.doctor_id,
-          name: visit.doctor_name,
-        },
-      }));
+      const transformedVisits = localVisits.map((visit) => {
+        const prescriptions = parsePrescriptionsField(visit.prescriptions);
+
+        return {
+          id: visit.visit_number || visit.id,
+          uniqueId: visit.visit_number || visit.id,
+          visitNumber: visit.visit_number,
+          complaint: visit.complaint || visit.diagnosis || "-",
+          diagnosis: visit.diagnosis || "-",
+          diagnoses: normalizeDiagnoses(visit.diagnosis),
+          treatment: visit.treatment || "-",
+          notes: visit.notes || "-",
+          assessment: visit.assessment || "-",
+          status: visit.status || "Selesai",
+          clinic: visit.clinic || "-",
+          room: visit.room || "-",
+          visitDate: visit.visit_date || null,
+          createdAt: visit.created_at,
+          updatedAt: visit.updated_at,
+          patient: {
+            id: "",
+            name: visit.patient_name || "-",
+            nik: visit.patient_nik || "",
+            mrNumber: visit.patient_nik || "",
+            nip: "",
+            noPeserta: "",
+            namaPeserta: "",
+            gender: "",
+            birthDate: "",
+            department: "",
+          },
+          doctor: {
+            id: "",
+            name: visit.doctor_name || "-",
+          },
+          facility: {
+            code: visit.facility_code || "",
+            name: visit.facility_name || "-",
+          },
+          physicalExam: {},
+          referral: {
+            source: { type: "", referrer: "" },
+            destination: { notes: "" },
+          },
+          sickLeave: { status: false, days: null, startDate: null, endDate: null },
+          healthCertificate: false,
+          cancellation: { userId: null, date: null, reason: null },
+          examinations: [],
+          prescriptions,
+          prescriptionCount: prescriptions.length || visit.prescription_count || 0,
+        };
+      });
 
       const totalPages = isFetchAll ? 1 : Math.ceil(totalVisits / (limit || 1));
 

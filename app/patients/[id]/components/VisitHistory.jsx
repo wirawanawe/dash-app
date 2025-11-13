@@ -89,6 +89,53 @@ export default function VisitHistory({ mrNumber, patientId }) {
     }
   };
 
+  const expandDiagnoses = (value) => {
+    if (!value) return [];
+    const rows = [];
+
+    const push = (raw) => {
+      if (!raw) return;
+      const cleaned = raw.replace(/^\(|\)$/g, "");
+      cleaned
+        .split(/;/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .forEach((part) => {
+          const match = part.match(/^\(?\s*([A-Za-z0-9\.\-]+)\s*-\s*(.+?)\)?$/);
+          if (match) {
+            rows.push({
+              icd: match[1].trim(),
+              description: match[2].trim(),
+              raw: part.replace(/^\(|\)$/g, "").trim(),
+            });
+          } else {
+            rows.push({
+              icd: "",
+              description: part.replace(/^\(|\)$/g, "").trim(),
+              raw: part.replace(/^\(|\)$/g, "").trim(),
+            });
+          }
+        });
+    };
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (!item) return;
+        if (typeof item === "string") {
+          push(item);
+        } else if (typeof item === "object") {
+          push(item.raw || item.description || item.icd || "");
+        }
+      });
+    } else if (typeof value === "string") {
+      push(value);
+    } else if (typeof value === "object") {
+      push(Object.values(value).join("; "));
+    }
+
+    return rows;
+  };
+
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "selesai":
@@ -252,9 +299,35 @@ export default function VisitHistory({ mrNumber, patientId }) {
                 {(visit.diagnosis || visit.diagnosa) && (
                   <div className="md:col-span-2">
                     <span className="font-medium text-gray-700">Diagnosis:</span>
-                    <p className="text-gray-900 mt-1 bg-gray-50 p-2 rounded">
-                      {visit.diagnosis || visit.diagnosa}
-                    </p>
+                    <div className="text-gray-900 mt-1 bg-gray-50 p-2 rounded space-y-2">
+                      <p>{visit.diagnosis || visit.diagnosa}</p>
+                      {(() => {
+                        const rows = expandDiagnoses(
+                          visit.diagnoses || visit.diagnosis || visit.diagnosa
+                        );
+                        if (!rows.length) return null;
+                        return (
+                          <table className="min-w-full text-xs border border-gray-200 rounded">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-2 py-1 text-left font-semibold text-gray-600">No</th>
+                                <th className="px-2 py-1 text-left font-semibold text-gray-600">ICD</th>
+                                <th className="px-2 py-1 text-left font-semibold text-gray-600">Diagnosa</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rows.map((item, idx) => (
+                                <tr key={`${item.raw}-${idx}`} className="border-t border-gray-200">
+                                  <td className="px-2 py-1 text-gray-600">{idx + 1}</td>
+                                  <td className="px-2 py-1 text-gray-900">{item.icd || "-"}</td>
+                                  <td className="px-2 py-1 text-gray-900">{item.description || item.raw}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
 
@@ -267,14 +340,53 @@ export default function VisitHistory({ mrNumber, patientId }) {
                   </div>
                 )}
 
-                {(visit.resep || visit.prescription || visit.obat) && (
+                {(() => {
+                  const raw =
+                    visit.prescriptions ||
+                    visit.resep ||
+                    visit.prescription ||
+                    visit.obat;
+
+                  const normalize = (input) => {
+                    if (Array.isArray(input)) {
+                      return input
+                        .map((item) =>
+                          typeof item === "string"
+                            ? item
+                            : item && typeof item === "object"
+                            ? [item.name, item.quantity, item.unit]
+                                .filter(Boolean)
+                                .join(" ")
+                            : ""
+                        )
+                        .filter(Boolean)
+                        .join("; ");
+                    }
+                    if (typeof input === "string") {
+                      return input;
+                    }
+                    if (input && typeof input === "object") {
+                      return Object.values(input)
+                        .map((val) =>
+                          typeof val === "string" ? val : String(val ?? "")
+                        )
+                        .filter(Boolean)
+                        .join("; ");
+                    }
+                    return "";
+                  };
+
+                  const prescriptionText = normalize(raw);
+
+                  return prescriptionText ? (
                   <div className="md:col-span-2">
                     <span className="font-medium text-gray-700">Resep:</span>
                     <p className="text-gray-900 mt-1 bg-gray-50 p-2 rounded">
-                      {visit.resep || visit.prescription || visit.obat}
+                      {prescriptionText}
                     </p>
                   </div>
-                )}
+                  ) : null;
+                })()}
               </div>
 
               {/* Vital Signs */}
