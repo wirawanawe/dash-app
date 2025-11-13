@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -348,31 +348,154 @@ export default function VisitsPage() {
 
   // Handle sync data from external API
   const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(null);
+  const [syncStatusMessage, setSyncStatusMessage] = useState(null);
+  const [syncStats, setSyncStats] = useState(null);
+  const progressIntervalRef = useRef(null);
 
-  const handleSyncData = async () => {
-    // Confirm before syncing
-    if (!confirm('Sync data dari API eksternal? Data akan diproses di background secara otomatis.')) {
+  const clearProgressPolling = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  }, []);
+
+  const fetchLatestProgress = useCallback(async () => {
+    try {
+      const inProgressResponse = await fetch('/api/visits/sync?status=in_progress&latest=1', {
+        cache: 'no-store',
+      });
+      const inProgressData = await inProgressResponse.json();
+      if (
+        inProgressResponse.ok &&
+        inProgressData.success &&
+        Array.isArray(inProgressData.logs) &&
+        inProgressData.logs.length > 0
+      ) {
+        const log = inProgressData.logs[0];
+        const total = log.total_records || log.records_fetched || 0;
+        const fetched = log.records_fetched || 0;
+        const processed = log.processed_records || fetched;
+        const percent =
+          total > 0
+            ? Math.min(100, log.progress_percent ?? Math.round((processed / total) * 100))
+            : fetched > 0
+            ? 100
+            : 0;
+
+        setSyncStats({
+          total,
+          fetched,
+          processed,
+          percent,
+          inserted: log.records_inserted || 0,
+          updated: log.records_updated || 0,
+          failed: log.records_failed || 0,
+        });
+        setSyncStatusMessage('Sedang menyalin data dari API ke database lokal...');
+        return log;
+      }
+
+      const completedResponse = await fetch('/api/visits/sync?status=completed&latest=1', {
+        cache: 'no-store',
+      });
+      const completedData = await completedResponse.json();
+      if (
+        completedResponse.ok &&
+        completedData.success &&
+        Array.isArray(completedData.logs) &&
+        completedData.logs.length > 0
+      ) {
+        const log = completedData.logs[0];
+        const total = log.total_records || log.records_fetched || 0;
+        const fetched = log.records_fetched || 0;
+        const processed = log.processed_records || fetched;
+        const percent =
+          total > 0
+            ? Math.min(100, log.progress_percent ?? Math.round((processed / total) * 100))
+            : 100;
+
+        setSyncStats({
+          total,
+          fetched,
+          processed,
+          percent,
+          inserted: log.records_inserted || 0,
+          updated: log.records_updated || 0,
+          failed: log.records_failed || 0,
+        });
+        return log;
+      }
+    } catch (error) {
+      console.error('Failed to fetch sync progress:', error);
+    }
+    return null;
+  }, []);
+
+  const startProgressPolling = useCallback(() => {
+    clearProgressPolling();
+    progressIntervalRef.current = setInterval(() => {
+      fetchLatestProgress();
+    }, 1500);
+    fetchLatestProgress();
+  }, [clearProgressPolling, fetchLatestProgress]);
+
+  useEffect(() => {
+    return () => {
+      clearProgressPolling();
+    };
+  }, [clearProgressPolling]);
+
+  const handleSyncData = async (mode = 'full') => {
+    const modeLabel = mode === 'aggressive' ? 'Aggressive' : mode === 'full' ? 'Full' : 'Limited';
+    const confirmationMessage =
+      mode === 'aggressive'
+        ? 'Jalankan sync cepat (aggressive)? Beban API/CPU mungkin lebih tinggi.'
+        : 'Sync data dari API eksternal? Data akan diproses di background secara otomatis.';
+
+    if (!confirm(confirmationMessage)) {
       return;
     }
 
     try {
       setSyncing(true);
-      setSyncProgress('Menambahkan job sync ke queue...');
+      setSyncStatusMessage(
+        mode === 'aggressive'
+          ? 'Menjalankan sync cepat (aggressive). Harap pantau jika terjadi beban tinggi.'
+          : 'Menjalankan full sync data kunjungan (server akan otomatis menahan beban CPU)...'
+      );
+      setSyncStats({
+        total: 0,
+        fetched: 0,
+        processed: 0,
+        percent: 0,
+        inserted: 0,
+        updated: 0,
+        failed: 0,
+      });
       
-      toast.loading('Menjalankan sync data...', { id: 'sync-toast' });
+      toast.loading(
+        mode === 'aggressive'
+          ? 'Sync cepat: menarik data dengan konfigurasi agresif...'
+          : 'Mengambil seluruh data kunjungan dari API...',
+        { id: 'sync-toast' }
+      );
       
-      // Call direct sync endpoint (CPU friendly configuration server-side)
-      const response = await fetch('/api/visits/sync', {
+      const syncPromise = fetch(`/api/visits/sync?mode=${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
 
+      startProgressPolling();
+
+      const response = await syncPromise;
       const result = await response.json();
 
       if (response.ok && result.success) {
+        await fetchLatestProgress();
+        
         toast.success(
-          `✅ Sync berhasil dijalankan!\n` +
+          `✅ Sync ${modeLabel} selesai!\n` +
+          `Fetched: ${result.stats?.fetched || 0}\n` +
           `Inserted: ${result.stats?.inserted || 0}, Updated: ${result.stats?.updated || 0}`,
           { 
             id: 'sync-toast',
@@ -380,11 +503,15 @@ export default function VisitsPage() {
           }
         );
         
-        setSyncProgress('Sync selesai. Refresh halaman untuk melihat data terbaru.');
+        setSyncStatusMessage('Sync selesai. Seluruh data telah disimpan secara lokal. Refresh halaman untuk melihat pembaruan.');
+        
+        await fetchVisits();
+        await fetchStats();
         
         // Optional: Auto-refresh setelah delay
         setTimeout(() => {
-          setSyncProgress(null);
+          setSyncStats(null);
+          setSyncStatusMessage(null);
           toast.success('Tip: Refresh halaman untuk melihat data terbaru', { duration: 3000 });
         }, 3000);
       } else {
@@ -396,8 +523,14 @@ export default function VisitsPage() {
         `❌ Gagal sync data: ${error.message}`,
         { id: 'sync-toast', duration: 5000 }
       );
-      setSyncProgress(null);
+      setSyncStats(null);
+      setSyncStatusMessage(`Sync gagal: ${error.message}`);
+      setTimeout(() => {
+        setSyncStats(null);
+        setSyncStatusMessage(null);
+      }, 5000);
     } finally {
+      clearProgressPolling();
       setSyncing(false);
     }
   };
@@ -584,26 +717,64 @@ export default function VisitsPage() {
             <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
              
               <button
-                onClick={handleSyncData}
+                onClick={() => handleSyncData('full')}
                 disabled={syncing}
                 className="group flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
-                {syncing ? 'Syncing...' : 'Sync dari API'}
+                {syncing ? 'Syncing...' : 'Sync (Full)'}
+              </button>
+              <button
+                onClick={() => handleSyncData('aggressive')}
+                disabled={syncing}
+                className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
+                {syncing ? 'Syncing...' : 'Sync Cepat (Aggressive)'}
               </button>
             </div>
           </div>
         </div>
 
         {/* Sync Progress Indicator */}
-        {syncProgress && (
+        {(syncing || syncStats) && (
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-            <div className="flex items-center">
-              <RefreshCw className="w-6 h-6 text-blue-600 mr-3 animate-spin" />
-              <div>
-                <h3 className="text-lg font-semibold text-blue-800">Sinkronisasi Data Sedang Berjalan</h3>
-                <p className="text-blue-700 mt-1">{syncProgress}</p>
-                <p className="text-sm text-blue-600 mt-2">Harap tunggu, proses ini mungkin memakan waktu beberapa menit...</p>
+            <div className="flex items-start gap-3">
+              <RefreshCw className={`w-6 h-6 text-blue-600 ${syncing ? 'animate-spin' : ''}`} />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-blue-800">Status Sinkronisasi Data</h3>
+                {syncStatusMessage && (
+                  <p className="text-blue-700 mt-1">{syncStatusMessage}</p>
+                )}
+                {syncing && (
+                  <p className="text-sm text-blue-600 mt-2">
+                    Harap tunggu, proses ini mungkin memakan waktu beberapa menit...
+                  </p>
+                )}
+
+                {syncStats && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-sm font-semibold text-blue-800">
+                      <span>Total data API: {syncStats.total || '—'}</span>
+                      <span>{syncStats.percent ?? 0}%</span>
+                    </div>
+                    <div className="w-full h-3 bg-blue-100 rounded-full overflow-hidden mt-2">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500"
+                        style={{ width: `${Math.min(syncStats.percent ?? 0, 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-blue-700">
+                      <span>Diproses: {syncStats.processed} / {syncStats.total || '—'}</span>
+                      <span>Diambil dari API: {syncStats.fetched}</span>
+                      <span>Inserted: {syncStats.inserted}</span>
+                      <span>Updated: {syncStats.updated}</span>
+                      {syncStats.failed > 0 && (
+                        <span className="text-red-600">Gagal: {syncStats.failed}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

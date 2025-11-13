@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/components/Providers";
 import { syncOnLogin } from "@/utils/syncUtils";
 import { 
@@ -21,7 +22,7 @@ export default function LoginClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [logoSrc, setLogoSrc] = useState("/phc-logo.png");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -111,14 +112,6 @@ export default function LoginClient() {
     }));
   };
 
-  const handleLogoLoad = () => {
-    setLogoLoaded(true);
-  };
-
-  const handleLogoError = () => {
-    setLogoLoaded(true);
-  };
-
   return (
     <div className="min-h-screen relative overflow-hidden">
       <div className="absolute inset-0">
@@ -145,18 +138,19 @@ export default function LoginClient() {
               }`}
               style={{ minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <img
-                src="/phc-logo.png"
+              <Image
+                key={logoSrc}
+                src={logoSrc}
                 alt="PHC Logo"
-                className="w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] object-contain drop-shadow-lg"
-                onLoad={handleLogoLoad}
-                onError={(e) => {
-                  console.log('Logo failed to load, trying alternate...');
-                  e.target.onerror = null; // Prevent infinite loop
-                  e.target.src = '/icon-phc.png'; // Fallback to icon-phc.png
-                  handleLogoError();
+                width={180}
+                height={180}
+                priority
+                className="w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] object-contain drop-shadow-lg"
+                onError={() => {
+                  if (logoSrc !== "/phc-logo.png") {
+                    setLogoSrc("/phc-logo.png");
+                  }
                 }}
-                style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
               />
             </div>
 

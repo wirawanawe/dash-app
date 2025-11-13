@@ -15,13 +15,45 @@ export async function GET(request, { params }) {
         d.address,
         d.clinic_id,
         d.polyclinic_id,
-        c.name as clinic_name,
+        COALESCE(c.name, cf.name, df.facility_name) as clinic_name,
+        COALESCE(c.code, cf.code, df.facility_code) as clinic_code,
         p.name as polyclinic_name,
         p.code as polyclinic_code,
         d.created_at as createdAt, 
         d.updated_at as updatedAt
       FROM doctors d
       LEFT JOIN clinics c ON d.clinic_id = c.id
+      LEFT JOIN (
+        SELECT 
+          v.doctor_name,
+          MAX(
+            CASE 
+              WHEN v.facility_code IS NOT NULL AND v.facility_code != '' AND v.facility_code != '-' 
+              THEN v.facility_code 
+              ELSE NULL 
+            END
+          ) AS facility_code,
+          MAX(
+            CASE 
+              WHEN vc.name IS NOT NULL AND vc.name != '' 
+              THEN vc.name 
+              WHEN v.facility_name IS NOT NULL AND v.facility_name != '' AND v.facility_name != '-' 
+              THEN v.facility_name 
+              ELSE NULL 
+            END
+          ) AS facility_name
+        FROM visits v
+        LEFT JOIN clinics vc ON v.facility_code IS NOT NULL 
+          AND v.facility_code != '' 
+          AND v.facility_code != '-'
+          AND vc.code = v.facility_code
+        GROUP BY v.doctor_name
+      ) df ON df.doctor_name = d.name
+      LEFT JOIN clinics cf ON (
+        df.facility_code IS NOT NULL 
+        AND df.facility_code != '' 
+        AND cf.code = df.facility_code
+      )
       LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
       WHERE d.id = ?`,
       [params.id]
@@ -108,13 +140,45 @@ export async function PUT(request, { params }) {
         d.address,
         d.clinic_id,
         d.polyclinic_id,
-        c.name as clinic_name,
+        COALESCE(c.name, cf.name, df.facility_name) as clinic_name,
+        COALESCE(c.code, cf.code, df.facility_code) as clinic_code,
         p.name as polyclinic_name,
         p.code as polyclinic_code,
         d.created_at as createdAt, 
         d.updated_at as updatedAt
       FROM doctors d
       LEFT JOIN clinics c ON d.clinic_id = c.id
+      LEFT JOIN (
+        SELECT 
+          v.doctor_name,
+          MAX(
+            CASE 
+              WHEN v.facility_code IS NOT NULL AND v.facility_code != '' AND v.facility_code != '-' 
+              THEN v.facility_code 
+              ELSE NULL 
+            END
+          ) AS facility_code,
+          MAX(
+            CASE 
+              WHEN vc.name IS NOT NULL AND vc.name != '' 
+              THEN vc.name 
+              WHEN v.facility_name IS NOT NULL AND v.facility_name != '' AND v.facility_name != '-' 
+              THEN v.facility_name 
+              ELSE NULL 
+            END
+          ) AS facility_name
+        FROM visits v
+        LEFT JOIN clinics vc ON v.facility_code IS NOT NULL 
+          AND v.facility_code != '' 
+          AND v.facility_code != '-'
+          AND vc.code = v.facility_code
+        GROUP BY v.doctor_name
+      ) df ON df.doctor_name = d.name
+      LEFT JOIN clinics cf ON (
+        df.facility_code IS NOT NULL 
+        AND df.facility_code != '' 
+        AND cf.code = df.facility_code
+      )
       LEFT JOIN polyclinics p ON d.polyclinic_id = p.id
       WHERE d.id = ?`,
       [params.id]

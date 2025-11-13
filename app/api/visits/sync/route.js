@@ -4,28 +4,136 @@ import { invalidateTableCache, responseCache } from "@/lib/cache";
 
 export const dynamic = 'force-dynamic';
 
-// Configuration - CPU FRIENDLY (UPDATED for low CPU usage)
-const SYNC_CONFIG = {
-  // API Request Settings
-  INITIAL_TIMEOUT: 60000,        // 60 detik untuk request pertama
-  DATA_PAGE_TIMEOUT: 90000,      // 90 detik untuk data pages
-  MAX_RETRIES: 2,                // Max 2 retries
-  
-  // Concurrent Settings - CONSERVATIVE for low CPU!
-  CONCURRENT_PAGES: 1,           // Sequential only (NO concurrent!)
-  DELAY_BETWEEN_BATCHES: 3000,   // 3 seconds delay (was 500ms) - CPU relief!
-  
-  // Data Volume - REDUCED for stability
-  MAX_RECORDS: 500,              // Reduced from 10K to 500
-  RECORDS_PER_PAGE: 50,          // Reduced from 1000 to 50
-  
-  // Error Handling
-  ALLOW_PARTIAL_SYNC: true,      // Keep partial sync enabled
-  MAX_FAILURES_ALLOWED: 10,      // Max 10 failures
-  
-  // Database Optimization - SMALLER batches for low CPU
-  DB_BATCH_SIZE: 30,             // Reduced from 200 to 30
+// Configuration presets tuned for different sync strategies
+const SYNC_PRESETS = {
+  limited: {
+    INITIAL_TIMEOUT: 60000,
+    DATA_PAGE_TIMEOUT: 90000,
+    MAX_RETRIES: 2,
+    CONCURRENT_PAGES: 1,
+    DELAY_BETWEEN_BATCHES: 3000,
+    MAX_RECORDS: 500,
+    RECORDS_PER_PAGE: 50,
+    ALLOW_PARTIAL_SYNC: true,
+    MAX_FAILURES_ALLOWED: 10,
+    DB_BATCH_SIZE: 30,
+    FETCH_RECENT_ONLY: true,
+  },
+  full: {
+    INITIAL_TIMEOUT: 60000,
+    DATA_PAGE_TIMEOUT: 120000,
+    MAX_RETRIES: 2,
+    CONCURRENT_PAGES: 2,
+    DELAY_BETWEEN_BATCHES: 200,
+    MAX_RECORDS: Number.MAX_SAFE_INTEGER,
+    RECORDS_PER_PAGE: 400,
+    ALLOW_PARTIAL_SYNC: true,
+    MAX_FAILURES_ALLOWED: 20,
+    DB_BATCH_SIZE: 60,
+    FETCH_RECENT_ONLY: false,
+  },
+  aggressive: {
+    INITIAL_TIMEOUT: 60000,
+    DATA_PAGE_TIMEOUT: 120000,
+    MAX_RETRIES: 2,
+    CONCURRENT_PAGES: 3,
+    DELAY_BETWEEN_BATCHES: 100,
+    MAX_RECORDS: Number.MAX_SAFE_INTEGER,
+    RECORDS_PER_PAGE: 5000,
+    ALLOW_PARTIAL_SYNC: true,
+    MAX_FAILURES_ALLOWED: 60,
+    DB_BATCH_SIZE: 200,
+    FETCH_RECENT_ONLY: false,
+  },
 };
+
+const toPositiveInteger = (value, fallback) => {
+  const num = typeof value === 'string' ? parseInt(value, 10) : Number(value);
+  if (!Number.isFinite(num) || Number.isNaN(num)) {
+    return fallback;
+  }
+  return Math.max(1, Math.floor(num));
+};
+
+const parseMaxRecords = (value, fallback) => {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  if (typeof value === 'string' && value.toLowerCase() === 'all') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+};
+
+const serializeConfig = (config) => ({
+  ...config,
+  MAX_RECORDS: Number.isFinite(config.MAX_RECORDS) ? config.MAX_RECORDS : 'all',
+});
+
+const COLUMN_DEFINITIONS = {
+  external_id: "ADD COLUMN external_id VARCHAR(100) UNIQUE COMMENT 'ID from external API'",
+  visit_number: "ADD COLUMN visit_number VARCHAR(100) COMMENT 'No_Kunjungan from API'",
+  unique_id: "ADD COLUMN unique_id VARCHAR(100) COMMENT 'Unique ID from API'",
+  patient_nik: "ADD COLUMN patient_nik VARCHAR(100)",
+  patient_name: "ADD COLUMN patient_name VARCHAR(255)",
+  patient_nip: "ADD COLUMN patient_nip VARCHAR(100)",
+  patient_no_peserta: "ADD COLUMN patient_no_peserta VARCHAR(100)",
+  patient_nama_peserta: "ADD COLUMN patient_nama_peserta VARCHAR(255)",
+  patient_gender: "ADD COLUMN patient_gender VARCHAR(50)",
+  patient_birth_date: "ADD COLUMN patient_birth_date DATE",
+  patient_department: "ADD COLUMN patient_department VARCHAR(255)",
+  diagnosis: "ADD COLUMN diagnosis TEXT",
+  complaint: "ADD COLUMN complaint TEXT",
+  treatment: "ADD COLUMN treatment TEXT",
+  notes: "ADD COLUMN notes TEXT",
+  assessment: "ADD COLUMN assessment TEXT",
+  status: "ADD COLUMN status VARCHAR(100)",
+  clinic: "ADD COLUMN clinic VARCHAR(255)",
+  room: "ADD COLUMN room VARCHAR(255)",
+  visit_date: "ADD COLUMN visit_date DATETIME",
+  doctor_name: "ADD COLUMN doctor_name VARCHAR(255)",
+  facility_code: "ADD COLUMN facility_code VARCHAR(100)",
+  facility_name: "ADD COLUMN facility_name VARCHAR(255)",
+  physical_exam: "ADD COLUMN physical_exam JSON",
+  external_created_at: "ADD COLUMN external_created_at TIMESTAMP NULL",
+  external_updated_at: "ADD COLUMN external_updated_at TIMESTAMP NULL",
+  synced_at: "ADD COLUMN synced_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP",
+  prescriptions: "ADD COLUMN prescriptions JSON NULL COMMENT 'Resep data from API'",
+  prescription_count: "ADD COLUMN prescription_count INT DEFAULT 0",
+};
+
+const SYNC_LOG_COLUMN_DEFINITIONS = {
+  total_records: "ADD COLUMN total_records INT DEFAULT 0",
+  processed_records: "ADD COLUMN processed_records INT DEFAULT 0",
+  progress_percent: "ADD COLUMN progress_percent INT DEFAULT 0",
+  current_page: "ADD COLUMN current_page INT DEFAULT 0",
+  total_pages: "ADD COLUMN total_pages INT DEFAULT 0",
+};
+
+async function ensureSyncLogColumns() {
+  const columns = await query(
+    `SELECT COLUMN_NAME 
+     FROM INFORMATION_SCHEMA.COLUMNS 
+     WHERE TABLE_SCHEMA = DATABASE() 
+       AND TABLE_NAME = 'sync_logs'`
+  );
+  const existing = new Set(columns.map((col) => col.COLUMN_NAME));
+  for (const [column, clause] of Object.entries(SYNC_LOG_COLUMN_DEFINITIONS)) {
+    if (!existing.has(column)) {
+      try {
+        await query(`ALTER TABLE sync_logs ${clause}`);
+      } catch (error) {
+        if (!error.message.includes('Duplicate column name')) {
+          throw error;
+        }
+      }
+    }
+  }
+}
 
 // Helper function to add delay between requests
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -86,9 +194,98 @@ export async function POST(request) {
     dbTime: 0,
     totalPages: 0,
   };
-  
+
+  let totalRecords = 0;
+  let totalPages = 0;
+  let fetchedRecords = 0;
+  let insertedCount = 0;
+  let updatedCount = 0;
+  let currentPagePointer = 0;
+  const PROGRESS_UPDATE_INTERVAL = 1000;
+  let lastProgressUpdate = 0;
+  let countFallbackUsed = false;
+
+  const updateSyncLogProgress = async (force = false) => {
+    if (!syncLogId) {
+      return;
+    }
+    const now = Date.now();
+    if (!force && now - lastProgressUpdate < PROGRESS_UPDATE_INTERVAL) {
+      return;
+    }
+    lastProgressUpdate = now;
+    const processed = Math.max(
+      insertedCount + updatedCount,
+      Math.min(
+        fetchedRecords,
+        totalRecords > 0 ? totalRecords : fetchedRecords
+      )
+    );
+    const percent =
+      totalRecords > 0
+        ? Math.min(100, Math.round((processed / totalRecords) * 100))
+        : processed > 0
+        ? 100
+        : 0;
+
+    try {
+      await query(
+        `UPDATE sync_logs SET
+          status = 'in_progress',
+          total_records = ?,
+          records_fetched = ?,
+          records_inserted = ?,
+          records_updated = ?,
+          records_failed = ?,
+          processed_records = ?,
+          progress_percent = ?,
+          current_page = ?,
+          total_pages = ?
+        WHERE id = ?`,
+        [
+          totalRecords,
+          fetchedRecords,
+          insertedCount,
+          updatedCount,
+          failedCount,
+          processed,
+          percent,
+          currentPagePointer,
+          totalPages,
+          syncLogId,
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to update sync progress:', error.message);
+    }
+  };
+
+  const { searchParams } = new URL(request.url);
+  const modeParam = (searchParams.get("mode") || "limited").toLowerCase();
+  const mode = SYNC_PRESETS[modeParam] ? modeParam : "limited";
+  let config = { ...SYNC_PRESETS[mode] };
+
+  config.MAX_RECORDS = parseMaxRecords(searchParams.get("maxRecords"), config.MAX_RECORDS);
+  config.RECORDS_PER_PAGE = Math.max(
+    10,
+    toPositiveInteger(searchParams.get("pageSize"), config.RECORDS_PER_PAGE)
+  );
+  config.DELAY_BETWEEN_BATCHES = toPositiveInteger(searchParams.get("delayMs"), config.DELAY_BETWEEN_BATCHES);
+  config.CONCURRENT_PAGES = Math.max(
+    1,
+    Math.min(10, toPositiveInteger(searchParams.get("concurrentPages"), config.CONCURRENT_PAGES))
+  );
+  config.DB_BATCH_SIZE = Math.max(10, Math.min(400, toPositiveInteger(searchParams.get("dbBatchSize"), config.DB_BATCH_SIZE)));
+  config.MAX_FAILURES_ALLOWED = Math.max(
+    1,
+    Math.min(100, toPositiveInteger(searchParams.get("maxFailures"), config.MAX_FAILURES_ALLOWED))
+  );
+
+  await ensureSyncLogColumns();
+
   try {
-    console.log('⚡ Starting visits sync...');
+    console.log(`⚡ Starting visits sync (${mode === 'full' ? 'full dataset' : 'limited'})...`);
+    console.log('⚙️  Effective config:', serializeConfig(config));
 
     // Create sync log entry
     const logResult = await query(
@@ -110,8 +307,8 @@ export async function POST(request) {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         },
-        SYNC_CONFIG.MAX_RETRIES,
-        SYNC_CONFIG.INITIAL_TIMEOUT
+        config.MAX_RETRIES,
+        config.INITIAL_TIMEOUT
       );
       
       if (!countResponse.ok) {
@@ -123,8 +320,9 @@ export async function POST(request) {
     } catch (error) {
       console.error('Failed to get total count:', error.message);
       
-      if (SYNC_CONFIG.ALLOW_PARTIAL_SYNC) {
-        externalTotal = SYNC_CONFIG.MAX_RECORDS;
+      if (config.ALLOW_PARTIAL_SYNC) {
+        externalTotal = config.MAX_RECORDS;
+        countFallbackUsed = true;
       } else {
         throw error;
       }
@@ -137,19 +335,33 @@ export async function POST(request) {
     );
     
     // Step 2: Fetch pages CONCURRENTLY
-    const desiredRecords = Math.min(SYNC_CONFIG.MAX_RECORDS, externalTotal);
-    const recordsPerPage = SYNC_CONFIG.RECORDS_PER_PAGE;
+    const effectiveMaxRecords = Number.isFinite(config.MAX_RECORDS) ? config.MAX_RECORDS : externalTotal;
+    const desiredRecords = Math.min(effectiveMaxRecords, externalTotal);
+    const recordsPerPage = config.RECORDS_PER_PAGE;
     const totalPagesInExternal = Math.ceil(externalTotal / recordsPerPage);
-    const pagesToFetch = Math.ceil(desiredRecords / recordsPerPage);
-    const startPage = Math.max(1, totalPagesInExternal - pagesToFetch + 1);
-    const endPage = Math.min(startPage + pagesToFetch - 1, totalPagesInExternal);
+    const pagesToFetch = Math.max(1, Math.ceil(desiredRecords / recordsPerPage));
+
+    let startPage = 1;
+    let endPage = Math.min(totalPagesInExternal, pagesToFetch);
+
+    if (config.FETCH_RECENT_ONLY) {
+      endPage = totalPagesInExternal;
+      startPage = Math.max(1, endPage - pagesToFetch + 1);
+    } else {
+      startPage = 1;
+      endPage = totalPagesInExternal;
+    }
+
+    totalRecords = desiredRecords;
+    totalPages = endPage - startPage + 1;
+    await updateSyncLogProgress(true);
 
     let rawVisits = [];
     perfStats.totalPages = endPage - startPage + 1;
     
     // Fetch pages in CONCURRENT batches for MAXIMUM SPEED
-    for (let batchStart = startPage; batchStart <= endPage; batchStart += SYNC_CONFIG.CONCURRENT_PAGES) {
-      const batchEnd = Math.min(batchStart + SYNC_CONFIG.CONCURRENT_PAGES - 1, endPage);
+    for (let batchStart = startPage; batchStart <= endPage; batchStart += config.CONCURRENT_PAGES) {
+      const batchEnd = Math.min(batchStart + config.CONCURRENT_PAGES - 1, endPage);
       const batchPageNumbers = [];
       
       for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
@@ -168,8 +380,8 @@ export async function POST(request) {
             method: "GET",
             headers: { "Content-Type": "application/json" },
           },
-          SYNC_CONFIG.MAX_RETRIES,
-          SYNC_CONFIG.DATA_PAGE_TIMEOUT
+          config.MAX_RETRIES,
+          config.DATA_PAGE_TIMEOUT
         )
         .then(async (response) => {
           if (!response.ok) {
@@ -192,9 +404,13 @@ export async function POST(request) {
       // Process results
       results.forEach(result => {
         if (result.success && result.data?.data && Array.isArray(result.data.data)) {
-          rawVisits = rawVisits.concat(result.data.data);
+          const pageDataArray = result.data.data;
+          fetchedRecords += pageDataArray.length;
+          rawVisits = rawVisits.concat(pageDataArray);
+          currentPagePointer = Math.max(currentPagePointer, result.pageNum);
         } else {
           pagesFailed++;
+          failedCount++;
           if (sampleErrors.length < 5) {
             sampleErrors.push({
               page: result.pageNum,
@@ -204,14 +420,16 @@ export async function POST(request) {
         }
       });
       
+      await updateSyncLogProgress();
+      
       // Check if too many failures
-      if (pagesFailed >= SYNC_CONFIG.MAX_FAILURES_ALLOWED) {
+      if (pagesFailed >= config.MAX_FAILURES_ALLOWED) {
         break;
       }
       
       // Short delay between batches
       if (batchEnd < endPage) {
-        await delay(SYNC_CONFIG.DELAY_BETWEEN_BATCHES);
+        await delay(config.DELAY_BETWEEN_BATCHES);
       }
     }
 
@@ -226,23 +444,57 @@ export async function POST(request) {
       'patient_no_peserta','patient_nama_peserta','patient_gender','patient_birth_date',
       'patient_department','diagnosis','complaint','treatment','notes','assessment','status',
       'clinic','room','visit_date','doctor_name','facility_code','facility_name','physical_exam',
-      'external_created_at','external_updated_at','synced_at'
+      'external_created_at','external_updated_at','synced_at','prescriptions','prescription_count'
     ];
     const columnsResult = await query(`SHOW COLUMNS FROM visits`);
-    const existingColumns = new Set(columnsResult.map(c => c.Field));
+    let existingColumns = new Set(columnsResult.map(c => c.Field));
     const missing = requiredColumns.filter(c => !existingColumns.has(c));
+    
     if (missing.length > 0) {
-      throw new Error(`Missing columns: ${missing.join(', ')}`);
+      for (const column of missing) {
+        if (COLUMN_DEFINITIONS[column]) {
+          try {
+            await query(`ALTER TABLE visits ${COLUMN_DEFINITIONS[column]}`);
+            existingColumns.add(column);
+            console.log(`ℹ️  Added missing column '${column}' to visits table`);
+          } catch (alterError) {
+            console.error(`Failed to add column ${column}:`, alterError.message);
+            if (alterError.message && alterError.message.includes('Duplicate column name')) {
+              existingColumns.add(column);
+            }
+          }
+        }
+      }
+      
+      if (missing.some(column => !existingColumns.has(column))) {
+        const refreshedColumns = await query(`SHOW COLUMNS FROM visits`);
+        existingColumns = new Set(refreshedColumns.map(c => c.Field));
+      }
     }
+
+    const stillMissing = requiredColumns.filter(c => !existingColumns.has(c));
+    if (stillMissing.length > 0) {
+      throw new Error(`Missing columns: ${stillMissing.join(', ')}`);
+    }
+
+    if (countFallbackUsed) {
+      totalRecords = rawVisits.length;
+      totalPages = perfStats.totalPages;
+    }
+
+    if (totalRecords === 0) {
+      totalRecords = rawVisits.length;
+    }
+    if (totalPages === 0) {
+      totalPages = perfStats.totalPages;
+    }
+    await updateSyncLogProgress(true);
 
     // Step 4: Save to database
     const dbStartTime = Date.now();
     
-    let insertedCount = 0;
-    let updatedCount = 0;
-    
-    for (let i = 0; i < rawVisits.length; i += SYNC_CONFIG.DB_BATCH_SIZE) {
-      const batch = rawVisits.slice(i, i + SYNC_CONFIG.DB_BATCH_SIZE);
+    for (let i = 0; i < rawVisits.length; i += config.DB_BATCH_SIZE) {
+      const batch = rawVisits.slice(i, i + config.DB_BATCH_SIZE);
       
       for (const visit of batch) {
         try {
@@ -250,6 +502,13 @@ export async function POST(request) {
           if (!externalId) {
             continue;
           }
+          
+          const rawPrescriptions = visit.Resep || visit.resep || visit.Prescription || visit.prescription || [];
+          const normalizedPrescriptions = Array.isArray(rawPrescriptions)
+            ? rawPrescriptions
+            : rawPrescriptions
+            ? [rawPrescriptions]
+            : [];
           
           // Prepare data
           const visitData = {
@@ -290,6 +549,8 @@ export async function POST(request) {
             }),
             external_created_at: visit.audittrail?.created_at || null,
             external_updated_at: visit.audittrail?.updated_at || null,
+            prescriptions: JSON.stringify(normalizedPrescriptions),
+            prescription_count: normalizedPrescriptions.length,
           };
           
           // Use INSERT ... ON DUPLICATE KEY UPDATE
@@ -303,8 +564,8 @@ export async function POST(request) {
               status, clinic, room, visit_date,
               doctor_name, facility_code, facility_name,
               physical_exam, external_created_at, external_updated_at,
-              synced_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+              prescriptions, prescription_count, synced_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
               visit_number = VALUES(visit_number),
               unique_id = VALUES(unique_id),
@@ -331,6 +592,8 @@ export async function POST(request) {
               physical_exam = VALUES(physical_exam),
               external_created_at = VALUES(external_created_at),
               external_updated_at = VALUES(external_updated_at),
+              prescriptions = VALUES(prescriptions),
+              prescription_count = VALUES(prescription_count),
               synced_at = NOW()`,
             [
               visitData.external_id,
@@ -358,7 +621,9 @@ export async function POST(request) {
               visitData.facility_name,
               visitData.physical_exam,
               visitData.external_created_at,
-              visitData.external_updated_at
+              visitData.external_updated_at,
+              visitData.prescriptions,
+              visitData.prescription_count
             ]
           );
           
@@ -378,6 +643,8 @@ export async function POST(request) {
           }
         }
       }
+      
+      await updateSyncLogProgress();
     }
     
     const dbTime = Date.now() - dbStartTime;
@@ -385,6 +652,19 @@ export async function POST(request) {
     
     const endTime = Date.now();
     const durationSeconds = Math.round((endTime - startTime) / 1000);
+    currentPagePointer = totalPages;
+    const processedTotal = Math.max(
+      insertedCount + updatedCount,
+      Math.min(fetchedRecords, totalRecords || fetchedRecords)
+    );
+    const finalPercent =
+      totalRecords > 0
+        ? Math.min(100, Math.round((processedTotal / totalRecords) * 100))
+        : processedTotal > 0
+        ? 100
+        : 0;
+
+    await updateSyncLogProgress(true);
     
     console.log(`✅ Sync complete: ${rawVisits.length} records, ${insertedCount} inserted, ${updatedCount} updated in ${durationSeconds}s`);
     
@@ -399,6 +679,11 @@ export async function POST(request) {
         records_updated = ?,
         records_inserted = ?,
         records_failed = ?,
+        total_records = ?,
+        processed_records = ?,
+        progress_percent = ?,
+        current_page = ?,
+        total_pages = ?,
         error_message = ?,
         completed_at = NOW(),
         duration_seconds = ?
@@ -409,6 +694,11 @@ export async function POST(request) {
         updatedCount,
         insertedCount,
         failedCount,
+        totalRecords,
+        processedTotal,
+        finalPercent,
+        currentPagePointer,
+        totalPages,
         pagesFailed > 0 ? `Partial sync: ${pagesFailed} pages failed` : null,
         durationSeconds,
         syncLogId
@@ -442,6 +732,9 @@ export async function POST(request) {
         inserted: insertedCount,
         updated: updatedCount,
         failed: failedCount,
+        total_records: totalRecords,
+        processed_records: processedTotal,
+        progress_percent: finalPercent,
         pages_failed: pagesFailed,
         duration_seconds: durationSeconds,
         partial_sync: pagesFailed > 0,
@@ -450,11 +743,13 @@ export async function POST(request) {
           db_time_ms: perfStats.dbTime,
           records_per_second: Math.round(rawVisits.length / durationSeconds),
           total_pages: perfStats.totalPages,
-          concurrent_pages: SYNC_CONFIG.CONCURRENT_PAGES,
+          concurrent_pages: config.CONCURRENT_PAGES,
         }
       },
       sampleErrors: sampleErrors.length > 0 ? sampleErrors : undefined
     };
+    
+    response.logId = syncLogId;
     
     return NextResponse.json(response, { 
       status: pagesFailed > 0 ? 207 : 200
@@ -468,14 +763,47 @@ export async function POST(request) {
     
     // Update sync log with error
     if (syncLogId) {
+      const processedTotal = Math.max(
+        insertedCount + updatedCount,
+        Math.min(fetchedRecords, totalRecords || fetchedRecords)
+      );
+      const failurePercent =
+        totalRecords > 0
+          ? Math.min(99, Math.round((processedTotal / totalRecords) * 100))
+          : processedTotal > 0
+          ? 99
+          : 0;
+
       await query(
         `UPDATE sync_logs SET
           status = 'failed',
+          records_fetched = ?,
+          records_updated = ?,
+          records_inserted = ?,
+          records_failed = ?,
+          total_records = ?,
+          processed_records = ?,
+          progress_percent = ?,
+          current_page = ?,
+          total_pages = ?,
           error_message = ?,
           completed_at = NOW(),
           duration_seconds = ?
         WHERE id = ?`,
-        [error.message, durationSeconds, syncLogId]
+        [
+          fetchedRecords,
+          updatedCount,
+          insertedCount,
+          failedCount,
+          totalRecords,
+          processedTotal,
+          failurePercent,
+          currentPagePointer,
+          totalPages,
+          error.message,
+          durationSeconds,
+          syncLogId
+        ]
       );
     }
     
@@ -484,6 +812,7 @@ export async function POST(request) {
         success: false,
         message: 'Visits sync failed',
         error: error.message,
+        logId: syncLogId,
         details: 'Check server logs for more information.',
         recommendations: [
           'Run health check: node scripts/check-external-api-health.js',
@@ -500,15 +829,55 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limitParam = parseInt(searchParams.get('limit') || '10');
+    const statusFilter = searchParams.get('status');
+    const logId = searchParams.get('id');
+    const latest = searchParams.get('latest');
     
     // Get latest sync logs
-    const safeLimit = Math.max(1, Math.min(100, limit));
+    let safeLimit = Math.max(1, Math.min(100, Number.isNaN(limitParam) ? 10 : limitParam));
+    if (latest === '1' || latest === 'true') {
+      safeLimit = 1;
+    }
+    
+    const conditions = ['entity_type = ?'];
+    const params = ['visits'];
+    
+    if (statusFilter) {
+      conditions.push('status = ?');
+      params.push(statusFilter);
+    }
+    
+    if (logId) {
+      conditions.push('id = ?');
+      params.push(logId);
+    }
+    
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    
     const logs = await query(
-      `SELECT * FROM sync_logs 
-       WHERE entity_type = 'visits' 
+      `SELECT 
+         id,
+         entity_type,
+         status,
+         records_fetched,
+         records_updated,
+         records_inserted,
+         records_failed,
+         total_records,
+         processed_records,
+         progress_percent,
+         current_page,
+         total_pages,
+         error_message,
+         started_at,
+         completed_at,
+         duration_seconds
+       FROM sync_logs
+       ${whereClause}
        ORDER BY started_at DESC 
-       LIMIT ${safeLimit}`
+       LIMIT ${safeLimit}`,
+      params
     );
     
     // Get sync schedule
@@ -531,7 +900,12 @@ export async function GET(request) {
       logs,
       schedule,
       stats: stats || {},
-      config: SYNC_CONFIG
+      config: {
+        limited: serializeConfig(SYNC_PRESETS.limited),
+        full: serializeConfig(SYNC_PRESETS.full),
+        aggressive: serializeConfig(SYNC_PRESETS.aggressive),
+        defaultMode: 'limited',
+      },
     });
     
   } catch (error) {

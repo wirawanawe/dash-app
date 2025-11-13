@@ -1,17 +1,40 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { Menu, X } from "lucide-react";
+import { useAuth } from "./Providers";
 
 const DashboardLayout = ({ children }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+
+  const loginHref = useMemo(() => {
+    if (!pathname || pathname === "/login") {
+      return "/login";
+    }
+    const params = new URLSearchParams({ redirect: pathname });
+    return `/login?${params.toString()}`;
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (!loading && !user && !redirecting) {
+      setRedirecting(true);
+      router.replace(loginHref);
+    }
+  }, [loading, user, router, loginHref, mounted, redirecting]);
 
   // Mark as mounted to prevent hydration mismatch
   useEffect(() => {
@@ -100,6 +123,21 @@ const DashboardLayout = ({ children }) => {
       document.body.style.overflow = 'unset';
     };
   }, [isMobile, isSidebarOpen, mounted]);
+
+  if (!mounted || loading || (!user && redirecting)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="flex flex-col items-center space-y-3 text-gray-600">
+          <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-medium">Memuat dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-100 overflow-x-hidden dashboard-container">

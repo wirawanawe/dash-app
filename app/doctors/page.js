@@ -587,52 +587,82 @@ export default function DoctorsPage() {
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            {doctor.clinics_from_visits ? (
-                              <div className="flex flex-wrap gap-1">
-                                {doctor.clinics_from_visits.split(', ').map((clinic, idx) => (
-                                  <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                    <Building className="w-3 h-3 mr-1" />
-                                    {clinic}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : doctor.clinic_name ? (
-                              <div className="flex flex-col">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                  <Building className="w-3 h-3 mr-1" />
-                                  {doctor.clinic_name}
-                                </span>
-                                <span className="text-xs text-gray-500 mt-1">
-                                  (Belum ada kunjungan)
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-gray-500">-</span>
-                            )}
+                            {(() => {
+                              const primaryClinic = doctor.clinic_name ? doctor.clinic_name.trim() : "";
+                              const visitClinics = doctor.clinics_from_visits
+                                ? doctor.clinics_from_visits
+                                    .split(",")
+                                    .map((clinic) => clinic.trim())
+                                    .filter(Boolean)
+                                : [];
+                              const uniqueClinics = Array.from(
+                                new Set(
+                                  [primaryClinic, ...visitClinics].filter(Boolean)
+                                )
+                              );
+
+                              if (uniqueClinics.length > 0) {
+                                return (
+                                  <div className="flex flex-wrap gap-1">
+                                    {uniqueClinics.map((clinic, idx) => (
+                                      <span
+                                        key={`${clinic}-${idx}`}
+                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                                      >
+                                        <Building className="w-3 h-3 mr-1" />
+                                        {clinic}
+                                      </span>
+                                    ))}
+                                    {primaryClinic && visitClinics.length === 0 && (
+                                      <span className="text-xs text-gray-500 mt-1">
+                                        (Belum ada kunjungan)
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              return <span className="text-sm text-gray-500">-</span>;
+                            })()}
                           </td>
                           <td className="px-6 py-4">
-                            {doctor.polyclinics_from_visits ? (
-                              <div className="flex flex-wrap gap-1">
-                                {doctor.polyclinics_from_visits.split(', ').map((poli, idx) => (
-                                  <span key={idx} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    <Stethoscope className="w-3 h-3 mr-1" />
-                                    {poli}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : doctor.polyclinic_name ? (
-                              <div className="flex flex-col">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                  <Stethoscope className="w-3 h-3 mr-1" />
-                                  {doctor.polyclinic_name}
-                                </span>
-                                <span className="text-xs text-gray-500 mt-1">
-                                  (Belum ada kunjungan)
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-gray-500">-</span>
-                            )}
+                            {(() => {
+                              const primaryPoli = doctor.polyclinic_name ? doctor.polyclinic_name.trim() : "";
+                              const visitPolis = doctor.polyclinics_from_visits
+                                ? doctor.polyclinics_from_visits
+                                    .split(",")
+                                    .map((poli) => poli.trim())
+                                    .filter(Boolean)
+                                : [];
+                              const uniquePolis = Array.from(
+                                new Set(
+                                  [primaryPoli, ...visitPolis].filter(Boolean)
+                                )
+                              );
+
+                              if (uniquePolis.length > 0) {
+                                return (
+                                  <div className="flex flex-wrap gap-1">
+                                    {uniquePolis.map((poli, idx) => (
+                                      <span
+                                        key={`${poli}-${idx}`}
+                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                      >
+                                        <Stethoscope className="w-3 h-3 mr-1" />
+                                        {poli}
+                                      </span>
+                                    ))}
+                                    {primaryPoli && visitPolis.length === 0 && (
+                                      <span className="text-xs text-gray-500 mt-1">
+                                        (Belum ada kunjungan)
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              return <span className="text-sm text-gray-500">-</span>;
+                            })()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {doctor.license_number || "-"}

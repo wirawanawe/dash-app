@@ -6,9 +6,7 @@
  * - Page navigation
  */
 
-const SYNC_ENDPOINTS = {
-  visits: '/api/visits/sync',
-};
+const SYNC_ENDPOINT_BASE = '/api/visits/sync';
 
 const SYNC_STORAGE_KEY = 'last_sync_time';
 const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -44,10 +42,28 @@ export function updateLastSyncTime() {
 
 /**
  * Trigger sync for visits data
- * @param {boolean} silent - If true, won't show notifications
+ * @param {boolean|object} options - Boolean for silent flag (legacy) or options object
+ * @param {string} legacyMode - Optional mode argument for legacy signature
  * @returns {Promise<Object>} Sync result
  */
-export async function syncVisits(silent = true) {
+export async function syncVisits(options = {}, legacyMode) {
+  let silent = true;
+  let mode = 'full';
+  let queryOverrides = {};
+
+  if (typeof options === 'object' && options !== null && !Array.isArray(options)) {
+    silent = options.silent ?? true;
+    mode = options.mode ?? 'full';
+    queryOverrides = options.query || options.params || {};
+  } else {
+    silent = typeof options === 'boolean' ? options : true;
+    if (typeof legacyMode === 'string') {
+      mode = legacyMode;
+    }
+  }
+
+  const normalizedMode = ['full', 'limited'].includes(mode) ? mode : 'full';
+
   try {
     // Check if sync is needed
     if (silent && !shouldSync()) {
@@ -62,11 +78,21 @@ export async function syncVisits(silent = true) {
     }
 
     if (!silent) {
-      console.log('Starting visits sync (direct low-CPU mode)...');
+      console.log(`Starting visits sync (${normalizedMode === 'full' ? 'full dataset' : 'limited'})...`);
     }
 
-    // Call direct sync endpoint (CPU friendly config applied server-side)
-    const response = await fetch(SYNC_ENDPOINTS.visits, {
+    const params = new URLSearchParams({ mode: normalizedMode });
+    Object.entries(queryOverrides).forEach(([key, value]) => {
+      if (value === undefined || value === null) {
+        return;
+      }
+      params.set(key, String(value));
+    });
+
+    const endpointUrl = `${SYNC_ENDPOINT_BASE}?${params.toString()}`;
+
+    // Call sync endpoint (server applies CPU-friendly config based on mode)
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

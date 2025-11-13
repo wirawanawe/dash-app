@@ -20,7 +20,7 @@ export async function POST(request) {
     const priority = parseInt(searchParams.get('priority') || '5');
     
     // Validate mode
-    if (!['incremental', 'full'].includes(mode)) {
+    if (!['incremental', 'full', 'aggressive'].includes(mode)) {
       return NextResponse.json(
         { error: 'Invalid mode. Must be "incremental" or "full"' },
         { status: 400 }
@@ -41,9 +41,41 @@ export async function POST(request) {
       ? 'visits_incremental_sync' 
       : 'visits_full_sync';
     
+    const defaultJobData = mode === 'aggressive'
+      ? {
+          maxRecords: 'all',
+          recordsPerPage: 5000,
+          concurrentPages: 3,
+          batchSize: 200,
+          delayBetweenBatches: 100,
+          delayBetweenPages: 200,
+        }
+      : mode === 'full'
+      ? {
+          maxRecords: 'all',
+          recordsPerPage: 400,
+          concurrentPages: 2,
+          batchSize: 60,
+          delayBetweenBatches: 200,
+          delayBetweenPages: 200,
+        }
+      : {
+          maxRecords: 1000,
+          recordsPerPage: 150,
+          concurrentPages: 1,
+          batchSize: 30,
+          delayBetweenBatches: 1000,
+          delayBetweenPages: 1000,
+        };
+
+    const mergedJobData = {
+      ...defaultJobData,
+      ...jobData,
+    };
+
     // Add job to queue
     const queue = getJobQueue();
-    const result = await queue.addJob(jobType, jobData, priority);
+    const result = await queue.addJob(jobType, mergedJobData, priority);
     
     if (!result.success) {
       return NextResponse.json(

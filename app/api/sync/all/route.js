@@ -33,7 +33,7 @@ export async function POST(request) {
     // Sync Visits
 
     try {
-      const visitsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/visits/sync`, {
+      const visitsResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/visits/sync?mode=full`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

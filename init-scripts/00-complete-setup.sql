@@ -536,17 +536,28 @@ INSERT INTO users (name, email, password, role, is_active) VALUES
 ON DUPLICATE KEY UPDATE role = 'superadmin';
 
 -- Insert sample food items
-INSERT IGNORE INTO food_database (name, name_indonesian, category, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, is_verified, source) VALUES
-('Rice', 'Nasi', 'Grains', 130, 2.7, 28, 0.3, 0.4, TRUE, 'manual'),
-('Chicken Breast', 'Dada Ayam', 'Protein', 165, 31, 0, 3.6, 0, TRUE, 'manual'),
-('Broccoli', 'Brokoli', 'Vegetables', 34, 2.8, 7, 0.4, 2.6, TRUE, 'manual'),
-('Banana', 'Pisang', 'Fruits', 89, 1.1, 23, 0.3, 2.6, TRUE, 'manual'),
-('Egg', 'Telur', 'Protein', 155, 13, 1.1, 11, 0, TRUE, 'manual'),
-('Milk', 'Susu', 'Dairy', 42, 3.4, 5, 1, 0, TRUE, 'manual'),
-('Bread', 'Roti', 'Grains', 265, 9, 49, 3.2, 2.7, TRUE, 'manual'),
-('Apple', 'Apel', 'Fruits', 52, 0.3, 14, 0.2, 2.4, TRUE, 'manual'),
-('Salmon', 'Salmon', 'Protein', 208, 25, 0, 12, 0, TRUE, 'manual'),
-('Spinach', 'Bayam', 'Vegetables', 23, 2.9, 3.6, 0.4, 2.2, TRUE, 'manual');
+INSERT IGNORE INTO food_database (
+    name,
+    name_indonesian,
+    category,
+    calories_per_100g,
+    protein_per_100g,
+    carbs_per_100g,
+    fat_per_100g,
+    fiber_per_100g,
+    sugar_per_100g,
+    sodium_per_100g,
+    serving_size,
+    serving_weight,
+    is_verified,
+    source
+) VALUES
+('Boiled Sweet Corn', 'Jagung Manis Rebus', 'Staples', 96, 3.4, 21.0, 1.5, 2.4, 4.5, 15, '1 porsi (100g)', 100, TRUE, 'manual'),
+('Steamed White Rice', 'Nasi Putih Kukus', 'Staples', 130, 2.4, 28.2, 0.3, 0.4, 0.1, 2, '1 porsi (100g)', 100, TRUE, 'manual'),
+('Boiled Cassava', 'Singkong Rebus', 'Staples', 112, 1.0, 27.8, 0.3, 1.8, 1.7, 14, '1 porsi (100g)', 100, TRUE, 'manual'),
+('Roasted Cassava', 'Singkong Bakar', 'Staples', 158, 1.3, 37.5, 0.4, 2.5, 2.3, 20, '1 porsi (100g)', 100, TRUE, 'manual'),
+('Fried Chicken', 'Ayam Goreng', 'Protein', 246, 26.0, 7.5, 12.6, 0.0, 0.3, 590, '1 porsi (100g)', 100, TRUE, 'manual'),
+('Sweet Braised Tempeh', 'Tempe Bacem', 'Protein', 196, 12.5, 17.8, 9.5, 3.2, 8.0, 420, '1 porsi (100g)', 100, TRUE, 'manual');
 
 -- Insert sample missions
 INSERT IGNORE INTO missions (title, description, category, type, target_value, unit, points, icon, color, difficulty) VALUES
