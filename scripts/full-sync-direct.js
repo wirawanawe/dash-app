@@ -79,6 +79,8 @@ const COLUMN_DEFINITIONS = {
 const normalizePrescriptions = (value) => {
   if (!value) return [];
 
+  const result = [];
+
   const parseSegment = (segment, overrides = {}) => {
     const raw = (segment || "").trim();
     if (!raw) return null;
@@ -123,7 +125,7 @@ const normalizePrescriptions = (value) => {
     };
   };
 
-  const pushRaw = (list, raw, overrides = {}) => {
+  const pushRaw = (raw, overrides = {}) => {
     if (!raw) return;
     raw
       .split(/;/)
@@ -131,54 +133,51 @@ const normalizePrescriptions = (value) => {
       .filter(Boolean)
       .forEach((part) => {
         const parsed = parseSegment(part, { ...overrides, raw: part });
-        if (parsed) list.push(parsed);
+        if (parsed) {
+          result.push(parsed);
+        }
       });
   };
 
-  const result = [];
-
-  const handleValue = (input) => {
-    if (!input) return;
-
-    if (Array.isArray(input)) {
-      input.forEach((item) => {
-        if (item && typeof item === "object") {
-          const rawString = (item.raw || item.name || "").trim();
-          if (rawString && rawString.includes(";")) {
-            pushRaw(result, rawString, { ...item, name: undefined });
-          } else {
-            const parsed = parseSegment(rawString || item.raw || item.name || "", item);
-            if (parsed) result.push(parsed);
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      if (!item) return;
+      if (typeof item === "string") {
+        pushRaw(item);
+      } else if (typeof item === "object") {
+        const rawString = (item.raw || item.name || "").trim();
+        if (rawString && rawString.includes(";")) {
+          pushRaw(rawString, { ...item, name: undefined });
+        } else {
+          const parsed = parseSegment(rawString || item.raw || item.name || "", item);
+          if (parsed) {
+            result.push(parsed);
           }
-        } else if (typeof item === "string") {
-          pushRaw(result, item);
         }
-      });
-      return;
-    }
-
-    if (typeof input === "string") {
-      const trimmed = input.trim();
-      if (!trimmed) return;
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          handleValue(parsed);
-          return;
-        }
-      } catch {
-        // ignore
       }
-      pushRaw(result, trimmed);
-      return;
-    }
+    });
+    return result;
+  }
 
-    if (typeof input === "object") {
-      handleValue(Object.values(input));
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return result;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return normalizePrescriptions(parsed);
+      }
+    } catch {
+      // ignore JSON parse errors
     }
-  };
+    pushRaw(trimmed);
+    return result;
+  }
 
-  handleValue(value);
+  if (typeof value === "object") {
+    pushRaw(Object.values(value).join("; "));
+  }
+
   return result;
 };
 
