@@ -13,7 +13,8 @@ export async function GET(request) {
         clinic as polyclinic,
         room as polyclinic_alt
       FROM visits 
-      WHERE doctor_name IS NOT NULL 
+      WHERE external_id IS NOT NULL
+        AND doctor_name IS NOT NULL 
         AND doctor_name != '' 
         AND doctor_name != '-'
       ORDER BY doctor_name ASC
@@ -39,9 +40,9 @@ export async function GET(request) {
     const clinicsQuery = `
       SELECT DISTINCT name 
       FROM (
-        SELECT DISTINCT clinic as name FROM visits WHERE clinic IS NOT NULL AND clinic != '' AND clinic != '-'
+        SELECT DISTINCT clinic as name FROM visits WHERE external_id IS NOT NULL AND clinic IS NOT NULL AND clinic != '' AND clinic != '-'
         UNION
-        SELECT DISTINCT room as name FROM visits WHERE room IS NOT NULL AND room != '' AND room != '-'
+        SELECT DISTINCT room as name FROM visits WHERE external_id IS NOT NULL AND room IS NOT NULL AND room != '' AND room != '-'
       ) AS combined_clinics
       ORDER BY name ASC
     `;

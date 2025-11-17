@@ -23,7 +23,12 @@ import {
   Heart,
   TrendingUp,
   FileText,
-  Cloud
+  Cloud,
+  RefreshCw,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Clock
 } from "lucide-react";
 
 export default function ClinicsPage() {
@@ -42,6 +47,7 @@ export default function ClinicsPage() {
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null);
 
   // Check if user has access
   const isSuperadmin = user?.role === "SUPERADMIN";
@@ -143,30 +149,78 @@ export default function ClinicsPage() {
   const handleSyncFromAPI = async () => {
     if (isSyncing) return;
     
-    if (!confirm('Apakah Anda yakin ingin melakukan sinkronisasi data Faskes dan Poli dari API eksternal? Proses ini mungkin memakan waktu beberapa menit.')) {
+    if (!confirm('Apakah Anda yakin ingin melakukan sinkronisasi data Faskes dari API eksternal? Sistem akan mengambil semua data faskes dari API eksternal dan menyimpannya ke database lokal. Proses ini mungkin memakan waktu beberapa menit.')) {
       return;
     }
     
-    setIsSyncing(true);
-    const loadingToast = toast.loading('Melakukan sinkronisasi data Faskes dan Poli dari API eksternal...');
-    
     try {
+      setIsSyncing(true);
+      setSyncProgress(null);
+      toast.loading('Memulai sinkronisasi data...', { id: 'sync-toast' });
+
       const response = await fetch('/api/clinics/sync', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchSize: 50,
+          delayBetweenBatches: 1000,
+        }),
       });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
-        toast.success(result.message, { id: loadingToast });
-        // Refresh the clinics list
-        fetchClinics(true);
-      } else {
-        throw new Error(result.message || 'Gagal melakukan sinkronisasi');
-      }
-    } catch (error) {
 
-      toast.error(error.message || 'Gagal melakukan sinkronisasi klinik', { id: loadingToast });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || 'Gagal melakukan sync');
+      }
+
+      toast.success('Sync dimulai! Progress akan ditampilkan di bawah...', { id: 'sync-toast', duration: 3000 });
+      
+      // Start polling for sync progress
+      const pollInterval = setInterval(async () => {
+        try {
+          const progressResponse = await fetch('/api/clinics/sync', {
+            method: 'GET',
+          });
+          const progressData = await progressResponse.json();
+          
+          if (progressData.logs && progressData.logs.length > 0) {
+            const latestLog = progressData.logs[0];
+            setSyncProgress({
+              status: latestLog.status === 'completed' ? 'completed' : latestLog.status === 'failed' ? 'failed' : 'in_progress',
+              progress: latestLog.progress_percent || 0,
+              fetched: latestLog.records_fetched || 0,
+              inserted: latestLog.records_inserted || 0,
+              updated: latestLog.records_updated || 0,
+              failed: latestLog.records_failed || 0,
+              total: latestLog.total_records || 0,
+              processed: latestLog.processed_records || 0,
+              duration: latestLog.duration_seconds || 0,
+              error: latestLog.error_message || null,
+            });
+
+            if (latestLog.status === 'completed' || latestLog.status === 'failed') {
+              clearInterval(pollInterval);
+              if (latestLog.status === 'completed') {
+                fetchClinics(true);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error polling sync progress:', error);
+        }
+      }, 2000);
+
+      // Clear interval after 10 minutes (safety timeout)
+      setTimeout(() => {
+        clearInterval(pollInterval);
+      }, 600000);
+
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error(`❌ Gagal melakukan sync: ${error.message}`, { id: 'sync-toast', duration: 6000 });
+      setTimeout(() => {
+        setSyncProgress(null);
+      }, 3000);
     } finally {
       setIsSyncing(false);
     }
@@ -206,18 +260,137 @@ export default function ClinicsPage() {
                 Data klinik/faskes disinkronisasi otomatis dari API Master. Klik tombol untuk update data terbaru.
               </p>
             </div>
-            <div className="mt-6 lg:mt-0">
-              <button
-                onClick={handleSyncFromAPI}
-                disabled={isSyncing}
-                className="group flex items-center px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Cloud className={`w-6 h-6 mr-3 ${isSyncing ? 'animate-pulse' : ''}`} />
-                {isSyncing ? 'Sedang Sinkronisasi...' : 'Update Data dari API'}
-              </button>
+            <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
+              {syncProgress && (syncProgress.status === 'in_progress' || syncProgress.status === 'started') ? (
+                <button
+                  onClick={() => {
+                    if (confirm('Hentikan sinkronisasi yang sedang berjalan?')) {
+                      setSyncProgress(null);
+                      setIsSyncing(false);
+                    }
+                  }}
+                  className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
+                >
+                  <X className="w-5 h-5 mr-2" />
+                  Hentikan Sync
+                </button>
+              ) : (
+                <button
+                  onClick={handleSyncFromAPI}
+                  disabled={isSyncing}
+                  className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`w-5 h-5 mr-2 ${isSyncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
+                  {isSyncing ? 'Syncing...' : 'Sync Data'}
+                </button>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Sync Progress Banner */}
+        {syncProgress && (
+          <div className={`rounded-2xl p-5 shadow-xl border-2 transition-all duration-300 ${
+            syncProgress.status === 'completed' 
+              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+              : syncProgress.status === 'failed'
+              ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
+              : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+          }`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  {syncProgress.status === 'in_progress' || syncProgress.status === 'started' ? (
+                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                  ) : syncProgress.status === 'completed' ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  )}
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {syncProgress.status === 'in_progress' || syncProgress.status === 'started' 
+                      ? 'Sinkronisasi Data Sedang Berlangsung' 
+                      : syncProgress.status === 'completed'
+                      ? 'Sinkronisasi Selesai'
+                      : 'Sinkronisasi Gagal'}
+                  </h3>
+                </div>
+                
+                {/* Progress Bar */}
+                {(syncProgress.status === 'in_progress' || syncProgress.status === 'started') && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Progress: {syncProgress.progress}%
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {syncProgress.processed.toLocaleString('id-ID')} / {syncProgress.total.toLocaleString('id-ID')} records
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+                        style={{ width: `${syncProgress.progress}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/30 animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Fetched</p>
+                    <p className="text-lg font-bold text-gray-900">{syncProgress.fetched.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Inserted</p>
+                    <p className="text-lg font-bold text-green-600">{syncProgress.inserted.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Updated</p>
+                    <p className="text-lg font-bold text-blue-600">{syncProgress.updated.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Failed</p>
+                    <p className={`text-lg font-bold ${syncProgress.failed > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                      {syncProgress.failed.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Duration and Error */}
+                {(syncProgress.status === 'completed' || syncProgress.status === 'failed') && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    {syncProgress.duration && (
+                      <p className="text-sm text-gray-600">
+                        <Clock className="w-4 h-4 inline mr-1" />
+                        Durasi: {syncProgress.duration} detik
+                      </p>
+                    )}
+                    {syncProgress.error && (
+                      <p className="text-sm text-red-600 mt-1">
+                        <AlertCircle className="w-4 h-4 inline mr-1" />
+                        {syncProgress.error}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Close button */}
+              {(syncProgress.status === 'completed' || syncProgress.status === 'failed') && (
+                <button
+                  onClick={() => setSyncProgress(null)}
+                  className="ml-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

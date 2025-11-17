@@ -29,7 +29,8 @@ export async function GET(request) {
           facility_name as facilityName,
           COUNT(*) as count
         FROM visits
-        WHERE facility_code IS NOT NULL AND facility_code != ''
+        WHERE external_id IS NOT NULL
+          AND facility_code IS NOT NULL AND facility_code != ''
         GROUP BY facility_code, facility_name
         ORDER BY count DESC
       `;
@@ -41,7 +42,8 @@ export async function GET(request) {
           facility_name as facilityName,
           COUNT(*) as count
         FROM visits
-        WHERE facility_code IS NOT NULL AND facility_code != ''
+        WHERE external_id IS NOT NULL
+          AND facility_code IS NOT NULL AND facility_code != ''
           AND DATE(visit_date) >= ? AND DATE(visit_date) <= ?
         GROUP BY facility_code, facility_name
         ORDER BY count DESC
@@ -55,7 +57,8 @@ export async function GET(request) {
           facility_name as facilityName,
           COUNT(*) as count
         FROM visits
-        WHERE facility_code IS NOT NULL AND facility_code != ''
+        WHERE external_id IS NOT NULL
+          AND facility_code IS NOT NULL AND facility_code != ''
           AND DATE(visit_date) = ?
         GROUP BY facility_code, facility_name
         ORDER BY count DESC
@@ -70,7 +73,8 @@ export async function GET(request) {
             facility_name as facilityName,
             COUNT(*) as count
           FROM visits
-          WHERE facility_code IS NOT NULL AND facility_code != ''
+          WHERE external_id IS NOT NULL
+            AND facility_code IS NOT NULL AND facility_code != ''
           GROUP BY facility_code, facility_name
           ORDER BY count DESC
         `, []),
@@ -80,7 +84,8 @@ export async function GET(request) {
             facility_name as facilityName,
             COUNT(*) as count
           FROM visits
-          WHERE facility_code IS NOT NULL AND facility_code != ''
+          WHERE external_id IS NOT NULL
+            AND facility_code IS NOT NULL AND facility_code != ''
             AND DATE(visit_date) >= ? AND DATE(visit_date) <= ?
           GROUP BY facility_code, facility_name
           ORDER BY count DESC
@@ -91,7 +96,8 @@ export async function GET(request) {
             facility_name as facilityName,
             COUNT(*) as count
           FROM visits
-          WHERE facility_code IS NOT NULL AND facility_code != ''
+          WHERE external_id IS NOT NULL
+            AND facility_code IS NOT NULL AND facility_code != ''
             AND DATE(visit_date) = ?
           GROUP BY facility_code, facility_name
           ORDER BY count DESC

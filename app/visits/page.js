@@ -33,7 +33,9 @@ import {
   Heart,
   CheckCircle,
   AlertCircle,
-  FileText
+  FileText,
+  X,
+  Square
 } from 'lucide-react';
 import toast from "react-hot-toast";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -86,6 +88,9 @@ export default function VisitsPage() {
     monthly: 0,
   });
   const [facilityStats, setFacilityStats] = useState([]);
+  const refreshTimeoutRef = useRef(null);
+  const [syncProgress, setSyncProgress] = useState(null); // Sync progress state
+  const [isManualSync, setIsManualSync] = useState(false); // Track if sync was started manually
 
   const fetchVisits = useCallback(async () => {
     try {
@@ -273,6 +278,191 @@ export default function VisitsPage() {
     fetchStats(); // Fetch stats on initial load
   }, [fetchStats]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    let eventSource;
+
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current) {
+        return;
+      }
+      refreshTimeoutRef.current = setTimeout(async () => {
+        refreshTimeoutRef.current = null;
+        try {
+          await fetchVisits();
+          await fetchStats();
+        } catch (err) {
+          console.warn("[Visits SSE] Failed to refresh data:", err);
+        }
+      }, 800);
+    };
+
+    try {
+      eventSource = new EventSource("/api/visits/updates");
+    } catch (error) {
+      console.warn("[Visits SSE] Unable to create EventSource:", error);
+      return () => {};
+    }
+
+    const handleRefreshEvent = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.lastSync) {
+          const sync = data.lastSync;
+          const syncTimestamp = sync.started_at ? new Date(sync.started_at).getTime() : 0;
+          const now = Date.now();
+          const fiveMinutesAgo = now - (5 * 60 * 1000);
+          const isRecentSync = syncTimestamp > fiveMinutesAgo;
+          const isSyncActive = sync.status === 'started' || sync.status === 'in_progress';
+          
+          // Always show progress if:
+          // 1. Manual sync is active (regardless of age or status) - this is the main condition
+          // 2. Sync is active (started/in_progress) and recent (for non-manual syncs)
+          if (isManualSync || (isSyncActive && isRecentSync)) {
+            if (isSyncActive) {
+              // Sync is still running - always show progress
+              setSyncProgress({
+                status: sync.status,
+                progress: sync.progress_percent || 0,
+                fetched: sync.fetched || 0,
+                inserted: sync.inserted || 0,
+                updated: sync.updated || 0,
+                failed: sync.failed || 0,
+                total: sync.total_records || 0,
+                processed: sync.processed_records || 0,
+              });
+            } else if (sync.status === 'completed' || sync.status === 'failed') {
+              // Sync is finished - only show completion if it was manual sync
+              if (isManualSync) {
+                setSyncProgress({
+                  status: sync.status,
+                  progress: 100,
+                  fetched: sync.fetched || 0,
+                  inserted: sync.inserted || 0,
+                  updated: sync.updated || 0,
+                  failed: sync.failed || 0,
+                  total: sync.total_records || 0,
+                  processed: sync.processed_records || 0,
+                  duration: sync.duration_seconds || 0,
+                  error: sync.error_message || null,
+                });
+                
+                // Refresh data when sync completes
+                setTimeout(() => {
+                  fetchVisits();
+                  fetchStats();
+                }, 1000);
+                
+                // Clear progress after 5 seconds and reset manual sync flag
+                setTimeout(() => {
+                  setSyncProgress(null);
+                  setIsManualSync(false);
+                }, 5000);
+              } else {
+                // Not a manual sync, clear progress only if sync is old
+                if (!isRecentSync) {
+                  setSyncProgress(null);
+                }
+              }
+            }
+          } else {
+            // Sync is not active and not recent - only clear if not manual sync
+            if (!isManualSync && !isSyncActive) {
+              setSyncProgress(null);
+            }
+          }
+        } else {
+          // No lastSync in event - only clear if not manual sync
+          // Keep progress if manual sync is active (might be temporary SSE issue)
+          if (!isManualSync) {
+            setSyncProgress(null);
+          }
+        }
+      } catch (err) {
+        console.warn("[Visits SSE] Failed to parse refresh data:", err);
+      }
+      scheduleRefresh();
+    };
+
+    const handleBootstrapEvent = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.lastSync) {
+          const sync = data.lastSync;
+          const syncTimestamp = sync.started_at ? new Date(sync.started_at).getTime() : 0;
+          const now = Date.now();
+          const fiveMinutesAgo = now - (5 * 60 * 1000);
+          const isRecentSync = syncTimestamp > fiveMinutesAgo;
+          const isSyncActive = sync.status === 'started' || sync.status === 'in_progress';
+          
+          // Show progress on bootstrap if:
+          // 1. Manual sync is active (regardless of age or status)
+          // 2. Sync is active and recent
+          if (isManualSync || (isSyncActive && isRecentSync)) {
+            if (isSyncActive) {
+              setSyncProgress({
+                status: sync.status,
+                progress: sync.progress_percent || 0,
+                fetched: sync.fetched || 0,
+                inserted: sync.inserted || 0,
+                updated: sync.updated || 0,
+                failed: sync.failed || 0,
+                total: sync.total_records || 0,
+                processed: sync.processed_records || 0,
+              });
+            } else if ((sync.status === 'completed' || sync.status === 'failed') && isManualSync) {
+              // Show completion only if manual sync
+              setSyncProgress({
+                status: sync.status,
+                progress: 100,
+                fetched: sync.fetched || 0,
+                inserted: sync.inserted || 0,
+                updated: sync.updated || 0,
+                failed: sync.failed || 0,
+                total: sync.total_records || 0,
+                processed: sync.processed_records || 0,
+                duration: sync.duration_seconds || 0,
+                error: sync.error_message || null,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[Visits SSE] Failed to parse bootstrap data:", err);
+      }
+      scheduleRefresh();
+    };
+
+    const handleErrorEvent = (event) => {
+      console.warn("[Visits SSE] Error event:", event.data);
+    };
+
+    eventSource.addEventListener("visits:refresh", handleRefreshEvent);
+    eventSource.addEventListener("visits:bootstrap", handleBootstrapEvent);
+    eventSource.addEventListener("visits:error", handleErrorEvent);
+
+    eventSource.onerror = (error) => {
+      console.warn("[Visits SSE] Connection error:", error);
+    };
+
+    return () => {
+      if (eventSource) {
+        eventSource.removeEventListener("visits:refresh", handleRefreshEvent);
+        eventSource.removeEventListener("visits:bootstrap", handleBootstrapEvent);
+        eventSource.removeEventListener("visits:error", handleErrorEvent);
+        eventSource.close();
+      }
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [fetchVisits, fetchStats, isManualSync]);
+
   // Derive unique facility names (nama faskes) from current dataset
   useEffect(() => {
     const names = Array.from(
@@ -348,177 +538,91 @@ export default function VisitsPage() {
 
   // Handle sync data from external API
   const [syncing, setSyncing] = useState(false);
-  const [syncStatusMessage, setSyncStatusMessage] = useState(null);
-  const [syncStats, setSyncStats] = useState(null);
-  const progressIntervalRef = useRef(null);
 
-  const clearProgressPolling = useCallback(() => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-  }, []);
-
-  const fetchLatestProgress = useCallback(async () => {
-    try {
-      const inProgressResponse = await fetch('/api/visits/sync?status=in_progress&latest=1', {
-        cache: 'no-store',
-      });
-      const inProgressData = await inProgressResponse.json();
-      if (
-        inProgressResponse.ok &&
-        inProgressData.success &&
-        Array.isArray(inProgressData.logs) &&
-        inProgressData.logs.length > 0
-      ) {
-        const log = inProgressData.logs[0];
-        const total = log.total_records || log.records_fetched || 0;
-        const fetched = log.records_fetched || 0;
-        const processed = log.processed_records || fetched;
-        const percent =
-          total > 0
-            ? Math.min(100, log.progress_percent ?? Math.round((processed / total) * 100))
-            : fetched > 0
-            ? 100
-            : 0;
-
-        setSyncStats({
-          total,
-          fetched,
-          processed,
-          percent,
-          inserted: log.records_inserted || 0,
-          updated: log.records_updated || 0,
-          failed: log.records_failed || 0,
-        });
-        setSyncStatusMessage('Sedang menyalin data dari API ke database lokal...');
-        return log;
-      }
-
-      const completedResponse = await fetch('/api/visits/sync?status=completed&latest=1', {
-        cache: 'no-store',
-      });
-      const completedData = await completedResponse.json();
-      if (
-        completedResponse.ok &&
-        completedData.success &&
-        Array.isArray(completedData.logs) &&
-        completedData.logs.length > 0
-      ) {
-        const log = completedData.logs[0];
-        const total = log.total_records || log.records_fetched || 0;
-        const fetched = log.records_fetched || 0;
-        const processed = log.processed_records || fetched;
-        const percent =
-          total > 0
-            ? Math.min(100, log.progress_percent ?? Math.round((processed / total) * 100))
-            : 100;
-
-        setSyncStats({
-          total,
-          fetched,
-          processed,
-          percent,
-          inserted: log.records_inserted || 0,
-          updated: log.records_updated || 0,
-          failed: log.records_failed || 0,
-        });
-        return log;
-      }
-    } catch (error) {
-      console.error('Failed to fetch sync progress:', error);
-    }
-    return null;
-  }, []);
-
-  const startProgressPolling = useCallback((modeKey = 'aggressive') => {
-    clearProgressPolling();
-    progressIntervalRef.current = setInterval(() => {
-      fetchLatestProgress();
-    }, 1500);
-    fetchLatestProgress();
-  }, [clearProgressPolling, fetchLatestProgress]);
-
-  useEffect(() => {
-    return () => {
-      clearProgressPolling();
-    };
-  }, [clearProgressPolling]);
-
-const handleSyncData = async (mode = 'aggressive') => {
-    const modeLabel = 'Aggressive';
-    const confirmationMessage = 'Jalankan sync cepat (aggressive)? Beban API/CPU mungkin lebih tinggi.';
-    if (!confirm(confirmationMessage)) {
+  const handleSyncData = async () => {
+    if (
+      !confirm(
+        'Jalankan sinkronisasi data dari API? Sistem akan mengambil semua data kunjungan dari API eksternal dan menyimpannya ke database lokal. Proses ini mungkin memakan waktu beberapa menit.'
+      )
+    ) {
       return;
     }
 
     try {
       setSyncing(true);
-      setSyncStatusMessage('Menjalankan sync cepat (aggressive). Harap pantau jika terjadi beban tinggi.');
-      setSyncStats({
-        total: 0,
-        fetched: 0,
-        processed: 0,
-        percent: 0,
-        inserted: 0,
-        updated: 0,
-        failed: 0,
-      });
-      
-      toast.loading('Sync cepat: menarik data dengan konfigurasi agresif...', { id: 'sync-toast' });
-      
-      const syncPromise = fetch(`/api/visits/sync?mode=${mode}`, {
+      setIsManualSync(true); // Mark as manual sync - DON'T reset this until sync completes
+      setSyncProgress(null); // Clear any old progress
+      toast.loading('Memulai sinkronisasi data...', { id: 'sync-toast' });
+
+      const response = await fetch('/api/visits/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchSize: 50, // Batch size untuk processing
+          delayBetweenBatches: 2000, // 2 detik delay antar batch untuk mengurangi load CPU API
+        }),
       });
 
-      startProgressPolling('aggressive');
-
-      const response = await syncPromise;
       const result = await response.json();
 
-      if (response.ok && result.success) {
-        await fetchLatestProgress();
-        
-        toast.success(
-          `✅ Sync ${modeLabel} selesai!\n` +
-          `Fetched: ${result.stats?.fetched || 0}\n` +
-          `Inserted: ${result.stats?.inserted || 0}, Updated: ${result.stats?.updated || 0}`,
-          { 
-            id: 'sync-toast',
-            duration: 4000
-          }
-        );
-        
-        setSyncStatusMessage('Sync selesai. Seluruh data telah disimpan secara lokal. Refresh halaman untuk melihat pembaruan.');
-        
-        await fetchVisits();
-        await fetchStats();
-        
-        // Optional: Auto-refresh setelah delay
-        setTimeout(() => {
-          setSyncStats(null);
-          setSyncStatusMessage(null);
-          toast.success('Tip: Refresh halaman untuk melihat data terbaru', { duration: 3000 });
-        }, 3000);
-      } else {
-        throw new Error(result.error || result.message || 'Sync gagal');
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || 'Gagal melakukan sync');
       }
+
+      // Don't show success toast immediately - sync is still running in background
+      // Progress will be shown via SSE events
+      toast.success('Sync dimulai! Progress akan ditampilkan di bawah...', { id: 'sync-toast', duration: 3000 });
+      
+      // Note: isManualSync will be reset in handleRefreshEvent when sync completes
+      // Don't reset it here because sync is still running in background
     } catch (error) {
       console.error('Sync error:', error);
-      toast.error(
-        `❌ Gagal sync data: ${error.message}`,
-        { id: 'sync-toast', duration: 5000 }
-      );
-      setSyncStats(null);
-      setSyncStatusMessage(`Sync gagal: ${error.message}`);
+      toast.error(`❌ Gagal melakukan sync: ${error.message}`, { id: 'sync-toast', duration: 6000 });
+      // Reset manual sync flag on error only
       setTimeout(() => {
-        setSyncStats(null);
-        setSyncStatusMessage(null);
-      }, 5000);
+        setIsManualSync(false);
+        setSyncProgress(null);
+      }, 3000);
     } finally {
-      clearProgressPolling();
       setSyncing(false);
+      // DON'T reset isManualSync here - sync is still running in background
+      // It will be reset when sync completes (via SSE event handler)
+    }
+  };
+
+  const handleCancelSync = async () => {
+    if (!confirm('Hentikan sinkronisasi yang sedang berjalan?')) {
+      return;
+    }
+
+    try {
+      toast.loading('Menghentikan sync...', { id: 'cancel-sync-toast' });
+      
+      const response = await fetch('/api/visits/sync', {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || 'Gagal menghentikan sync');
+      }
+
+      toast.success(`✅ ${result.message}`, { id: 'cancel-sync-toast', duration: 3000 });
+      
+      // Reset states
+      setIsManualSync(false);
+      setSyncProgress(null);
+      setSyncing(false);
+      
+      // Refresh data
+      setTimeout(() => {
+        fetchVisits();
+        fetchStats();
+      }, 1000);
+    } catch (error) {
+      console.error('Cancel sync error:', error);
+      toast.error(`❌ Gagal menghentikan sync: ${error.message}`, { id: 'cancel-sync-toast', duration: 6000 });
     }
   };
 
@@ -702,59 +806,128 @@ const handleSyncData = async (mode = 'aggressive') => {
               </p>
             </div>
             <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
-             
-              <button
-                onClick={() => handleSyncData('aggressive')}
-                disabled={syncing}
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
-                {syncing ? 'Syncing...' : 'Sync Data'}
-              </button>
+              {syncProgress && (syncProgress.status === 'in_progress' || syncProgress.status === 'started') ? (
+                <button
+                  onClick={handleCancelSync}
+                  className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
+                >
+                  <X className="w-5 h-5 mr-2" />
+                  Hentikan Sync
+                </button>
+              ) : (
+                <button
+                  onClick={handleSyncData}
+                  disabled={syncing}
+                  className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
+                  {syncing ? 'Syncing...' : 'Sync Data'}
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Sync Progress Indicator */}
-        {(syncing || syncStats) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
-            <div className="flex items-start gap-3">
-              <RefreshCw className={`w-6 h-6 text-blue-600 ${syncing ? 'animate-spin' : ''}`} />
+        {/* Sync Progress Banner */}
+        {syncProgress && (
+          <div className={`rounded-2xl p-5 shadow-xl border-2 transition-all duration-300 ${
+            syncProgress.status === 'completed' 
+              ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+              : syncProgress.status === 'failed'
+              ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
+              : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+          }`}>
+            <div className="flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-blue-800">Status Sinkronisasi Data</h3>
-                {syncStatusMessage && (
-                  <p className="text-blue-700 mt-1">{syncStatusMessage}</p>
-                )}
-                {syncing && (
-                  <p className="text-sm text-blue-600 mt-2">
-                    Harap tunggu, proses ini mungkin memakan waktu beberapa menit...
-                  </p>
-                )}
-
-                {syncStats && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-sm font-semibold text-blue-800">
-                      <span>Total data API: {syncStats.total || '—'}</span>
-                      <span>{syncStats.percent ?? 0}%</span>
+                <div className="flex items-center gap-3 mb-3">
+                  {syncProgress.status === 'in_progress' || syncProgress.status === 'started' ? (
+                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                  ) : syncProgress.status === 'completed' ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  )}
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {syncProgress.status === 'in_progress' || syncProgress.status === 'started' 
+                      ? 'Sinkronisasi Data Sedang Berlangsung' 
+                      : syncProgress.status === 'completed'
+                      ? 'Sinkronisasi Selesai'
+                      : 'Sinkronisasi Gagal'}
+                  </h3>
+                </div>
+                
+                {/* Progress Bar */}
+                {(syncProgress.status === 'in_progress' || syncProgress.status === 'started') && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Progress: {syncProgress.progress}%
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {syncProgress.processed.toLocaleString('id-ID')} / {syncProgress.total.toLocaleString('id-ID')} records
+                      </span>
                     </div>
-                    <div className="w-full h-3 bg-blue-100 rounded-full overflow-hidden mt-2">
-                      <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500"
-                        style={{ width: `${Math.min(syncStats.percent ?? 0, 100)}%` }}
-                      />
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-blue-700">
-                      <span>Diproses: {syncStats.processed} / {syncStats.total || '—'}</span>
-                      <span>Diambil dari API: {syncStats.fetched}</span>
-                      <span>Inserted: {syncStats.inserted}</span>
-                      <span>Updated: {syncStats.updated}</span>
-                      {syncStats.failed > 0 && (
-                        <span className="text-red-600">Gagal: {syncStats.failed}</span>
-                      )}
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+                        style={{ width: `${syncProgress.progress}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/30 animate-pulse"></div>
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Fetched</p>
+                    <p className="text-lg font-bold text-gray-900">{syncProgress.fetched.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Inserted</p>
+                    <p className="text-lg font-bold text-green-600">{syncProgress.inserted.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Updated</p>
+                    <p className="text-lg font-bold text-blue-600">{syncProgress.updated.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-3 border border-gray-200">
+                    <p className="text-xs text-gray-600 font-medium mb-1">Failed</p>
+                    <p className={`text-lg font-bold ${syncProgress.failed > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                      {syncProgress.failed.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Duration and Error */}
+                {(syncProgress.status === 'completed' || syncProgress.status === 'failed') && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    {syncProgress.duration && (
+                      <p className="text-sm text-gray-600">
+                        <Clock className="w-4 h-4 inline mr-1" />
+                        Durasi: {syncProgress.duration} detik
+                      </p>
+                    )}
+                    {syncProgress.error && (
+                      <p className="text-sm text-red-600 mt-1">
+                        <AlertCircle className="w-4 h-4 inline mr-1" />
+                        {syncProgress.error}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
+              
+              {/* Close button */}
+              {(syncProgress.status === 'completed' || syncProgress.status === 'failed') && (
+                <button
+                  onClick={() => setSyncProgress(null)}
+                  className="ml-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -762,35 +935,48 @@ const handleSyncData = async (mode = 'aggressive') => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div 
-            className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+            className={`bg-gradient-to-br from-white to-blue-50/50 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-blue-100/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
             }`}
             style={{ animationDelay: '0ms' }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                <Calendar className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="relative">
+                <div className="p-4 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-2xl shadow-lg transform rotate-3 hover:rotate-6 transition-transform duration-300">
+                  <Calendar className="w-7 h-7 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-400 rounded-full border-2 border-white animate-pulse"></div>
               </div>
-              <div className="flex items-center text-sm font-medium text-emerald-600">
-                <TrendingUp className="w-4 h-4 mr-1" />
-                +15%
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-200">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-semibold text-emerald-700">+15%</span>
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
-                {stats.total}
+              <p className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">
+                {stats.total.toLocaleString('id-ID')}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Total Kunjungan</p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-base font-semibold text-gray-700 mb-1">Total Kunjungan</p>
+              <p className="text-xs text-gray-500 font-medium">
                 Semua waktu
               </p>
               {facilityStats.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div className="mt-4 pt-4 border-t border-gray-200/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Per Faskes</p>
+                    <span className="text-xs text-gray-400">{facilityStats.length} faskes</span>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                     {facilityStats.map((facility, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 font-medium">{facility.facilityCode}</span>
-                        <span className="text-gray-900 font-bold">{facility.total}</span>
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-2 rounded-lg bg-white/60 hover:bg-white/80 transition-colors border border-gray-100/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <span className="text-sm font-semibold text-gray-700">{facility.facilityCode}</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900 bg-blue-50 px-2.5 py-1 rounded-md">{facility.total.toLocaleString('id-ID')}</span>
                       </div>
                     ))}
                   </div>
@@ -800,37 +986,50 @@ const handleSyncData = async (mode = 'aggressive') => {
           </div>
 
           <div 
-            className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+            className={`bg-gradient-to-br from-white to-purple-50/50 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-purple-100/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
             }`}
             style={{ animationDelay: '100ms' }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
-                <CalendarDays className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="relative">
+                <div className="p-4 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded-2xl shadow-lg transform rotate-3 hover:rotate-6 transition-transform duration-300">
+                  <CalendarDays className="w-7 h-7 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-400 rounded-full border-2 border-white animate-pulse"></div>
               </div>
-              <div className="flex items-center text-sm font-medium text-purple-600">
-                <Calendar className="w-4 h-4 mr-1" />
-                Bulan Ini
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 rounded-full border border-purple-200">
+                <Calendar className="w-4 h-4 text-purple-600" />
+                <span className="text-sm font-semibold text-purple-700">Bulan Ini</span>
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
-                {stats.monthly}
+              <p className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">
+                {stats.monthly.toLocaleString('id-ID')}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Bulan Ini</p>
+              <p className="text-base font-semibold text-gray-700 mb-1">Kunjungan Bulan Ini</p>
               {isLoaded && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 font-medium">
                   {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
                 </p>
               )}
               {facilityStats.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div className="mt-4 pt-4 border-t border-gray-200/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Per Faskes</p>
+                    <span className="text-xs text-gray-400">{facilityStats.length} faskes</span>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                     {facilityStats.map((facility, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 font-medium">{facility.facilityCode}</span>
-                        <span className="text-gray-900 font-bold">{facility.monthly}</span>
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-2 rounded-lg bg-white/60 hover:bg-white/80 transition-colors border border-gray-100/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                          <span className="text-sm font-semibold text-gray-700">{facility.facilityCode}</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900 bg-purple-50 px-2.5 py-1 rounded-md">{facility.monthly.toLocaleString('id-ID')}</span>
                       </div>
                     ))}
                   </div>
@@ -840,37 +1039,50 @@ const handleSyncData = async (mode = 'aggressive') => {
           </div>
 
           <div 
-            className={`bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+            className={`bg-gradient-to-br from-white to-orange-50/50 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-orange-100/50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
               isLoaded ? 'animate-fade-in-up' : 'opacity-0'
             }`}
             style={{ animationDelay: '200ms' }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg">
-                <CalendarDays className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="relative">
+                <div className="p-4 bg-gradient-to-br from-orange-500 via-orange-600 to-red-500 rounded-2xl shadow-lg transform rotate-3 hover:rotate-6 transition-transform duration-300">
+                  <CalendarDays className="w-7 h-7 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-400 rounded-full border-2 border-white animate-pulse"></div>
               </div>
-              <div className="flex items-center text-sm font-medium text-orange-600">
-                <Clock className="w-4 h-4 mr-1" />
-                Hari Ini
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 rounded-full border border-orange-200">
+                <Clock className="w-4 h-4 text-orange-600" />
+                <span className="text-sm font-semibold text-orange-700">Hari Ini</span>
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">
-                {stats.today}
+              <p className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">
+                {stats.today.toLocaleString('id-ID')}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Kunjungan Hari Ini</p>
+              <p className="text-base font-semibold text-gray-700 mb-1">Kunjungan Hari Ini</p>
               {isLoaded && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date().toLocaleDateString('id-ID')}
+                <p className="text-xs text-gray-500 font-medium">
+                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               )}
               {facilityStats.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                <div className="mt-4 pt-4 border-t border-gray-200/60">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Per Faskes</p>
+                    <span className="text-xs text-gray-400">{facilityStats.length} faskes</span>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                     {facilityStats.map((facility, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 font-medium">{facility.facilityCode}</span>
-                        <span className="text-gray-900 font-bold">{facility.today}</span>
+                      <div 
+                        key={idx} 
+                        className="flex items-center justify-between p-2 rounded-lg bg-white/60 hover:bg-white/80 transition-colors border border-gray-100/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                          <span className="text-sm font-semibold text-gray-700">{facility.facilityCode}</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900 bg-orange-50 px-2.5 py-1 rounded-md">{facility.today.toLocaleString('id-ID')}</span>
                       </div>
                     ))}
                   </div>

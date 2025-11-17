@@ -30,9 +30,23 @@ const DashboardLayout = ({ children }) => {
   useEffect(() => {
     if (!mounted) return;
 
+    // Only redirect if we're sure user is not authenticated
+    // Give auth check time to complete (wait for loading to finish)
+    // Don't redirect immediately - allow time for token verification
     if (!loading && !user && !redirecting) {
-      setRedirecting(true);
-      router.replace(loginHref);
+      // Add a small delay to allow auth check to complete
+      // This prevents race conditions where auth is still checking
+      const timeoutId = setTimeout(() => {
+        setRedirecting(true);
+        router.replace(loginHref);
+      }, 1000); // 1 second delay to allow auth check to complete
+
+      return () => clearTimeout(timeoutId);
+    }
+    
+    // Reset redirecting flag if user becomes available
+    if (user && redirecting) {
+      setRedirecting(false);
     }
   }, [loading, user, router, loginHref, mounted, redirecting]);
 

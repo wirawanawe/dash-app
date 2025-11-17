@@ -113,10 +113,13 @@ export async function middleware(request) {
   }
 
   // If token exists, verify it; if invalid/expired, force logout
+  // But be lenient - only redirect if token is clearly invalid
   if (token?.value) {
     try {
       const payload = await verifyJwtToken(token.value);
       if (!payload) {
+        // Token is invalid/expired - only redirect if we're sure
+        // Don't redirect on verification errors (might be temporary)
         console.log(`[Auth] Invalid/expired token for ${pathname}, forcing logout`);
         const res = NextResponse.redirect(new URL("/login", request.url));
         // Clear cookies to ensure full logout
@@ -124,14 +127,18 @@ export async function middleware(request) {
         res.cookies.set("api_token", "", { path: "/", maxAge: 0 });
         return res;
       }
-      console.log(`[Auth] Valid token for ${pathname}, user: ${payload.name || payload.email}`);
+      // Token is valid, continue to route
     } catch (error) {
-      console.error(`[Auth] Token verification error for ${pathname}:`, error);
-      // If there's an error verifying (not just invalid), allow through
-      // The API routes will do their own verification
+      // If there's an error verifying (e.g., JWT library error, network issue), 
+      // don't block access - let the page/API handle it
+      // This prevents false logouts due to temporary issues
+      console.warn(`[Auth] Token verification error for ${pathname} (allowing through):`, error.message);
       return NextResponse.next();
     }
   }
+  
+  // If only api_token exists or both tokens exist, allow through
+  // The page/API will handle authentication
 
   // For protected routes, check role permissions
   const requiredRole = routePermissions[pathname];

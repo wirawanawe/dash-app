@@ -1,7 +1,8 @@
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
-import { startBackgroundWorker } from './lib/backgroundWorker.js';
+
+// Background worker removed - sync hanya dilakukan via tombol atau scheduled sync (via /api/sync/trigger)
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0'; // Bind to all interfaces
@@ -11,20 +12,8 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(async () => {
-  // Background worker disabled by default to prevent CPU overload
-  // Enable only if needed by setting ENABLE_BACKGROUND_WORKER=true in .env
-  if (process.env.ENABLE_BACKGROUND_WORKER === 'true') {
-    console.log('🚀 Initializing background worker...');
-    try {
-      await startBackgroundWorker();
-      console.log('✅ Background worker initialized');
-    } catch (error) {
-      console.error('❌ Failed to start background worker:', error);
-      // Continue server startup even if worker fails
-    }
-  } else {
-    console.log('⚠️  Background worker disabled (set ENABLE_BACKGROUND_WORKER=true to enable)');
-  }
+  // Background worker removed - jobs akan diproses via API endpoints atau manual trigger
+  console.log('ℹ️  Background worker removed. Jobs will be processed on-demand via API.');
   
   createServer(async (req, res) => {
     try {

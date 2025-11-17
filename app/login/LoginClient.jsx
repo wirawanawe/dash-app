@@ -134,7 +134,7 @@ export default function LoginClient() {
           >
             <div 
               className={`flex justify-center mb-6 ${
-                isLoaded ? 'animate-fade-in-up' : 'opacity-0'
+                isLoaded ? 'animate-fade-in-up' : ''
               }`}
               style={{ minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >

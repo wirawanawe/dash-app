@@ -274,7 +274,9 @@ export async function GET(request) {
   
   try {
     // Build SQL query
-    let sql = `SELECT * FROM visits WHERE 1=1`;
+    // Only show visits that have external_id (from API sync)
+    // This ensures we only show data that exists in the external API
+    let sql = `SELECT * FROM visits WHERE external_id IS NOT NULL`;
     let params = [];
     
     // Apply search filter
@@ -337,10 +339,23 @@ export async function GET(request) {
     const whereClause = sql.includes('WHERE') ? sql.split('WHERE')[1].split('ORDER BY')[0].trim() : '';
     const cacheKey = queryCache.generateKey('visits', whereClause, params);
     
-    // Try cache first
+    // Try cache first, but invalidate if sync happened recently
     let totalVisits = queryCache.get(cacheKey);
     
-    if (totalVisits === null || totalVisits === undefined) {
+    // Check if sync happened recently (within last 5 minutes) - if so, bypass cache
+    const [recentSync] = await query(
+      `SELECT COUNT(*) as count FROM sync_logs 
+       WHERE entity_type = 'visits' 
+       AND status IN ('completed', 'in_progress')
+       AND started_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)`
+    );
+    const hasRecentSync = recentSync[0]?.count > 0;
+    
+    if (totalVisits === null || totalVisits === undefined || hasRecentSync) {
+      if (hasRecentSync) {
+        // Invalidate cache if sync happened recently
+        queryCache.delete(cacheKey);
+      }
       const [countResult] = await query(countSql, params);
       totalVisits = countResult?.total || 0;
       // Cache for 2 minutes (shorter TTL for filtered queries)

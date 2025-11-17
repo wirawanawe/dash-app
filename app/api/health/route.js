@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { checkWorkerHealth, getWorkerStatus } from '@/lib/backgroundWorker';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +7,6 @@ export const dynamic = 'force-dynamic';
  * 
  * Returns:
  *   - Database connectivity
- *   - Background worker status
  *   - Queue statistics
  *   - System health
  */
@@ -16,7 +14,6 @@ export async function GET(request) {
   const checks = {
     timestamp: new Date().toISOString(),
     database: { healthy: false },
-    worker: { healthy: false },
     queue: { healthy: false },
   };
   
@@ -33,22 +30,6 @@ export async function GET(request) {
       };
     } catch (error) {
       checks.database = {
-        healthy: false,
-        message: error.message,
-      };
-      overallHealthy = false;
-    }
-    
-    // Check background worker
-    try {
-      const workerHealth = await checkWorkerHealth();
-      checks.worker = workerHealth;
-      
-      if (!workerHealth.healthy) {
-        overallHealthy = false;
-      }
-    } catch (error) {
-      checks.worker = {
         healthy: false,
         message: error.message,
       };

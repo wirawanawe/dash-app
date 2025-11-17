@@ -76,6 +76,36 @@ export async function GET(request) {
 }
 
 /**
+ * PUT /api/jobs/queue - Process pending jobs manually
+ * Triggers processing of pending jobs (on-demand, no background worker)
+ */
+export async function PUT(request) {
+  try {
+    const queue = getJobQueue();
+    
+    // Process jobs immediately (non-blocking)
+    queue.processNextJobs().catch(error => {
+      console.error('Error processing jobs:', error);
+    });
+    
+    const stats = await queue.getStats();
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Job processing triggered',
+      stats,
+    });
+    
+  } catch (error) {
+    console.error('Error triggering job processing:', error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * DELETE /api/jobs/queue - Clean up old jobs
  */
 export async function DELETE(request) {

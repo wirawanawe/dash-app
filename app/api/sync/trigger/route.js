@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { getJobQueue } from "@/lib/jobQueue";
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/sync/trigger
  * Triggers scheduled sync based on sync_schedules configuration
- * This endpoint should be called by a cron job or scheduler
+ * This endpoint should be called by a cron job or scheduler (every 1 hour)
+ * Scheduled sync runs silently in background without showing progress UI
  */
 export async function POST(request) {
   try {
-
     // Get all enabled schedules that are due for sync
     const dueSchedules = await query(
       `SELECT * FROM sync_schedules 
@@ -20,7 +21,6 @@ export async function POST(request) {
     );
     
     if (dueSchedules.length === 0) {
-
       return NextResponse.json({
         success: true,
         message: 'No syncs due',
@@ -28,40 +28,45 @@ export async function POST(request) {
       });
     }
 
+    const queue = getJobQueue();
     const results = [];
     
-    // Trigger each due sync
+    // Trigger each due sync (silent, background)
     for (const schedule of dueSchedules) {
       const entity = schedule.entity_type;
 
       try {
-        // Construct the sync URL
-        const syncUrl = entity === 'all' 
-          ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/sync/all`
-          : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/${entity}/sync`;
-        
-        // Trigger the sync (fire and forget for non-blocking)
-        fetch(syncUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        }).then(response => {
-          if (response.ok) {
-
-          } else {
-
-          }
-        }).catch(error => {
-
-        });
-        
-        results.push({
-          entity,
-          triggered: true,
-          message: 'Sync started'
-        });
+        // Visits sync has been removed - skip it
+        if (entity === 'visits') {
+          console.log(`⏭️  Visits sync has been removed, skipping...`);
+          results.push({
+            entity,
+            triggered: false,
+            message: 'Visits sync has been removed'
+          });
+        } else {
+          // For other entities, use direct sync endpoint
+          const syncUrl = entity === 'all' 
+            ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/sync/all`
+            : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/${entity}/sync`;
+          
+          // Trigger the sync (fire and forget for non-blocking)
+          fetch(syncUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          }).catch(error => {
+            console.error(`Failed to trigger sync for ${entity}:`, error.message);
+          });
+          
+          results.push({
+            entity,
+            triggered: true,
+            message: 'Sync started'
+          });
+        }
         
       } catch (error) {
-
+        console.error(`Error processing scheduled sync for ${entity}:`, error.message);
         results.push({
           entity,
           triggered: false,
@@ -78,7 +83,7 @@ export async function POST(request) {
     });
     
   } catch (error) {
-
+    console.error('Failed to trigger scheduled syncs:', error);
     return NextResponse.json(
       {
         success: false,

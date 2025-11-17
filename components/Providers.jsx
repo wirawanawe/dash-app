@@ -30,17 +30,33 @@ export function Providers({ children }) {
     try {
       const response = await fetch("/api/auth/me", {
         credentials: "include",
+        cache: "no-store", // Prevent caching of auth check
       });
 
       if (response.ok) {
         const data = await response.json();
-        setUser(data);
+        // Only set user if we got valid data
+        if (data && (data.id || data.email)) {
+          setUser(data);
+        } else {
+          // Invalid user data, but don't set to null immediately
+          // Let middleware handle authentication
+          setUser(null);
+        }
       } else {
-        setUser(null);
+        // Only set user to null if we're sure auth failed
+        // Don't clear user on network errors
+        if (response.status === 401 || response.status === 403) {
+          setUser(null);
+        }
+        // For other errors, keep current user state (might be temporary issue)
       }
     } catch (error) {
-
-      setUser(null);
+      // Network errors or other issues - don't clear user immediately
+      // This prevents false logouts due to temporary network issues
+      console.warn("Auth check error (keeping current state):", error.message);
+      // Only clear user if we're sure it's an auth issue
+      // For now, keep user state to prevent false redirects
     } finally {
       setLoading(false);
     }
@@ -80,6 +96,12 @@ export function Providers({ children }) {
   // Trigger sync on page navigation
   useEffect(() => {
     if (!mounted) return;
+    
+    // Only refresh auth if user is null (might have been cleared)
+    // Don't refresh if user already exists to avoid unnecessary checks
+    if (!user) {
+      checkAuth();
+    }
     
     // Sync when user navigates to a new page
     syncOnNavigation();
