@@ -1,95 +1,152 @@
 /**
  * API endpoint to sync visits from external API
+ * 
+ * Alur:
+ * 1. Jalankan sync-visits-paginated.js (sync dari API ke cache)
+ * 2. Jalankan copy-cache-to-visits.js (copy dari cache ke tabel utama)
+ * 3. Refresh halaman setelah selesai
  */
 
 import { NextResponse } from 'next/server';
-import { syncVisits } from '@/lib/syncVisits.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { invalidateTableCache } from '@/lib/cache.js';
 import { responseCache } from '@/lib/cache.js';
+import path from 'path';
+
+const execAsync = promisify(exec);
+// Use process.cwd() to get the project root directory
+// This works reliably in Next.js API routes
+const projectRoot = process.cwd();
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 600; // 10 minutes max duration for this route
 
 /**
+ * Execute a Node.js script and return output
+ */
+async function runScript(scriptPath) {
+  try {
+    const fullPath = path.join(projectRoot, scriptPath);
+    console.log(`🚀 Running script: ${scriptPath}`);
+    
+    const { stdout, stderr } = await execAsync(`node "${fullPath}"`, {
+      cwd: projectRoot,
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+      env: {
+        ...process.env,
+        NODE_ENV: process.env.NODE_ENV || 'production',
+      },
+    });
+    
+    if (stderr && !stderr.includes('Warning')) {
+      console.warn(`⚠️  Script stderr: ${stderr.substring(0, 500)}`);
+    }
+    
+    return { success: true, stdout, stderr };
+  } catch (error) {
+    console.error(`❌ Script execution failed: ${error.message}`);
+    return { success: false, error: error.message, stdout: error.stdout, stderr: error.stderr };
+  }
+}
+
+/**
  * POST /api/visits/sync - Sync visits from external API
  */
 export async function POST(request) {
+  const startTime = Date.now();
+  
   try {
-    // Parse optional options from body
-    let options = {};
-    try {
-      const body = await request.json();
-      options = body || {};
-    } catch (error) {
-      // No body or invalid JSON, use defaults
+    console.log('🔄 Starting visits sync process...');
+    
+    // Step 1: Sync from API to cache
+    console.log('📥 Step 1: Syncing from API to visits_cache...');
+    const syncResult = await runScript('scripts/sync-visits-paginated.js');
+    
+    if (!syncResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Sync from API failed: ${syncResult.error || 'Unknown error'}`,
+          step: 'sync-api-to-cache',
+        },
+        { status: 500 }
+      );
     }
-
-    // Allow query params (mode, limit, pages) to override defaults
-    try {
-      const { searchParams } = new URL(request.url);
-      const modeParam = searchParams.get('mode');
-      const limitParam = searchParams.get('limit');
-      const pagesParam = searchParams.get('pages');
-
-      if (modeParam && !options.mode) {
-        options.mode = modeParam;
-      }
-
-      if (limitParam && options.limit === undefined) {
-        const parsedLimit = parseInt(limitParam, 10);
-        if (!Number.isNaN(parsedLimit)) {
-          options.limit = parsedLimit;
-        }
-      }
-
-      if (pagesParam && options.pages === undefined) {
-        const parsedPages = parseInt(pagesParam, 10);
-        if (!Number.isNaN(parsedPages)) {
-          options.pages = parsedPages;
-        }
-      }
-    } catch (paramError) {
-      console.warn('⚠️  Failed to parse sync query params:', paramError.message);
+    
+    console.log('✅ Step 1 completed: API sync to cache successful');
+    
+    // Step 2: Copy from cache to visits table
+    console.log('📤 Step 2: Copying from visits_cache to visits table...');
+    const copyResult = await runScript('scripts/copy-cache-to-visits.js');
+    
+    if (!copyResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Copy from cache failed: ${copyResult.error || 'Unknown error'}`,
+          step: 'copy-cache-to-visits',
+          syncResult: syncResult.stdout?.substring(0, 500),
+        },
+        { status: 500 }
+      );
     }
-
-    // Execute sync
-    const result = await syncVisits(options);
-
+    
+    console.log('✅ Step 2 completed: Copy from cache to visits successful');
+    
     // Invalidate caches
     try {
       invalidateTableCache('visits');
       responseCache.clear();
+      console.log('✅ Cache invalidated');
     } catch (cacheError) {
-      console.error('Failed to invalidate cache:', cacheError);
+      console.error('⚠️  Failed to invalidate cache:', cacheError);
     }
-
-    if (!result.success) {
-    return NextResponse.json(
-      {
-        success: false,
-          error: result.error,
-      },
-      { status: 500 }
-    );
-  }
+    
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    
+    // Parse results from stdout if possible
+    let stats = {
+      sync: { success: true },
+      copy: { success: true },
+    };
+    
+    // Try to extract stats from stdout
+    try {
+      if (syncResult.stdout) {
+        const syncMatch = syncResult.stdout.match(/Total records inserted:\s*(\d+)/);
+        if (syncMatch) {
+          stats.sync.inserted = parseInt(syncMatch[1]);
+        }
+      }
+      
+      if (copyResult.stdout) {
+        const copyMatch = copyResult.stdout.match(/Records inserted:\s*([\d.]+)/);
+        const updateMatch = copyResult.stdout.match(/Records updated:\s*([\d.]+)/);
+        if (copyMatch) {
+          stats.copy.inserted = parseInt(copyMatch[1].replace(/\./g, ''));
+        }
+        if (updateMatch) {
+          stats.copy.updated = parseInt(updateMatch[1].replace(/\./g, ''));
+        }
+      }
+    } catch (parseError) {
+      console.warn('⚠️  Could not parse stats from output:', parseError.message);
+    }
     
     return NextResponse.json({
       success: true,
       message: 'Sync completed successfully',
-      duration: result.duration,
-      stats: {
-        fetched: result.fetched || 0,
-        inserted: result.inserted || 0,
-        updated: result.updated || 0,
-        failed: result.failed || 0,
-        deleted: result.deleted || 0,
-        total: result.total || 0,
-        processed: result.processed || 0,
+      duration: parseFloat(duration),
+      steps: {
+        'sync-api-to-cache': { success: true },
+        'copy-cache-to-visits': { success: true },
       },
+      stats,
     });
     
   } catch (error) {
-    console.error('Sync error:', error);
+    console.error('❌ Sync error:', error);
     return NextResponse.json(
       {
         success: false,
@@ -162,45 +219,16 @@ export async function DELETE(request) {
 
 /**
  * GET /api/visits/sync - Get sync status
+ * Returns the last sync result if available
  */
 export async function GET(request) {
   try {
-    const { query } = await import('@/lib/db.js');
-    
-    // Get latest sync log
-    const [syncLog] = await query(
-      `SELECT 
-         id,
-         status,
-         records_fetched,
-         records_inserted,
-         records_updated,
-         records_failed,
-         total_records,
-         processed_records,
-         progress_percent,
-         started_at,
-         completed_at,
-         duration_seconds,
-         error_message
-       FROM sync_logs
-       WHERE entity_type = 'visits'
-       ORDER BY started_at DESC
-       LIMIT 1`
-    );
-
-    if (!syncLog || syncLog.length === 0) {
-      return NextResponse.json({
-        success: true,
-        status: 'idle',
-        message: 'No sync history found',
-      });
-    }
-
+    // For now, return a simple status
+    // The POST endpoint handles the actual sync and returns steps info
     return NextResponse.json({
       success: true,
-      status: syncLog[0].status,
-      sync: syncLog[0],
+      status: 'idle',
+      message: 'Use POST /api/visits/sync to start sync',
     });
   } catch (error) {
     console.error('Get sync status error:', error);

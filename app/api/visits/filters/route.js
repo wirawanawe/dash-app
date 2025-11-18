@@ -61,25 +61,41 @@ export async function GET(request) {
       name: clinic.name,
     }));
     
+    // Get unique facility names (faskes) from visits table
+    const facilityNamesQuery = `
+      SELECT DISTINCT facility_name as name
+      FROM visits 
+      WHERE external_id IS NOT NULL
+        AND facility_name IS NOT NULL 
+        AND facility_name != '' 
+        AND facility_name != '-'
+      ORDER BY facility_name ASC
+    `;
+    
+    const facilityNamesRaw = await query(facilityNamesQuery);
+    const facilityNames = facilityNamesRaw.map(f => f.name).filter(Boolean);
+    
     return NextResponse.json({
       success: true,
       doctors: formattedDoctors,
       clinics: formattedClinics,
+      facilityNames: facilityNames,
       // Return the mapping separately for easy lookup
       doctorPoliMapping: doctorPoliMap,
     });
   } catch (error) {
     console.error('❌ Error fetching filter options:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: "Failed to fetch filter options",
-        doctors: [],
-        clinics: [],
-        doctorPoliMapping: {},
-      },
-      { status: 500 }
-    );
+      return NextResponse.json(
+        { 
+          success: false,
+          error: "Failed to fetch filter options",
+          doctors: [],
+          clinics: [],
+          facilityNames: [],
+          doctorPoliMapping: {},
+        },
+        { status: 500 }
+      );
   }
 }
 

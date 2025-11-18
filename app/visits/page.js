@@ -191,17 +191,20 @@ export default function VisitsPage() {
 
       const data = await response.json();
       
-      // API returns { success: true, doctors: [...], clinics: [...], doctorPoliMapping: {...} }
+      // API returns { success: true, doctors: [...], clinics: [...], facilityNames: [...], doctorPoliMapping: {...} }
       const doctorsList = data.doctors || [];
       const clinicsList = data.clinics || [];
+      const facilityNamesList = data.facilityNames || [];
       
       setAllDoctors(Array.isArray(doctorsList) ? doctorsList : []); // Store all doctors
       setDoctors(Array.isArray(doctorsList) ? doctorsList : []);
       setClinics(Array.isArray(clinicsList) ? clinicsList : []);
+      setFacilityNames(Array.isArray(facilityNamesList) ? facilityNamesList : []);
     } catch (error) {
       setAllDoctors([]);
       setDoctors([]);
       setClinics([]);
+      setFacilityNames([]);
     }
   };
 
@@ -463,13 +466,8 @@ export default function VisitsPage() {
     };
   }, [fetchVisits, fetchStats, isManualSync]);
 
-  // Derive unique facility names (nama faskes) from current dataset
-  useEffect(() => {
-    const names = Array.from(
-      new Set((allVisits || []).map(v => v?.facility?.name).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b));
-    setFacilityNames(names);
-  }, [allVisits]);
+  // Facility names are now fetched from API in fetchDoctorsAndClinics
+  // No need to derive from allVisits anymore since we use server-side pagination
 
   // Refetch stats when visits data changes (e.g., after add/edit/delete)
   // Removed: This was causing excessive re-renders and high CPU usage
@@ -552,15 +550,11 @@ export default function VisitsPage() {
       setSyncing(true);
       setIsManualSync(true); // Mark as manual sync - DON'T reset this until sync completes
       setSyncProgress(null); // Clear any old progress
-      toast.loading('Memulai sinkronisasi data...', { id: 'sync-toast' });
+      toast.loading('Memulai sinkronisasi data... Proses ini mungkin memakan waktu beberapa menit.', { id: 'sync-toast' });
 
       const response = await fetch('/api/visits/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          batchSize: 50, // Batch size untuk processing
-          delayBetweenBatches: 2000, // 2 detik delay antar batch untuk mengurangi load CPU API
-        }),
       });
 
       const result = await response.json();
@@ -569,24 +563,40 @@ export default function VisitsPage() {
         throw new Error(result.error || result.message || 'Gagal melakukan sync');
       }
 
-      // Don't show success toast immediately - sync is still running in background
-      // Progress will be shown via SSE events
-      toast.success('Sync dimulai! Progress akan ditampilkan di bawah...', { id: 'sync-toast', duration: 3000 });
-      
-      // Note: isManualSync will be reset in handleRefreshEvent when sync completes
-      // Don't reset it here because sync is still running in background
+      // The API endpoint now runs both scripts synchronously
+      // Response will contain steps information when complete
+      if (result.success && result.steps) {
+        const syncDone = result.steps['sync-api-to-cache']?.success;
+        const copyDone = result.steps['copy-cache-to-visits']?.success;
+        
+        if (syncDone && copyDone) {
+          // Both steps completed - refresh page immediately
+          toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          // Partial success or unknown state - still refresh
+          toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      } else {
+        // Success but no steps info - refresh anyway
+        toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
     } catch (error) {
       console.error('Sync error:', error);
       toast.error(`❌ Gagal melakukan sync: ${error.message}`, { id: 'sync-toast', duration: 6000 });
-      // Reset manual sync flag on error only
-      setTimeout(() => {
-        setIsManualSync(false);
-        setSyncProgress(null);
-      }, 3000);
+      // Reset manual sync flag on error
+      setIsManualSync(false);
+      setSyncProgress(null);
     } finally {
       setSyncing(false);
-      // DON'T reset isManualSync here - sync is still running in background
-      // It will be reset when sync completes (via SSE event handler)
     }
   };
 
