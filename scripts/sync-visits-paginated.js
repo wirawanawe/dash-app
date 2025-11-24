@@ -5,7 +5,11 @@
  * dan menyimpannya ke database lokal dengan pagination 1000 record per page
  * 
  * Usage:
- *   node scripts/sync-visits-paginated.js
+ *   node scripts/sync-visits-paginated.js                                    # Sync semua data
+ *   node scripts/sync-visits-paginated.js --today                           # Sync hanya hari ini
+ *   node scripts/sync-visits-paginated.js --date 2025-01-15                 # Sync tanggal tertentu
+ *   node scripts/sync-visits-paginated.js --start-date 2025-01-01           # Sync dari tanggal tertentu
+ *   node scripts/sync-visits-paginated.js --start-date 2025-01-01 --end-date 2025-01-31  # Sync range tanggal
  */
 
 import { query, closePool } from '../lib/db.js';
@@ -14,6 +18,22 @@ import { normalizePrescriptions } from '../lib/sync/shared/normalize.js';
 
 const API_BASE_URL = 'https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan';
 const RECORDS_PER_PAGE = 1000;
+// Use limit 1000 when filtering by date (API supports tglawal/tglakhir parameters)
+const RECORDS_PER_PAGE_WITH_DATE = 1000;
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const isTodayOnly = args.includes('--today');
+const dateIndex = args.indexOf('--date');
+const startDateIndex = args.indexOf('--start-date');
+const endDateIndex = args.indexOf('--end-date');
+
+// Support both single date and date range
+const targetDate = dateIndex !== -1 && args[dateIndex + 1] 
+  ? args[dateIndex + 1] 
+  : (isTodayOnly ? new Date().toISOString().split('T')[0] : null);
+const startDate = startDateIndex !== -1 && args[startDateIndex + 1] ? args[startDateIndex + 1] : null;
+const endDate = endDateIndex !== -1 && args[endDateIndex + 1] ? args[endDateIndex + 1] : null;
 
 /**
  * Extract records from API response
@@ -222,9 +242,31 @@ async function saveVisitRecords(visitsData) {
 /**
  * Fetch visits from API with pagination
  */
-async function fetchVisitsPage(page) {
-  const url = `${API_BASE_URL}?limit=${RECORDS_PER_PAGE}&page=${page}`;
-  console.log(`📡 Fetching page ${page} from ${url}`);
+async function fetchVisitsPage(page, filterDate = null, filterStartDate = null, filterEndDate = null) {
+  // Use smaller limit when filtering by date to avoid API timeout
+  const limit = (filterDate || filterStartDate || filterEndDate) ? RECORDS_PER_PAGE_WITH_DATE : RECORDS_PER_PAGE;
+  let url = `${API_BASE_URL}?limit=${limit}&page=${page}`;
+  
+  // Add date filter parameters to URL if specified
+  // API uses tglawal and tglakhir parameters for date filtering
+  if (filterDate) {
+    // Single date: use same date for both tglawal and tglakhir
+    url += `&tglawal=${filterDate}&tglakhir=${filterDate}`;
+    console.log(`📡 Fetching page ${page} with date filter: tglawal=${filterDate}&tglakhir=${filterDate}...`);
+  } else if (filterStartDate && filterEndDate) {
+    // Date range: use startDate as tglawal and endDate as tglakhir
+    url += `&tglawal=${filterStartDate}&tglakhir=${filterEndDate}`;
+    console.log(`📡 Fetching page ${page} with date range filter: tglawal=${filterStartDate}&tglakhir=${filterEndDate}...`);
+  } else if (filterStartDate) {
+    // Start date only: use startDate for both (or use a far future date for tglakhir)
+    const futureDate = new Date(filterStartDate);
+    futureDate.setFullYear(futureDate.getFullYear() + 1); // Add 1 year as end date
+    const endDateStr = futureDate.toISOString().split('T')[0];
+    url += `&tglawal=${filterStartDate}&tglakhir=${endDateStr}`;
+    console.log(`📡 Fetching page ${page} with start date filter: tglawal=${filterStartDate}&tglakhir=${endDateStr}...`);
+  } else {
+    console.log(`📡 Fetching page ${page}...`);
+  }
   
   try {
     const data = await fetchJson(
@@ -234,7 +276,62 @@ async function fetchVisitsPage(page) {
       180000 // timeout: 3 minutes
     );
 
-    const records = extractRecordsFromApiResponse(data);
+    let records = extractRecordsFromApiResponse(data);
+    
+    // API sudah melakukan filtering berdasarkan tglawal dan tglakhir di URL
+    // Tapi kita tetap melakukan client-side verification sebagai backup
+    // Menggunakan kolom Tgl_Kunjungan sebagai referensi utama
+    if (records.length > 0 && (filterDate || filterStartDate || filterEndDate)) {
+      const totalBeforeFilter = records.length;
+      
+      if (filterDate) {
+        // Single date filter - verify berdasarkan kolom Tgl_Kunjungan
+        const filterDateStr = filterDate;
+        records = records.filter(record => {
+          // Prioritas: Tgl_Kunjungan (kolom utama dari API)
+          const visitDate = record.Tgl_Kunjungan || record.tgl_kunjungan || record.visit_date;
+          if (!visitDate) return false;
+          // Handle both date and datetime formats
+          // "2025-01-02" or "2025-01-02 07:17:33" -> extract "2025-01-02"
+          const recordDateStr = visitDate.split(' ')[0].split('T')[0];
+          return recordDateStr === filterDateStr;
+        });
+        console.log(`   ✅ Verified berdasarkan Tgl_Kunjungan: ${totalBeforeFilter} → ${records.length} records sesuai tanggal ${filterDate}`);
+      } else if (filterStartDate && filterEndDate) {
+        // Date range filter - verify berdasarkan kolom Tgl_Kunjungan
+        records = records.filter(record => {
+          // Prioritas: Tgl_Kunjungan (kolom utama dari API)
+          const visitDate = record.Tgl_Kunjungan || record.tgl_kunjungan || record.visit_date;
+          if (!visitDate) return false;
+          // Handle both date and datetime formats
+          const recordDateStr = visitDate.split(' ')[0].split('T')[0];
+          return recordDateStr >= filterStartDate && recordDateStr <= filterEndDate;
+        });
+        console.log(`   ✅ Verified berdasarkan Tgl_Kunjungan: ${totalBeforeFilter} → ${records.length} records sesuai range ${filterStartDate} sampai ${filterEndDate}`);
+      } else if (filterStartDate) {
+        // Start date only (greater than or equal) - verify berdasarkan kolom Tgl_Kunjungan
+        records = records.filter(record => {
+          // Prioritas: Tgl_Kunjungan (kolom utama dari API)
+          const visitDate = record.Tgl_Kunjungan || record.tgl_kunjungan || record.visit_date;
+          if (!visitDate) return false;
+          // Handle both date and datetime formats
+          const recordDateStr = visitDate.split(' ')[0].split('T')[0];
+          return recordDateStr >= filterStartDate;
+        });
+        console.log(`   ✅ Verified berdasarkan Tgl_Kunjungan: ${totalBeforeFilter} → ${records.length} records sesuai dari tanggal ${filterStartDate}`);
+      }
+      
+      // Show sample dates for debugging
+      if (records.length > 0) {
+        const sampleDates = records.slice(0, 3).map(r => {
+          const visitDate = r.Tgl_Kunjungan || r.tgl_kunjungan || r.visit_date;
+          return visitDate ? visitDate.split(' ')[0].split('T')[0] : 'N/A';
+        });
+        console.log(`   📅 Sample dates dari Tgl_Kunjungan: ${sampleDates.join(', ')}`);
+      } else {
+        console.log(`   ⚠️  Tidak ada data yang sesuai filter tanggal di halaman ini`);
+      }
+    }
     
     // Try to extract pagination metadata from response
     const paginationInfo = {
@@ -260,7 +357,18 @@ async function fetchVisitsPage(page) {
  * Main function
  */
 async function main() {
+  // Determine sync mode description
+  let syncMode = 'semua data';
+  if (startDate && endDate) {
+    syncMode = `tanggal ${startDate} sampai ${endDate}`;
+  } else if (targetDate) {
+    syncMode = isTodayOnly ? 'hari ini' : `tanggal ${targetDate}`;
+  } else if (startDate) {
+    syncMode = `dari tanggal ${startDate}`;
+  }
+  
   console.log('🚀 Starting visits sync with pagination');
+  console.log(`📅 Mode: Sync ${syncMode}`);
   console.log('═══════════════════════════════════════════\n');
   
   const startTime = Date.now();
@@ -274,18 +382,30 @@ async function main() {
   let totalPagesFromAPI = null;
 
   try {
-    // Step 1: Truncate visits_cache table
-    console.log('🗑️  Truncating visits_cache table...');
-    await query('TRUNCATE TABLE visits_cache');
-    console.log('✅ Table truncated successfully\n');
+    // Step 1: Only truncate if syncing all data, otherwise just update
+    if (!targetDate && !startDate && !endDate) {
+      console.log('🗑️  Truncating visits_cache table (full sync)...');
+      await query('TRUNCATE TABLE visits_cache');
+      console.log('✅ Table truncated successfully\n');
+    } else {
+      console.log(`📅 Sync mode: Only syncing data for ${syncMode}`);
+      console.log('ℹ️  Existing cache data will be preserved and updated');
+      console.log('ℹ️  Using API date filter parameters (tglawal & tglakhir)...\n');
+    }
 
     // Step 2: Fetch and save data page by page
-    console.log(`📥 Fetching data (${RECORDS_PER_PAGE} records per page)...\n`);
+    // If filtering by date, we need to search through pages until we find matching dates
+    const effectiveLimit = (targetDate || startDate || endDate) ? RECORDS_PER_PAGE_WITH_DATE : RECORDS_PER_PAGE;
+    console.log(`📥 Fetching data (${effectiveLimit} records per page)...\n`);
+    
+    // For date filtering, set a reasonable max pages to search (to avoid infinite loop)
+    // Since API orders from newest to oldest, data for today should be in first few pages
+    const maxPagesToSearch = (targetDate || startDate || endDate) ? 50 : null;
 
     while (hasMorePages) {
       try {
-        const result = await fetchVisitsPage(currentPage);
-        const records = result.records;
+        const result = await fetchVisitsPage(currentPage, targetDate, startDate, endDate);
+        let records = result.records;
         const pagination = result.pagination;
         
         // Update total records/pages from API if available
@@ -298,9 +418,99 @@ async function main() {
           console.log(`📊 API reports total pages: ${totalPagesFromAPI}`);
         }
         
+        // Filter data berdasarkan Tgl_Kunjungan SEBELUM memproses lebih lanjut
+        // Hanya proses data yang sesuai dengan filter tanggal
+        if ((targetDate || startDate || endDate) && records.length > 0) {
+          const beforeFilter = records.length;
+          
+          // Filter berdasarkan Tgl_Kunjungan
+          records = records.filter(record => {
+            const visitDate = record.Tgl_Kunjungan || record.tgl_kunjungan || record.visit_date;
+            if (!visitDate) return false;
+            const recordDateStr = visitDate.split(' ')[0].split('T')[0];
+            
+            if (targetDate) {
+              return recordDateStr === targetDate;
+            } else if (startDate && endDate) {
+              return recordDateStr >= startDate && recordDateStr <= endDate;
+            } else if (startDate) {
+              return recordDateStr >= startDate;
+            }
+            return true;
+          });
+          
+          console.log(`   🔍 Filter berdasarkan Tgl_Kunjungan: ${beforeFilter} → ${records.length} records sesuai filter`);
+          
+          // Jika setelah filter tidak ada data yang sesuai, cek apakah perlu lanjut ke halaman berikutnya
+          if (records.length === 0) {
+            // Cek tanggal terbaru di halaman ini untuk menentukan apakah perlu lanjut
+            const allDates = result.records
+              .map(r => {
+                const visitDate = r.Tgl_Kunjungan || r.tgl_kunjungan || r.visit_date;
+                if (!visitDate) return null;
+                return visitDate.split(' ')[0].split('T')[0];
+              })
+              .filter(Boolean)
+              .sort();
+            
+            if (allDates.length > 0) {
+              const oldestDate = allDates[0];
+              const newestDate = allDates[allDates.length - 1];
+              
+              // Jika semua tanggal di halaman ini sudah melewati target tanggal, stop
+              if (targetDate && oldestDate > targetDate) {
+                console.log(`🛑 Stopping: Semua tanggal di halaman ini (${oldestDate} - ${newestDate}) sudah melewati target tanggal (${targetDate})`);
+                hasMorePages = false;
+                break;
+              }
+              
+              if (startDate && endDate && oldestDate > endDate) {
+                console.log(`🛑 Stopping: Semua tanggal di halaman ini (${oldestDate} - ${newestDate}) sudah melewati end date (${endDate})`);
+                hasMorePages = false;
+                break;
+              }
+              
+              if (startDate && !endDate && oldestDate > startDate && !allDates.some(d => d >= startDate)) {
+                console.log(`🛑 Stopping: Tidak ada data yang sesuai filter tanggal di halaman ini`);
+                hasMorePages = false;
+                break;
+              }
+              
+              console.log(`   ⏭️  Tidak ada data sesuai filter di halaman ini, lanjut ke halaman berikutnya...`);
+            }
+            
+            consecutiveEmptyPages++;
+            if ((targetDate || startDate || endDate) && consecutiveEmptyPages >= 2) {
+              const dateFilter = startDate && endDate ? `${startDate} to ${endDate}` : (targetDate || startDate || endDate);
+              console.log(`🛑 Stopping: Tidak ada data sesuai filter untuk ${dateFilter} setelah ${consecutiveEmptyPages} halaman`);
+              hasMorePages = false;
+              break;
+            }
+            
+            currentPage++;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+        }
+        
         if (records.length === 0) {
           consecutiveEmptyPages++;
           console.log(`⚠️  Page ${currentPage} returned no records (consecutive empty: ${consecutiveEmptyPages}/${maxConsecutiveEmpty})`);
+          
+          // If syncing specific date/range and we got empty pages, stop earlier
+          if ((targetDate || startDate || endDate) && consecutiveEmptyPages >= 2) {
+            const dateFilter = startDate && endDate ? `${startDate} to ${endDate}` : (targetDate || startDate || endDate);
+            console.log(`🛑 Stopping early: No more data for ${dateFilter} (2 consecutive empty pages)`);
+            hasMorePages = false;
+            break;
+          }
+          
+          // For date filtering, also check max pages limit
+          if (maxPagesToSearch && currentPage >= maxPagesToSearch) {
+            console.log(`🛑 Stopping: Reached max pages limit (${maxPagesToSearch}) for date filtering`);
+            hasMorePages = false;
+            break;
+          }
           
           // If we know total pages from API, check if we've reached it
           if (totalPagesFromAPI !== null && currentPage >= totalPagesFromAPI) {
@@ -321,13 +531,93 @@ async function main() {
           continue;
         }
 
-        // Reset consecutive empty pages counter
+        // Reset consecutive empty pages counter when we get records
         consecutiveEmptyPages = 0;
 
-        // Transform records
+        // PENTING: Data sudah difilter di fetchVisitsPage berdasarkan Tgl_Kunjungan
+        // records di sini HANYA berisi data yang sesuai dengan filter tanggal dari API
+        // Sekarang kita akan memastikan HANYA data terfilter yang masuk ke database
+        
+        // Final verification sebelum transform: Pastikan semua records sesuai filter
+        if ((targetDate || startDate || endDate) && records.length > 0) {
+          // Double check - filter sekali lagi untuk memastikan 100% akurat
+          const beforeFinalCheck = records.length;
+          records = records.filter(record => {
+            const visitDate = record.Tgl_Kunjungan || record.tgl_kunjungan || record.visit_date;
+            if (!visitDate) return false;
+            const recordDateStr = visitDate.split(' ')[0].split('T')[0];
+            
+            if (targetDate) {
+              return recordDateStr === targetDate;
+            } else if (startDate && endDate) {
+              return recordDateStr >= startDate && recordDateStr <= endDate;
+            } else if (startDate) {
+              return recordDateStr >= startDate;
+            }
+            return true;
+          });
+          
+          if (beforeFinalCheck !== records.length) {
+            console.warn(`   ⚠️  Final check: Removed ${beforeFinalCheck - records.length} records that didn't match filter`);
+          }
+          
+          // Get the date range dari data yang sudah terfilter
+          const datesInPage = records
+            .map(r => {
+              const visitDate = r.Tgl_Kunjungan || r.tgl_kunjungan || r.visit_date;
+              if (!visitDate) return null;
+              return visitDate.split(' ')[0].split('T')[0];
+            })
+            .filter(Boolean)
+            .sort();
+          
+          if (datesInPage.length > 0) {
+            const oldestDate = datesInPage[0];
+            const newestDate = datesInPage[datesInPage.length - 1];
+            console.log(`   ✅ Data yang akan di-sync (SUDAH TERFILTER dari API): ${records.length} records dengan tanggal ${oldestDate} sampai ${newestDate}`);
+            
+            // Check if we've gone past the target date range
+            if (targetDate && oldestDate > targetDate) {
+              console.log(`🛑 Stopping: Oldest date in filtered page (${oldestDate}) is after target date (${targetDate})`);
+              hasMorePages = false;
+              break;
+            }
+            
+            if (startDate && endDate && oldestDate > endDate) {
+              console.log(`🛑 Stopping: Oldest date in filtered page (${oldestDate}) is after end date (${endDate})`);
+              hasMorePages = false;
+              break;
+            }
+          }
+        }
+
+        // Transform records - HANYA data yang sudah terfilter dari API
         const transformedRecords = [];
         for (const record of records) {
           try {
+            // Final verification sebelum transform - pastikan sesuai filter
+            if (targetDate || startDate || endDate) {
+              const visitDate = record.Tgl_Kunjungan || record.tgl_kunjungan || record.visit_date;
+              if (visitDate) {
+                const recordDateStr = visitDate.split(' ')[0].split('T')[0];
+                let shouldInclude = false;
+                
+                if (targetDate && recordDateStr === targetDate) {
+                  shouldInclude = true;
+                } else if (startDate && endDate && recordDateStr >= startDate && recordDateStr <= endDate) {
+                  shouldInclude = true;
+                } else if (startDate && !endDate && recordDateStr >= startDate) {
+                  shouldInclude = true;
+                }
+                
+                if (!shouldInclude) {
+                  console.warn(`   ⚠️  Skipping record ${record.ID || record.No_Kunjungan} - date ${recordDateStr} doesn't match filter`);
+                  totalFailed++;
+                  continue;
+                }
+              }
+            }
+            
             transformedRecords.push(transformVisitRecord(record));
           } catch (error) {
             console.warn(`⚠️  Failed to transform record:`, error.message);
@@ -335,13 +625,17 @@ async function main() {
           }
         }
 
-        // Save to database
-        console.log(`💾 Saving ${transformedRecords.length} records to database...`);
-        const saveResult = await saveVisitRecords(transformedRecords);
-        totalInserted += saveResult.inserted;
-        totalFailed += saveResult.failed;
+        // Save to database - HANYA data yang sudah terfilter dari API dan terverifikasi
+        if (transformedRecords.length > 0) {
+          console.log(`💾 Saving ${transformedRecords.length} records yang SUDAH TERFILTER ke database...`);
+          const saveResult = await saveVisitRecords(transformedRecords);
+          totalInserted += saveResult.inserted;
+          totalFailed += saveResult.failed;
 
-        console.log(`✅ Page ${currentPage} completed: ${saveResult.inserted} inserted, ${saveResult.failed} failed`);
+          console.log(`✅ Page ${currentPage} completed: ${saveResult.inserted} inserted (HANYA data terfilter dari API), ${saveResult.failed} failed`);
+        } else {
+          console.log(`⚠️  Page ${currentPage}: Tidak ada data yang sesuai filter tanggal untuk di-sync`);
+        }
         
         // Show progress if we know total from API
         if (totalRecordsFromAPI !== null) {

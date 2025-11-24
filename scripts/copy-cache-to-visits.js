@@ -53,15 +53,17 @@ async function copyCacheToVisits() {
     while (hasMore) {
       try {
         // Fetch batch from cache (only columns that exist in visits table)
+        // Include ALL columns from cache that might exist in visits table
         const selectColumns = [
           'external_id', 'visit_number', 'unique_id',
           'patient_nik', 'patient_name', 'patient_nip',
           'patient_no_peserta', 'patient_nama_peserta',
           'patient_gender', 'patient_birth_date', 'patient_department',
           'diagnosis', 'complaint', 'treatment', 'notes', 'assessment',
-          'status', 'clinic', 'room', 'visit_date',
-          'doctor_name', 'facility_code', 'facility_name',
+          'status', 'clinic', 'room', 'visit_date', 'visit_time',
+          'doctor_name', 'doctor_id', 'facility_code', 'facility_name',
           'physical_exam', 'prescriptions', 'prescription_count',
+          'kode_poli', 'nama_poli', 'no_antrian', 'jenis_kunjungan', 'cara_bayar',
           'external_created_at', 'external_updated_at'
         ].filter(col => existingColumns.has(col));
         
@@ -126,7 +128,7 @@ async function copyCacheToVisits() {
             const values = insertCols.map(col => {
               const value = record[col];
               // Handle JSON fields - ensure string format
-              if (col === 'physical_exam' && value !== null && value !== undefined) {
+              if ((col === 'physical_exam' || col === 'prescriptions') && value !== null && value !== undefined) {
                 return typeof value === 'string' ? value : JSON.stringify(value);
               }
               return value ?? null;

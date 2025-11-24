@@ -1,0 +1,237 @@
+{
+	"info": {
+		"_postman_id": "phc-dashboard-api-collection",
+		"name": "PHC Dashboard - Visits API",
+		"description": "Collection untuk test API kunjungan dari api-ehr-klinik.doctorphc.id",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Get All Visits (Page 1)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?limit=100&page=1",
+					"protocol": "https",
+					"host": [
+						"api-ehr-klinik",
+						"doctorphc",
+						"id"
+					],
+					"path": [
+						"transaksi",
+						"kunjungan"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100",
+							"description": "Jumlah record per halaman"
+						},
+						{
+							"key": "page",
+							"value": "1",
+							"description": "Nomor halaman"
+						}
+					]
+				},
+				"description": "Mengambil semua data kunjungan tanpa filter tanggal"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Get Visits by Date (19-11-2025)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?limit=100&page=1&date=2025-11-19",
+					"protocol": "https",
+					"host": [
+						"api-ehr-klinik",
+						"doctorphc",
+						"id"
+					],
+					"path": [
+						"transaksi",
+						"kunjungan"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100",
+							"description": "Jumlah record per halaman"
+						},
+						{
+							"key": "page",
+							"value": "1",
+							"description": "Nomor halaman"
+						},
+						{
+							"key": "date",
+							"value": "2025-11-19",
+							"description": "Filter berdasarkan tanggal (format: YYYY-MM-DD)"
+						}
+					]
+				},
+				"description": "Mengambil data kunjungan untuk tanggal 19 November 2025 menggunakan parameter date"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Get Visits by Date Range",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?limit=100&page=1&start_date=2025-11-19&end_date=2025-11-19",
+					"protocol": "https",
+					"host": [
+						"api-ehr-klinik",
+						"doctorphc",
+						"id"
+					],
+					"path": [
+						"transaksi",
+						"kunjungan"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100",
+							"description": "Jumlah record per halaman"
+						},
+						{
+							"key": "page",
+							"value": "1",
+							"description": "Nomor halaman"
+						},
+						{
+							"key": "start_date",
+							"value": "2025-11-19",
+							"description": "Tanggal mulai (format: YYYY-MM-DD)"
+						},
+						{
+							"key": "end_date",
+							"value": "2025-11-19",
+							"description": "Tanggal akhir (format: YYYY-MM-DD)"
+						}
+					]
+				},
+				"description": "Mengambil data kunjungan untuk range tanggal menggunakan start_date dan end_date"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Get Visits - Check Tgl_Kunjungan Field",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?limit=10&page=1",
+					"protocol": "https",
+					"host": [
+						"api-ehr-klinik",
+						"doctorphc",
+						"id"
+					],
+					"path": [
+						"transaksi",
+						"kunjungan"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "10",
+							"description": "Jumlah record per halaman (kecil untuk melihat struktur)"
+						},
+						{
+							"key": "page",
+							"value": "1"
+						}
+					]
+				},
+				"description": "Mengambil 10 record pertama untuk melihat struktur data dan kolom Tgl_Kunjungan"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Get Visits - Multiple Pages",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan?limit=200&page=1",
+					"protocol": "https",
+					"host": [
+						"api-ehr-klinik",
+						"doctorphc",
+						"id"
+					],
+					"path": [
+						"transaksi",
+						"kunjungan"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "200",
+							"description": "Limit lebih besar untuk mencari data tanggal tertentu"
+						},
+						{
+							"key": "page",
+							"value": "1",
+							"description": "Ubah ke 2, 3, dst untuk halaman berikutnya"
+						}
+					]
+				},
+				"description": "Mengambil data dengan limit lebih besar untuk mencari data tanggal tertentu di beberapa halaman"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://api-ehr-klinik.doctorphc.id/transaksi/kunjungan",
+			"type": "string"
+		},
+		{
+			"key": "date",
+			"value": "2025-11-19",
+			"type": "string"
+		},
+		{
+			"key": "limit",
+			"value": "100",
+			"type": "string"
+		}
+	]
+}
+

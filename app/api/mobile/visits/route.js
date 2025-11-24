@@ -30,46 +30,120 @@ export async function GET(request) {
 
     const userId = payload.userId;
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page")) || 1;
-    const limit = parseInt(searchParams.get("limit")) || 20;
+    const page = parseInt(searchParams.get("page"), 10) || 1;
+    const limit = parseInt(searchParams.get("limit"), 10) || 20;
     const status = searchParams.get("status");
-    const date = searchParams.get("date"); // Add date parameter support
-    const offset = (page - 1) * limit;
+    const date = searchParams.get("date");
+    const insuranceNumber = searchParams.get("insurance_number");
+    const ktpNumber = searchParams.get("ktp_number");
+    
+    // Validate pagination
+    const safeLimit = Math.max(1, Math.min(100, limit));
+    const safeOffset = Math.max(0, (page - 1) * safeLimit);
 
-    // Build WHERE clause
-    let whereClause = "WHERE v.user_id = ?";
-    let params = [userId];
+    // Get mobile user profile to find KTP/Insurance number (prioritize KTP)
+    let patientNik = null;
+    let patientInsuranceNumber = null;
+    
+    try {
+      const [userProfile] = await query(
+        `SELECT ktp_number, insurance_card_number 
+         FROM mobile_users 
+         WHERE id = ?`,
+        [userId]
+      );
+      
+      if (userProfile) {
+        // Prioritize KTP number
+        patientNik = userProfile.ktp_number || ktpNumber;
+        patientInsuranceNumber = userProfile.insurance_card_number || insuranceNumber;
+      }
+    } catch (userError) {
+      console.warn('⚠️ Could not fetch user profile:', userError.message);
+    }
 
+    // Build WHERE clause - search by NIK (priority) or insurance number in visits table
+    let whereConditions = [];
+    let params = [];
+
+    // Priority 1: Search by NIK (patient_nik in visits table) - most reliable
+    if (patientNik && patientNik.trim() !== '') {
+      whereConditions.push("v.patient_nik = ?");
+      params.push(patientNik.trim());
+    } else if (patientInsuranceNumber && patientInsuranceNumber.trim() !== '') {
+      // Priority 2: If no NIK, try searching by insurance number (if available in visits table)
+      whereConditions.push("(v.insurance_number = ? OR v.insurance_card_number = ? OR v.patient_no_peserta = ?)");
+      params.push(patientInsuranceNumber.trim(), patientInsuranceNumber.trim(), patientInsuranceNumber.trim());
+    } else {
+      // If no identifiers found, return empty result
+      return NextResponse.json({
+        success: true,
+        data: [],
+        message: "No patient identifier found. Please sync your patient data first.",
+        pagination: {
+          page,
+          limit: safeLimit,
+          total: 0,
+          totalPages: 0
+        }
+      });
+    }
+
+    // Add additional filters
     if (status) {
-      whereClause += " AND v.status = ?";
+      whereConditions.push("v.status = ?");
       params.push(status);
     }
 
-    // Add date filter if provided
     if (date) {
-      whereClause += " AND DATE(v.visit_date) = ?";
+      whereConditions.push("DATE(v.visit_date) = DATE(?)");
       params.push(date);
     }
 
-    // Get total count
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}` 
+      : '';
+
+    // Get total count from visits table
     const countQuery = `
       SELECT COUNT(*) AS total
-      FROM mobile_visits v
+      FROM visits v
       ${whereClause}
     `;
 
-    const countResult = await query(countQuery, params);
-    const totalResults = parseInt(countResult[0].total);
+    let countResult;
+    try {
+      countResult = await query(countQuery, params);
+    } catch (countError) {
+      // If table doesn't exist or error, return empty result
+      if (countError.code === 'ER_NO_SUCH_TABLE') {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          message: "Visits table not found",
+          pagination: {
+            page,
+            limit: safeLimit,
+            total: 0,
+            totalPages: 0
+          }
+        });
+      }
+      throw countError;
+    }
 
-    // Get visits with clinic and doctor information
+    const totalResults = parseInt(countResult[0]?.total || 0);
+
+    // Get visits from visits table with proper column mapping
     const visitsQuery = `
       SELECT 
         v.id,
-        v.user_id,
+        v.patient_nik,
+        v.patient_name,
         v.visit_date,
         v.visit_time,
-        v.visit_type,
-        v.clinic_name,
+        v.clinic as clinic_name,
+        v.room as polyclinic_name,
         v.doctor_name,
         v.diagnosis,
         v.treatment,
@@ -80,28 +154,56 @@ export async function GET(request) {
         v.payment_status,
         v.created_at,
         v.updated_at
-      FROM mobile_visits v
+      FROM visits v
       ${whereClause}
       ORDER BY v.visit_date DESC, v.visit_time DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
     `;
 
-    const visits = await query(visitsQuery, [...params, limit, offset]);
+    let visits;
+    try {
+      visits = await query(visitsQuery, params);
+    } catch (queryError) {
+      if (queryError.code === 'ER_NO_SUCH_TABLE') {
+        return NextResponse.json({
+          success: true,
+          data: [],
+          message: "Visits table not found",
+          pagination: {
+            page,
+            limit: safeLimit,
+            total: 0,
+            totalPages: 0
+          }
+        });
+      }
+      throw queryError;
+    }
 
-    // Transform visits to match expected format
-    const transformedVisits = visits.map(visit => ({
+    // Transform visits to match expected format (from visits table structure)
+    const transformedVisits = (visits || []).map(visit => ({
       id: visit.id,
       date: visit.visit_date,
-      clinicName: visit.clinic_name || "Klinik Utama",
+      clinicName: visit.clinic_name || visit.clinic || "Klinik Utama",
+      polyclinicName: visit.polyclinic_name || visit.room || null,
       doctorName: visit.doctor_name || "Dokter",
-      visitType: visit.visit_type || "Konsultasi Umum",
+      visitType: visit.visit_type || visit.polyclinic_name || visit.room || "Konsultasi Umum",
       diagnosis: visit.diagnosis || "Tidak ada diagnosis",
       treatment: visit.treatment || "Tidak ada treatment",
-      prescription: visit.prescription ? JSON.parse(visit.prescription) : [],
+      prescription: visit.prescription ? (
+        typeof visit.prescription === 'string' 
+          ? (() => {
+              try { return JSON.parse(visit.prescription); } 
+              catch { return [visit.prescription]; }
+            })()
+          : visit.prescription
+      ) : [],
       notes: visit.notes || "",
       status: visit.status || "completed",
       cost: visit.cost || 0,
-      paymentStatus: visit.payment_status || "paid"
+      paymentStatus: visit.payment_status || "paid",
+      patientName: visit.patient_name || null,
+      patientNik: visit.patient_nik || null
     }));
 
     return NextResponse.json({
@@ -109,19 +211,40 @@ export async function GET(request) {
       data: transformedVisits,
       pagination: {
         page,
-        limit,
+        limit: safeLimit,
         total: totalResults,
-        totalPages: Math.ceil(totalResults / limit)
+        totalPages: Math.ceil(totalResults / safeLimit)
       }
     });
 
   } catch (error) {
+    console.error('❌ Error in GET /api/mobile/visits:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      sqlState: error.sqlState
+    });
+
+    // Check if it's a table doesn't exist error
+    if (error.code === 'ER_NO_SUCH_TABLE' || error.message?.includes("doesn't exist")) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        message: "Visits table not found in database",
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0
+        }
+      }, { status: 200 });
+    }
 
     return NextResponse.json(
       {
         success: false,
         message: "Gagal mengambil riwayat medis",
-        error: error.message,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }
     );

@@ -254,8 +254,13 @@ export async function GET(request) {
   const clinic = searchParams.get("clinic");
   const facilityName = searchParams.get("facilityName");
   
+  // Extract mobile app specific parameters (ktp_number and insurance_number)
+  const ktpNumber = searchParams.get("ktp_number");
+  const insuranceNumber = searchParams.get("insurance_number");
+  const date = searchParams.get("date"); // For date filter in mobile app
+  
   // Check cache only for non-search queries (searches should be fresh)
-  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic || facilityName);
+  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic || facilityName || ktpNumber || insuranceNumber || date);
   const cacheKey = responseCache.generateKey('GET', '/api/visits', {
     page, limit, sortBy, sortOrder, search, searchDate, startDate, endDate, status, doctorId, clinic, facilityName
   });
@@ -279,6 +284,26 @@ export async function GET(request) {
     let sql = `SELECT * FROM visits WHERE external_id IS NOT NULL`;
     let params = [];
     
+    // Apply mobile app specific filters (priority: ktp_number first, then insurance_number)
+    if (ktpNumber && ktpNumber.trim() !== '') {
+      sql += ` AND patient_nik = ?`;
+      params.push(ktpNumber.trim());
+    } else if (insuranceNumber && insuranceNumber.trim() !== '') {
+      // Search by insurance number in various possible columns
+      sql += ` AND (
+        insurance_number = ? OR 
+        insurance_card_number = ? OR 
+        patient_no_peserta = ?
+      )`;
+      params.push(insuranceNumber.trim(), insuranceNumber.trim(), insuranceNumber.trim());
+    }
+    
+    // Apply date filter for mobile app (single date, not range)
+    if (date && !searchDate) {
+      sql += ` AND DATE(visit_date) = DATE(?)`;
+      params.push(date);
+    }
+    
     // Apply search filter
     if (search) {
       sql += ` AND (
@@ -292,19 +317,19 @@ export async function GET(request) {
       params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
     }
     
-    // Apply date search filter
-    if (searchDate) {
-      sql += ` AND visit_date = ?`;
+    // Apply date search filter - handle both date and datetime formats
+    if (searchDate && !date) {
+      sql += ` AND DATE(visit_date) = DATE(?)`;
       params.push(searchDate);
     }
     
-    // Apply date range filter
+    // Apply date range filter - handle both date and datetime formats
     if (startDate) {
-      sql += ` AND visit_date >= ?`;
+      sql += ` AND DATE(visit_date) >= DATE(?)`;
       params.push(startDate);
     }
     if (endDate) {
-      sql += ` AND visit_date <= ?`;
+      sql += ` AND DATE(visit_date) <= DATE(?)`;
       params.push(endDate);
     }
     
@@ -381,6 +406,9 @@ export async function GET(request) {
     const cachedVisits = await query(sql, params);
 
     // Transform cached data to match expected format
+    // If mobile app parameters are used, return mobile app format
+    const isMobileRequest = !!(ktpNumber || insuranceNumber);
+    
     let visits = cachedVisits.map((visit) => {
       let physicalExam = {};
       try {
@@ -402,6 +430,40 @@ export async function GET(request) {
       
       const prescriptions = parsePrescriptionsField(visit.prescriptions || visit.resep);
       const diagnoses = normalizeDiagnoses(visit.diagnosis);
+      
+      // If mobile app request, return mobile app format
+      if (isMobileRequest) {
+        return {
+          id: visit.id || visit.visit_number || visit.external_id,
+          date: visit.visit_date,
+          clinicName: visit.clinic || visit.clinic_name || "Klinik Utama",
+          polyclinicName: visit.room || visit.polyclinic_name || null,
+          facilityName: visit.facility_name || visit.facility || visit.facilityName || visit.clinic || "Fasilitas Kesehatan",
+          facilityCode: visit.facility_code || visit.facilityCode || null,
+          doctorName: visit.doctor_name || "Dokter",
+          visitType: visit.visit_type || visit.room || visit.polyclinic_name || "Konsultasi Umum",
+          diagnosis: visit.diagnosis || "Tidak ada diagnosis",
+          treatment: visit.treatment || "Tidak ada treatment",
+          prescription: prescriptions && Array.isArray(prescriptions) ? prescriptions.map(p => 
+            typeof p === 'string' ? p : (p.name || p.raw || JSON.stringify(p))
+          ) : (visit.prescription ? (
+            typeof visit.prescription === 'string' 
+              ? (() => {
+                  try { return JSON.parse(visit.prescription); } 
+                  catch { return [visit.prescription]; }
+                })()
+              : visit.prescription
+          ) : []),
+          notes: visit.notes || "",
+          status: visit.status || "completed",
+          cost: visit.cost || 0,
+          paymentStatus: visit.payment_status || "paid",
+          patientName: visit.patient_name || null,
+          patientNik: visit.patient_nik || null
+        };
+      }
+      
+      // Dashboard format (existing)
       return {
         id: visit.visit_number || visit.external_id,
         uniqueId: visit.unique_id || visit.external_id,
@@ -480,17 +542,30 @@ export async function GET(request) {
     // Calculate pagination
     const totalPages = isFetchAll ? 1 : Math.ceil(totalVisits / limit);
 
-    const responseData = {
-      data: visits,
-      pagination: {
-        total: totalVisits,
-        page: isFetchAll ? 1 : page,
-        limit: isFetchAll ? totalVisits : limit,
-        totalPages,
-        hasNextPage: isFetchAll ? false : page < totalPages,
-        hasPrevPage: isFetchAll ? false : page > 1,
-      },
-    };
+    const responseData = isMobileRequest
+      ? {
+          success: true,
+          data: visits,
+          pagination: {
+            total: totalVisits,
+            page: isFetchAll ? 1 : page,
+            limit: isFetchAll ? totalVisits : limit,
+            totalPages,
+            hasNextPage: isFetchAll ? false : page < totalPages,
+            hasPrevPage: isFetchAll ? false : page > 1,
+          },
+        }
+      : {
+          data: visits,
+          pagination: {
+            total: totalVisits,
+            page: isFetchAll ? 1 : page,
+            limit: isFetchAll ? totalVisits : limit,
+            totalPages,
+            hasNextPage: isFetchAll ? false : page < totalPages,
+            hasPrevPage: isFetchAll ? false : page > 1,
+          },
+        };
 
     // Cache response only for non-search queries (30 seconds TTL)
     if (!hasSearchOrFilters) {
@@ -539,6 +614,22 @@ export async function GET(request) {
       let params = [];
       let conditions = [];
 
+      // Apply mobile app specific filters (priority: ktp_number first, then insurance_number)
+      if (ktpNumber && ktpNumber.trim() !== '') {
+        conditions.push("patient_nik = ?");
+        params.push(ktpNumber.trim());
+      } else if (insuranceNumber && insuranceNumber.trim() !== '') {
+        // Search by insurance number in various possible columns
+        conditions.push("(insurance_number = ? OR insurance_card_number = ? OR patient_no_peserta = ?)");
+        params.push(insuranceNumber.trim(), insuranceNumber.trim(), insuranceNumber.trim());
+      }
+      
+      // Apply date filter for mobile app (single date, not range)
+      if (date && !searchDate) {
+        conditions.push("DATE(visit_date) = DATE(?)");
+        params.push(date);
+      }
+
       // Add search filter
       if (search) {
         conditions.push("(patient_name LIKE ? OR doctor_name LIKE ? OR diagnosis LIKE ? OR visit_number LIKE ?)");
@@ -546,8 +637,8 @@ export async function GET(request) {
       }
 
       // Add searchDate filter (exact date match)
-      if (searchDate) {
-        conditions.push("DATE(visit_date) = ?");
+      if (searchDate && !date) {
+        conditions.push("DATE(visit_date) = DATE(?)");
         params.push(searchDate);
       }
       
@@ -606,9 +697,36 @@ export async function GET(request) {
       const localVisits = await query(sql, params);
 
       // Transform local visits to match expected format
+      const isMobileRequestFallback = !!(ktpNumber || insuranceNumber);
       const transformedVisits = localVisits.map((visit) => {
         const prescriptions = parsePrescriptionsField(visit.prescriptions);
 
+        // Mobile app format
+        if (isMobileRequestFallback) {
+          return {
+            id: visit.id || visit.visit_number,
+            date: visit.visit_date,
+          clinicName: visit.clinic || "Klinik Utama",
+          polyclinicName: visit.room || null,
+          facilityName: visit.facility_name || visit.facility || "Fasilitas Kesehatan",
+          facilityCode: visit.facility_code || null,
+            doctorName: visit.doctor_name || "Dokter",
+            visitType: visit.room || "Konsultasi Umum",
+            diagnosis: visit.diagnosis || "Tidak ada diagnosis",
+            treatment: visit.treatment || "Tidak ada treatment",
+            prescription: prescriptions && Array.isArray(prescriptions) ? prescriptions.map(p => 
+              typeof p === 'string' ? p : (p.name || p.raw || JSON.stringify(p))
+            ) : [],
+            notes: visit.notes || "",
+            status: visit.status || "completed",
+            cost: visit.cost || 0,
+            paymentStatus: visit.payment_status || "paid",
+            patientName: visit.patient_name || null,
+            patientNik: visit.patient_nik || null
+          };
+        }
+        
+        // Dashboard format (existing)
         return {
           id: visit.visit_number || visit.id,
           uniqueId: visit.visit_number || visit.id,
@@ -661,6 +779,21 @@ export async function GET(request) {
 
       const totalPages = isFetchAll ? 1 : Math.ceil(totalVisits / (limit || 1));
 
+      // Mobile app format (use already defined isMobileRequestFallback from above)
+      if (isMobileRequestFallback) {
+        return NextResponse.json({
+          success: true,
+          data: transformedVisits,
+          pagination: {
+            page: isFetchAll ? 1 : page,
+            limit: isFetchAll ? totalVisits : limit,
+            total: totalVisits,
+            totalPages,
+          },
+        });
+      }
+
+      // Dashboard format (existing)
       return NextResponse.json({
         data: transformedVisits,
         pagination: {

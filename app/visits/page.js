@@ -89,8 +89,11 @@ export default function VisitsPage() {
   });
   const [facilityStats, setFacilityStats] = useState([]);
   const refreshTimeoutRef = useRef(null);
+  const syncPollIntervalRef = useRef(null); // Store polling interval for cleanup
   const [syncProgress, setSyncProgress] = useState(null); // Sync progress state
   const [isManualSync, setIsManualSync] = useState(false); // Track if sync was started manually
+  const [syncStartDate, setSyncStartDate] = useState(''); // Sync date range start
+  const [syncEndDate, setSyncEndDate] = useState(''); // Sync date range end
 
   const fetchVisits = useCallback(async () => {
     try {
@@ -538,9 +541,21 @@ export default function VisitsPage() {
   const [syncing, setSyncing] = useState(false);
 
   const handleSyncData = async () => {
+    // Validate date range if provided
+    if (syncStartDate && syncEndDate && syncStartDate > syncEndDate) {
+      toast.error('Tanggal mulai tidak boleh lebih besar dari tanggal akhir');
+      return;
+    }
+
+    const syncMode = syncStartDate && syncEndDate 
+      ? `tanggal ${syncStartDate} sampai ${syncEndDate}`
+      : syncStartDate 
+      ? `tanggal ${syncStartDate}`
+      : 'semua data';
+    
     if (
       !confirm(
-        'Jalankan sinkronisasi data dari API? Sistem akan mengambil semua data kunjungan dari API eksternal dan menyimpannya ke database lokal. Proses ini mungkin memakan waktu beberapa menit.'
+        `Jalankan sinkronisasi data dari API untuk ${syncMode}? Sistem akan mengambil data kunjungan dari API eksternal dan menyimpannya ke database lokal. Proses ini mungkin memakan waktu beberapa menit.`
       )
     ) {
       return;
@@ -549,52 +564,132 @@ export default function VisitsPage() {
     try {
       setSyncing(true);
       setIsManualSync(true); // Mark as manual sync - DON'T reset this until sync completes
-      setSyncProgress(null); // Clear any old progress
-      toast.loading('Memulai sinkronisasi data... Proses ini mungkin memakan waktu beberapa menit.', { id: 'sync-toast' });
+      
+      // Set initial sync progress to show that sync has started
+      setSyncProgress({
+        status: 'started',
+        progress: 0,
+        fetched: 0,
+        inserted: 0,
+        updated: 0,
+        failed: 0,
+        total: 0,
+        processed: 0,
+      });
+      
+      toast.loading(`Memulai sinkronisasi data untuk ${syncMode}... Proses ini mungkin memakan waktu beberapa menit.`, { id: 'sync-toast' });
+
+      // Build request body with date range if provided
+      const requestBody = {};
+      if (syncStartDate && syncEndDate) {
+        requestBody.startDate = syncStartDate;
+        requestBody.endDate = syncEndDate;
+      } else if (syncStartDate) {
+        requestBody.date = syncStartDate;
+      }
 
       const response = await fetch('/api/visits/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
       });
 
       const result = await response.json();
 
       if (!response.ok || !result.success) {
+        // Update progress to show error
+        setSyncProgress(prev => prev ? {
+          ...prev,
+          status: 'failed',
+          error: result.error || result.message || 'Gagal melakukan sync',
+        } : null);
         throw new Error(result.error || result.message || 'Gagal melakukan sync');
       }
 
       // The API endpoint now runs both scripts synchronously
-      // Response will contain steps information when complete
-      if (result.success && result.steps) {
-        const syncDone = result.steps['sync-api-to-cache']?.success;
-        const copyDone = result.steps['copy-cache-to-visits']?.success;
-        
-        if (syncDone && copyDone) {
-          // Both steps completed - refresh page immediately
-          toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        } else {
-          // Partial success or unknown state - still refresh
-          toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        }
-      } else {
-        // Success but no steps info - refresh anyway
-        toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+      // Sync is running in background, progress will be updated via SSE
+      // Start polling for sync status as fallback if SSE doesn't work
+      
+      // Clear any existing polling interval
+      if (syncPollIntervalRef.current) {
+        clearInterval(syncPollIntervalRef.current);
       }
+      
+      syncPollIntervalRef.current = setInterval(async () => {
+        try {
+          const statusResponse = await fetch('/api/visits/sync');
+          const statusResult = await statusResponse.json();
+          
+          if (statusResult.success && statusResult.lastSync) {
+            const sync = statusResult.lastSync;
+            const isActive = sync.status === 'started' || sync.status === 'in_progress';
+            
+            if (isActive) {
+              // Update progress
+              setSyncProgress({
+                status: sync.status,
+                progress: sync.progress || 0,
+                fetched: sync.fetched || 0,
+                inserted: sync.inserted || 0,
+                updated: sync.updated || 0,
+                failed: sync.failed || 0,
+                total: sync.total || 0,
+                processed: sync.processed || 0,
+              });
+            } else {
+              // Sync completed or failed
+              if (syncPollIntervalRef.current) {
+                clearInterval(syncPollIntervalRef.current);
+                syncPollIntervalRef.current = null;
+              }
+              setSyncProgress({
+                status: sync.status,
+                progress: sync.status === 'completed' ? 100 : sync.progress || 0,
+                fetched: sync.fetched || 0,
+                inserted: sync.inserted || 0,
+                updated: sync.updated || 0,
+                failed: sync.failed || 0,
+                total: sync.total || 0,
+                processed: sync.processed || 0,
+                duration: sync.duration || 0,
+                error: sync.error || null,
+              });
+              
+              if (sync.status === 'completed') {
+                toast.success('Sync selesai! Memuat ulang halaman...', { id: 'sync-toast', duration: 2000 });
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
+              } else {
+                toast.error(`Sync gagal: ${sync.error || 'Unknown error'}`, { id: 'sync-toast', duration: 6000 });
+              }
+              
+              setIsManualSync(false);
+            }
+          }
+        } catch (pollError) {
+          console.error('Poll sync status error:', pollError);
+        }
+      }, 2000); // Poll every 2 seconds
+      
+      // Clear polling after 10 minutes max
+      setTimeout(() => {
+        if (syncPollIntervalRef.current) {
+          clearInterval(syncPollIntervalRef.current);
+          syncPollIntervalRef.current = null;
+        }
+      }, 10 * 60 * 1000);
     } catch (error) {
       console.error('Sync error:', error);
       toast.error(`❌ Gagal melakukan sync: ${error.message}`, { id: 'sync-toast', duration: 6000 });
       // Reset manual sync flag on error
       setIsManualSync(false);
       setSyncProgress(null);
+      // Clear polling interval on error
+      if (syncPollIntervalRef.current) {
+        clearInterval(syncPollIntervalRef.current);
+        syncPollIntervalRef.current = null;
+      }
     } finally {
       setSyncing(false);
     }
@@ -624,6 +719,11 @@ export default function VisitsPage() {
       setIsManualSync(false);
       setSyncProgress(null);
       setSyncing(false);
+      // Clear polling interval
+      if (syncPollIntervalRef.current) {
+        clearInterval(syncPollIntervalRef.current);
+        syncPollIntervalRef.current = null;
+      }
       
       // Refresh data
       setTimeout(() => {
@@ -815,25 +915,81 @@ export default function VisitsPage() {
                 Kelola jadwal kunjungan, status pasien, dan riwayat medis dengan sistem yang terintegrasi
               </p>
             </div>
-            <div className="mt-6 lg:mt-0 flex flex-col sm:flex-row gap-3">
-              {syncProgress && (syncProgress.status === 'in_progress' || syncProgress.status === 'started') ? (
-                <button
-                  onClick={handleCancelSync}
-                  className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold"
-                >
-                  <X className="w-5 h-5 mr-2" />
-                  Hentikan Sync
-                </button>
-              ) : (
-                <button
-                  onClick={handleSyncData}
-                  disabled={syncing}
-                  className="group flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
-                  {syncing ? 'Syncing...' : 'Sync Data'}
-                </button>
-              )}
+            <div className="mt-6 lg:mt-0 flex flex-col gap-4 w-full lg:w-auto">
+              {/* Sync Date Range Input */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-white/90" />
+                  <label className="text-sm font-semibold text-white/90">Filter Tanggal Sync</label>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-xs font-medium text-white/80">Tanggal Mulai</label>
+                    <input
+                      type="date"
+                      value={syncStartDate}
+                      onChange={(e) => setSyncStartDate(e.target.value)}
+                      className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300 transition-all text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-xs font-medium text-white/80">Tanggal Akhir</label>
+                    <input
+                      type="date"
+                      value={syncEndDate}
+                      onChange={(e) => setSyncEndDate(e.target.value)}
+                      min={syncStartDate || undefined}
+                      className="px-3 py-2 rounded-lg bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-300 transition-all text-sm"
+                    />
+                  </div>
+                  {(syncStartDate || syncEndDate) && (
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => {
+                          setSyncStartDate('');
+                          setSyncEndDate('');
+                        }}
+                        className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-all text-sm font-medium whitespace-nowrap"
+                        title="Reset tanggal"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {(syncStartDate || syncEndDate) && (
+                  <div className="mt-2 text-xs text-white/70">
+                    {syncStartDate && syncEndDate 
+                      ? `Sync data dari ${syncStartDate} sampai ${syncEndDate}`
+                      : syncStartDate 
+                      ? `Sync data dari ${syncStartDate}`
+                      : `Sync data sampai ${syncEndDate}`
+                    }
+                  </div>
+                )}
+              </div>
+              
+              {/* Sync Button */}
+              <div className="flex gap-3">
+                {syncProgress && (syncProgress.status === 'in_progress' || syncProgress.status === 'started') ? (
+                  <button
+                    onClick={handleCancelSync}
+                    className="group flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold w-full sm:w-auto"
+                  >
+                    <X className="w-5 h-5 mr-2" />
+                    Hentikan Sync
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSyncData}
+                    disabled={syncing}
+                    className="group flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full sm:w-auto"
+                  >
+                    <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-300`} />
+                    {syncing ? 'Syncing...' : 'Sync Data'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -847,15 +1003,15 @@ export default function VisitsPage() {
               ? 'bg-gradient-to-r from-red-50 to-pink-50 border-red-200'
               : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
           }`}>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                   {syncProgress.status === 'in_progress' || syncProgress.status === 'started' ? (
-                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
+                    <RefreshCw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
                   ) : syncProgress.status === 'completed' ? (
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                   ) : (
-                    <AlertCircle className="w-5 h-5 text-red-600" />
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
                   )}
                   <h3 className="text-lg font-bold text-gray-900">
                     {syncProgress.status === 'in_progress' || syncProgress.status === 'started' 

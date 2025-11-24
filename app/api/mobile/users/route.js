@@ -1,55 +1,85 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { queryWithPagination } from '@/lib/safeQuery';
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
+    const page = parseInt(searchParams.get('page'), 10) || 1;
+    const limit = parseInt(searchParams.get('limit'), 10) || 20;
     const search = searchParams.get('search') || '';
     const offset = (page - 1) * limit;
+
+    // Validate pagination parameters
+    if (isNaN(page) || page < 1) {
+      return NextResponse.json(
+        { error: 'Invalid page parameter' },
+        { status: 400 }
+      );
+    }
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid limit parameter (must be between 1 and 100)' },
+        { status: 400 }
+      );
+    }
 
     let whereClause = '';
     let params = [];
 
-    if (search) {
+    if (search && search.trim() !== '') {
       whereClause = 'WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?';
-      params = [`%${search}%`, `%${search}%`, `%${search}%`];
+      params = [`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`];
     }
 
     // Get total count
     const countSql = `SELECT COUNT(*) as total FROM mobile_users ${whereClause}`;
     const countResult = await query(countSql, params);
-    const total = countResult[0].total;
+    const total = countResult[0]?.total || 0;
 
-    // Get users with pagination
-    const sql = `
-      SELECT 
-        id,
-        name,
-        email,
-        phone,
-        date_of_birth,
-        gender,
-        height,
-        weight,
-        blood_type,
-        emergency_contact_name,
-        emergency_contact_phone,
-        is_active,
-        created_at,
-        updated_at
-      FROM mobile_users 
-      ${whereClause}
-      ORDER BY created_at DESC
-    `;
+    // Ensure limit and offset are valid integers (already sanitized)
+    const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10)));
+    const safeOffset = Math.max(0, parseInt(offset, 10));
+    
+    if (isNaN(safeLimit) || isNaN(safeOffset) || !Number.isInteger(safeLimit) || !Number.isInteger(safeOffset)) {
+      return NextResponse.json(
+        { error: 'Invalid pagination parameters' },
+        { status: 400 }
+      );
+    }
 
-    // Use safe pagination helper to prevent SQL injection
-    const users = await queryWithPagination(sql, params, limit, offset);
+    // Build query with pagination
+    // Note: Using direct integer values for LIMIT/OFFSET (already validated)
+    // since MySQL's prepared statements may not support parameterized LIMIT/OFFSET
+    const sql = [
+      'SELECT',
+      'id, name, email, phone, date_of_birth, gender,',
+      'height, weight, blood_type, emergency_contact_name,',
+      'emergency_contact_phone, is_active, created_at, updated_at',
+      'FROM mobile_users',
+      whereClause,
+      'ORDER BY created_at DESC',
+      `LIMIT ${safeLimit} OFFSET ${safeOffset}`
+    ].filter(Boolean).join(' ');
+
+    // Only WHERE clause parameters (LIMIT/OFFSET are embedded in SQL after validation)
+    const allParams = params;
+
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 GET /api/mobile/users - Query:', {
+        sql: sql.substring(0, 200),
+        paramsCount: allParams.length,
+        params: allParams,
+        limit: safeLimit,
+        offset: safeOffset
+      });
+    }
+
+    // Execute query - only WHERE params, LIMIT/OFFSET are in SQL
+    const users = await query(sql, allParams);
     
     return NextResponse.json({
-      users,
+      users: users || [],
       pagination: {
         page,
         limit,
@@ -58,9 +88,18 @@ export async function GET(request) {
       }
     });
   } catch (error) {
+    console.error('❌ Error in GET /api/mobile/users:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
 
     return NextResponse.json(
-      { error: 'Failed to fetch mobile users' },
+      { 
+        error: 'Failed to fetch mobile users',
+        message: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }
