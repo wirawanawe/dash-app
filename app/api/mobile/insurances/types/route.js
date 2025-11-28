@@ -10,127 +10,34 @@ export async function GET(request) {
   try {
     console.log('🔍 GET /api/mobile/insurances/types - Start');
     
-    // Try to fetch from 'insurance' table first, then fallback to 'insurances'
     let insurances = [];
     let tableUsed = '';
     
     try {
-      // First try: table 'insurance' (singular) - from database
-      try {
-        // Try to get distinct insurance types from 'insurance' table
-        // This handles case where insurance table has patient_id relation
-        try {
-          // Try with type column first
-          const [result] = await query(
-            `SELECT DISTINCT
-              id,
-              name,
-              COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
-              COALESCE(type, 'umum') as type,
-              COALESCE(description, '') as description,
-              COALESCE(is_active, 1) as is_active,
-              created_at,
-              updated_at
-            FROM insurance 
-            WHERE COALESCE(is_active, 1) = 1
-              AND name IS NOT NULL
-              AND name != ''
-            ORDER BY name ASC`
-          );
-          insurances = result || [];
-          tableUsed = 'insurance';
-          console.log(`✅ Fetched from 'insurance' table: ${insurances.length} items`);
-        } catch (typeError) {
-          // If type column doesn't exist, query without it
-          if (typeError.code === 'ER_BAD_FIELD_ERROR' || 
-              typeError.message?.includes("Unknown column 'type'")) {
-            console.log('⚠️ Column "type" not found in "insurance" table, querying without it...');
-            const [result] = await query(
-              `SELECT DISTINCT
-                id,
-                name,
-                COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
-                COALESCE(description, '') as description,
-                COALESCE(is_active, 1) as is_active,
-                created_at,
-                updated_at
-              FROM insurance 
-              WHERE COALESCE(is_active, 1) = 1
-                AND name IS NOT NULL
-                AND name != ''
-              ORDER BY name ASC`
-            );
-            insurances = result || [];
-            tableUsed = 'insurance';
-            console.log(`✅ Fetched from 'insurance' table (without type column): ${insurances.length} items`);
-          } else {
-            throw typeError;
-          }
-        }
-      } catch (insuranceError) {
-        // If 'insurance' table doesn't exist or has error, try 'insurances' (plural)
-        if (insuranceError.code === 'ER_NO_SUCH_TABLE' || 
-            insuranceError.message?.includes("doesn't exist") ||
-            insuranceError.code === 'ER_BAD_FIELD_ERROR') {
-          console.log('⚠️ Table "insurance" not found or incompatible, trying "insurances" table...');
-          try {
-            // Try with type column first
-            const [result] = await query(
-              `SELECT 
-                id,
-                name,
-                COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
-                COALESCE(type, 'umum') as type,
-                COALESCE(description, '') as description,
-                COALESCE(is_active, 1) as is_active,
-                created_at,
-                updated_at
-              FROM insurances 
-              WHERE COALESCE(is_active, 1) = 1
-                AND name IS NOT NULL
-                AND name != ''
-              ORDER BY name ASC`
-            );
-            insurances = result || [];
-            tableUsed = 'insurances';
-            console.log(`✅ Fetched from 'insurances' table: ${insurances.length} items`);
-          } catch (insurancesError) {
-            // If type column doesn't exist, query without it
-            if (insurancesError.code === 'ER_BAD_FIELD_ERROR' || 
-                insurancesError.message?.includes("Unknown column 'type'")) {
-              console.log('⚠️ Column "type" not found in "insurances" table, querying without it...');
-              const [result] = await query(
-                `SELECT 
-                  id,
-                  name,
-                  COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
-                  COALESCE(description, '') as description,
-                  COALESCE(is_active, 1) as is_active,
-                  created_at,
-                  updated_at
-                FROM insurances 
-                WHERE COALESCE(is_active, 1) = 1
-                  AND name IS NOT NULL
-                  AND name != ''
-                ORDER BY name ASC`
-              );
-              insurances = result || [];
-              tableUsed = 'insurances';
-              console.log(`✅ Fetched from 'insurances' table (without type column): ${insurances.length} items`);
-            } else {
-              throw insurancesError;
-            }
-          }
-        } else {
-          throw insuranceError;
-        }
-      }
+      // Query from 'insurances' table (plural) - actual table name in database
+      // Table structure: id, name, code, contact_person, phone, email, address, created_at, updated_at
+      const result = await query(
+        `SELECT 
+          id,
+          name,
+          COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
+          created_at,
+          updated_at
+        FROM insurances 
+        WHERE name IS NOT NULL
+          AND name != ''
+        ORDER BY name ASC`
+      );
+      insurances = Array.isArray(result) ? result : [];
+      tableUsed = 'insurances';
+      console.log(`✅ Fetched from 'insurances' table: ${insurances.length} items`);
     } catch (queryError) {
-      console.error('❌ Error fetching from both tables:', queryError);
-      // If it's a column error, return default types instead of throwing
-      if (queryError.code === 'ER_BAD_FIELD_ERROR' || 
-          queryError.message?.includes("Unknown column")) {
-        console.log('⚠️ Column error detected, returning default insurance types');
+      console.error('❌ Error fetching from insurances table:', queryError);
+      
+      // If table doesn't exist, return default types
+      if (queryError.code === 'ER_NO_SUCH_TABLE' || 
+          queryError.message?.includes("doesn't exist")) {
+        console.log('⚠️ Table "insurances" not found, returning default insurance types');
         return NextResponse.json(
           {
             success: true,
@@ -140,23 +47,51 @@ export async function GET(request) {
               { id: 'swasta', name: 'Asuransi Swasta', code: 'swasta', type: 'swasta' }
             ],
             count: 3,
-            message: 'Using default insurance types (column error)'
+            message: 'Using default insurance types (table not found)'
           },
           { status: 200 }
         );
       }
-      throw queryError;
+      
+      // For other errors, also return default types (graceful degradation)
+      console.log('⚠️ Query error detected, returning default insurance types');
+      return NextResponse.json(
+        {
+          success: true,
+          data: [
+            { id: 'umum', name: 'Umum', code: 'umum', type: 'umum' },
+            { id: 'bpjs', name: 'BPJS Kesehatan', code: 'bpjs', type: 'bpjs' },
+            { id: 'swasta', name: 'Asuransi Swasta', code: 'swasta', type: 'swasta' }
+          ],
+          count: 3,
+          message: 'Using default insurance types (query error)'
+        },
+        { status: 200 }
+      );
     }
 
     // Format response to match mobile app expectations
     // Expected format: { success: true, data: [{ id, name, code }, ...] }
-    const formattedData = (insurances || []).map(insurance => ({
-      id: insurance.code || insurance.id,
-      name: insurance.name,
-      code: insurance.code || insurance.type || 'umum',
-      type: insurance.type || 'umum',
-      description: insurance.description || null
-    }));
+    // Map code to type for backward compatibility
+    const formattedData = (insurances || []).map(insurance => {
+      // Generate code from name if not provided
+      const code = insurance.code || (insurance.name ? insurance.name.toLowerCase().replace(/\s+/g, '_') : `insurance_${insurance.id}`);
+      // Determine type based on code or name
+      let type = 'umum';
+      if (code && (code.toLowerCase().includes('bpjs') || insurance.name?.toLowerCase().includes('bpjs'))) {
+        type = 'bpjs';
+      } else if (code && (code.toLowerCase().includes('swasta') || insurance.name?.toLowerCase().includes('swasta'))) {
+        type = 'swasta';
+      }
+      
+      return {
+        id: code || insurance.id,
+        name: insurance.name,
+        code: code,
+        type: type,
+        description: null
+      };
+    });
 
     console.log(`✅ Insurance types fetched: ${formattedData.length} items from table: ${tableUsed}`);
 
