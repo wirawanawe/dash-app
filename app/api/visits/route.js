@@ -231,6 +231,7 @@ export async function GET(request) {
   const doctorId = searchParams.get("doctorId");
   const clinic = searchParams.get("clinic");
   const facilityName = searchParams.get("facilityName");
+  const facilityCode = searchParams.get("facility_code");
   
   // Extract mobile app specific parameters (ktp_number and insurance_number)
   const ktpNumber = searchParams.get("ktp_number");
@@ -238,9 +239,9 @@ export async function GET(request) {
   const date = searchParams.get("date"); // For date filter in mobile app
   
   // Check cache only for non-search queries (searches should be fresh)
-  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic || facilityName || ktpNumber || insuranceNumber || date);
+  const hasSearchOrFilters = !!(search || searchDate || startDate || endDate || status || doctorId || clinic || facilityName || facilityCode || ktpNumber || insuranceNumber || date);
   const cacheKey = responseCache.generateKey('GET', '/api/visits', {
-    page, limit, sortBy, sortOrder, search, searchDate, startDate, endDate, status, doctorId, clinic, facilityName
+    page, limit, sortBy, sortOrder, search, searchDate, startDate, endDate, status, doctorId, clinic, facilityName, facilityCode
   });
   
   if (!hasSearchOrFilters) {
@@ -329,6 +330,12 @@ export async function GET(request) {
     if (facilityName) {
       sql += ` AND facility_name = ?`;
       params.push(facilityName);
+    }
+    
+    // Apply facility code filter
+    if (facilityCode) {
+      sql += ` AND facility_code = ?`;
+      params.push(facilityCode);
     }
     
     // Get total count for pagination (with caching)
@@ -647,6 +654,13 @@ export async function GET(request) {
       if (facilityName) {
         conditions.push("facility_name = ?");
         params.push(facilityName);
+      }
+      
+      // Add facility code filter (exact match)
+      const facilityCode = searchParams.get("facility_code");
+      if (facilityCode) {
+        conditions.push("facility_code = ?");
+        params.push(facilityCode);
       }
 
       if (conditions.length > 0) {

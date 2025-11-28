@@ -113,48 +113,48 @@ export default function Dashboard() {
       // Prepare base params with clinic filter
       const baseParams = selectedClinic ? { facility_code: selectedClinic } : {};
 
-      // Fetch visits data for different time periods from local database
-      // All data is stored locally in the visits table
+      // Optimized: Fetch only pagination info (limit=1) to get counts, not all data
+      // This is much faster than fetching 10000+ records
       const [todayVisits, monthlyVisits, allVisits] = await Promise.all([
-        fetchVisits({ ...baseParams, searchDate: todayString, limit: 10000 }),
-        fetchVisits({ ...baseParams, tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),
-        fetchVisits({ ...baseParams, limit: 'all' }), // Fetch semua data tanpa limit
+        fetchVisits({ ...baseParams, searchDate: todayString, page: 1, limit: 1 }),
+        fetchVisits({ ...baseParams, tglawal: monthStart, tglakhir: monthEnd, page: 1, limit: 1 }),
+        fetchVisits({ ...baseParams, page: 1, limit: 1 }),
       ]);
 
-      // Calculate statistics - Gunakan total dari pagination API, bukan length array
-      const dailyVisitsCount = todayVisits.data?.length || 0;
-      const monthlyVisitsCount = monthlyVisits.data?.length || 0;
+      // Calculate statistics - Use pagination.total from API, not array length
+      const dailyVisitsCount = todayVisits.pagination?.total || 0;
+      const monthlyVisitsCount = monthlyVisits.pagination?.total || 0;
       const activeVisitsCount = 0; // Semua kunjungan "Selesai", tidak ada "Aktif"
-      // Ambil total dari pagination API untuk mendapatkan jumlah sebenarnya
-      const totalVisitsCount = allVisits.pagination?.total || allVisits.data?.length || 0;
+      // Get total from pagination API
+      const totalVisitsCount = allVisits.pagination?.total || 0;
 
-      // Get total visits today (including completed)
-      const totalVisitsToday = todayVisits.data?.length || 0;
+      // Get total visits today (same as dailyVisitsCount)
+      const totalVisitsToday = dailyVisitsCount;
 
       // Calculate average wait time (estimated based on active visits)
       const avgWaitTime =
         activeVisitsCount > 0 ? Math.ceil(activeVisitsCount * 15) : 0;
 
-      // Fetch total patients
+      // Fetch total patients - optimized: only get pagination info
       let totalPatientsCount = 0;
       try {
-        const patientsResponse = await fetch('/api/patients?limit=10000');
+        const patientsResponse = await fetch('/api/patients?page=1&limit=1');
         if (patientsResponse.ok) {
           const patientsData = await patientsResponse.json();
-          totalPatientsCount = patientsData.pagination?.total || patientsData.data?.length || 0;
+          totalPatientsCount = patientsData.pagination?.total || 0;
         }
       } catch (err) {
         // Error fetching patients
       }
 
-      // Fetch total clinics/faskes
+      // Fetch total clinics/faskes - optimized: only get pagination info
       let totalClinicsCount = 0;
       try {
-        const clinicsResponse = await fetch('/api/clinics?limit=10000');
+        const clinicsResponse = await fetch('/api/clinics?page=1&limit=1');
         if (clinicsResponse.ok) {
           const clinicsData = await clinicsResponse.json();
-          // Gunakan pagination.total untuk mendapatkan jumlah sebenarnya
-          totalClinicsCount = clinicsData.pagination?.total || clinicsData.data?.length || 0;
+          // Use pagination.total to get actual count
+          totalClinicsCount = clinicsData.pagination?.total || 0;
         }
       } catch (err) {
         // Error fetching clinics
