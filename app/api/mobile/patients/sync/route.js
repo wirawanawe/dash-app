@@ -89,6 +89,7 @@ export async function POST(request) {
       }
 
       // If not found in visits, try by insurance number in visits
+      // Priority: patient_no_peserta first (main column for insurance card number)
       if (!patientData && insuranceNumber && insuranceNumber.trim() !== '') {
         try {
           const [visits] = await query(
@@ -99,10 +100,10 @@ export async function POST(request) {
                patient_nip, patient_no_peserta, patient_nama_peserta,
                patient_department
              FROM visits 
-             WHERE insurance_number = ? OR insurance_card_number = ? OR patient_no_peserta = ?
+             WHERE patient_no_peserta = ? OR insurance_card_number = ?
              ORDER BY visit_date DESC
              LIMIT 1`,
-            [insuranceNumber.trim(), insuranceNumber.trim(), insuranceNumber.trim()]
+            [insuranceNumber.trim(), insuranceNumber.trim()]
           );
           
           if (visits && visits.length > 0) {
@@ -212,8 +213,9 @@ export async function POST(request) {
         }
 
         // Update insurance number if found and not already set
-        if (patientData.insurance_number || patientData.insurance_card_number || patientData.patient_no_peserta) {
-          const insNum = patientData.insurance_number || patientData.insurance_card_number || patientData.patient_no_peserta;
+        // Priority: patient_no_peserta first (main column for insurance card number in visits table)
+        if (patientData.patient_no_peserta || patientData.insurance_card_number || patientData.insurance_number) {
+          const insNum = patientData.patient_no_peserta || patientData.insurance_card_number || patientData.insurance_number;
           if (insNum) {
             updateFields.push('insurance_card_number = ?');
             updateParams.push(insNum);
@@ -285,7 +287,7 @@ export async function POST(request) {
           id: patientData.id || null,
           name: patientData.name || patientData.patient_name || null,
           ktpNumber: patientData.ktp_number || patientData.nik || patientData.patient_nik || null,
-          insuranceNumber: patientData.insurance_number || patientData.insurance_card_number || null,
+          insuranceNumber: patientData.patient_no_peserta || patientData.insurance_card_number || patientData.insurance_number || null,
           gender: patientData.gender || patientData.patient_gender || null,
           dateOfBirth: patientData.date_of_birth || patientData.birth_date || patientData.patient_birth_date || null,
           address: patientData.address || patientData.patient_address || null,

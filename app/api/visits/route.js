@@ -5,28 +5,6 @@ import { apiRateLimiter } from "@/lib/rateLimiter";
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to add delay between requests
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Helper function to fetch with retry
-async function fetchWithRetry(url, options, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(url, {
-        ...options,
-        timeout: 30000, // 30 second timeout
-      });
-      return response;
-    } catch (error) {
-      if (i === maxRetries - 1) {
-        throw error; // Throw on last attempt
-      }
-      // Wait before retrying (exponential backoff)
-      await delay(Math.pow(2, i) * 1000);
-    }
-  }
-}
-
 const normalizePrescriptionList = (value) => {
   if (!value) return [];
 
@@ -279,8 +257,8 @@ export async function GET(request) {
   
   try {
     // Build SQL query
-    // Only show visits that have external_id (from API sync)
-    // This ensures we only show data that exists in the external API
+    // Get all visits from local database (synced from external API)
+    // All data is stored locally in the visits table
     let sql = `SELECT * FROM visits WHERE external_id IS NOT NULL`;
     let params = [];
     
@@ -289,13 +267,9 @@ export async function GET(request) {
       sql += ` AND patient_nik = ?`;
       params.push(ktpNumber.trim());
     } else if (insuranceNumber && insuranceNumber.trim() !== '') {
-      // Search by insurance number in various possible columns
-      sql += ` AND (
-        insurance_number = ? OR 
-        insurance_card_number = ? OR 
-        patient_no_peserta = ?
-      )`;
-      params.push(insuranceNumber.trim(), insuranceNumber.trim(), insuranceNumber.trim());
+      // Search by insurance number (stored as patient_no_peserta in visits table)
+      sql += ` AND patient_no_peserta = ?`;
+      params.push(insuranceNumber.trim());
     }
     
     // Apply date filter for mobile app (single date, not range)
@@ -580,8 +554,7 @@ export async function GET(request) {
     
     return response;
   } catch (error) {
-
-    // Fallback to local database if external API fails
+    // Error handling - retry with simplified query
     try {
       const { query } = await import("@/lib/db");
       
@@ -619,9 +592,9 @@ export async function GET(request) {
         conditions.push("patient_nik = ?");
         params.push(ktpNumber.trim());
       } else if (insuranceNumber && insuranceNumber.trim() !== '') {
-        // Search by insurance number in various possible columns
-        conditions.push("(insurance_number = ? OR insurance_card_number = ? OR patient_no_peserta = ?)");
-        params.push(insuranceNumber.trim(), insuranceNumber.trim(), insuranceNumber.trim());
+        // Search by insurance number (stored as patient_no_peserta in visits table)
+        conditions.push("patient_no_peserta = ?");
+        params.push(insuranceNumber.trim());
       }
       
       // Apply date filter for mobile app (single date, not range)

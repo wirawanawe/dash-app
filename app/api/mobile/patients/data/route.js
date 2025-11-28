@@ -99,6 +99,7 @@ export async function GET(request) {
       }
 
       // If not found by NIK in visits, try by insurance number in visits
+      // Priority: patient_no_peserta first (main column for insurance card number)
       if (!patient && patientInsuranceNumber && patientInsuranceNumber.trim() !== '') {
         try {
           const [visits] = await query(
@@ -109,10 +110,10 @@ export async function GET(request) {
                patient_nip, patient_no_peserta, patient_nama_peserta,
                patient_department
              FROM visits 
-             WHERE insurance_number = ? OR insurance_card_number = ? OR patient_no_peserta = ?
+             WHERE patient_no_peserta = ? OR insurance_card_number = ?
              ORDER BY visit_date DESC
              LIMIT 1`,
-            [patientInsuranceNumber.trim(), patientInsuranceNumber.trim(), patientInsuranceNumber.trim()]
+            [patientInsuranceNumber.trim(), patientInsuranceNumber.trim()]
           );
           
           if (visits && visits.length > 0) {
@@ -221,7 +222,7 @@ export async function GET(request) {
           id: patient.id || null,
           name: patient.name || patient.patient_name || null,
           ktpNumber: patient.ktp_number || patient.nik || patient.patient_nik || null,
-          insuranceNumber: patient.insurance_number || patient.insurance_card_number || null,
+          insuranceNumber: patient.patient_no_peserta || patient.insurance_card_number || patient.insurance_number || null,
           gender: patient.gender || patient.patient_gender || null,
           dateOfBirth: patient.date_of_birth || patient.birth_date || patient.patient_birth_date || null,
           address: patient.address || patient.patient_address || null,

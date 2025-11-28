@@ -113,8 +113,8 @@ export default function Dashboard() {
       // Prepare base params with clinic filter
       const baseParams = selectedClinic ? { facility_code: selectedClinic } : {};
 
-      // Fetch visits data for different time periods
-      // NOTE: External API tidak punya field status, semua kunjungan adalah "Selesai"
+      // Fetch visits data for different time periods from local database
+      // All data is stored locally in the visits table
       const [todayVisits, monthlyVisits, allVisits] = await Promise.all([
         fetchVisits({ ...baseParams, searchDate: todayString, limit: 10000 }),
         fetchVisits({ ...baseParams, tglawal: monthStart, tglakhir: monthEnd, limit: 10000 }),

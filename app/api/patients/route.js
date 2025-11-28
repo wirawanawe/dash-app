@@ -3,34 +3,7 @@ import { query } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to add delay between requests
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Helper function to fetch with retry - reduced timeout and better error handling
-async function fetchWithRetry(url, options, maxRetries = 2) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // Reduced to 15 seconds
-      
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      return response;
-    } catch (error) {
-      if (i === maxRetries - 1) {
-        throw error; // Throw on last attempt
-      }
-      // Wait before retrying (shorter backoff)
-      await delay(1000 * (i + 1));
-    }
-  }
-}
-
-// GET all patients from local cache database (fast loading)
+// GET all patients from local database (all data is stored locally)
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || "";
@@ -138,7 +111,7 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    // Fallback to local database patients table if cache fails
+    // Error handling - retry with simplified query
     try {
       const { query } = await import("@/lib/db");
       
