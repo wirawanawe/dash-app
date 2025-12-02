@@ -594,6 +594,18 @@ export default function VisitsPage() {
         body: JSON.stringify(requestBody),
       });
 
+      // Pastikan response JSON sebelum diparse,
+      // agar tidak error ketika server mengembalikan HTML (misalnya error 524 / gateway timeout)
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        // Cloudflare / reverse proxy sering mengirim HTML untuk error 5xx/524
+        throw new Error(
+          response.status === 524
+            ? 'Server timeout (524) saat menjalankan sync. Proses mungkin tetap berjalan di background.'
+            : `Response tidak valid dari server (status ${response.status}).`
+        );
+      }
+
       const result = await response.json();
 
       if (!response.ok || !result.success) {

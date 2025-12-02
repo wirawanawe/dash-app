@@ -116,7 +116,19 @@ export async function GET() {
 
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(formatSseEvent('open', { ok: true }));
+      const safeEnqueue = (event, data) => {
+        if (closed) return;
+        try {
+          controller.enqueue(formatSseEvent(event, data));
+        } catch (err) {
+          // Stream sudah ditutup, hentikan semua timer dan jangan lempar error lagi
+          closed = true;
+          if (keepAliveTimer) clearInterval(keepAliveTimer);
+          if (pollTimer) clearInterval(pollTimer);
+        }
+      };
+
+      safeEnqueue('open', { ok: true });
 
       const snapshot = await fetchLatestSnapshot();
       previousVersion = snapshot.version || 0;
@@ -124,17 +136,15 @@ export async function GET() {
       previousSyncTimestamp =
         snapshot.syncLog?.timestamp || snapshot.version || 0;
 
-      controller.enqueue(
-        formatSseEvent('visits:bootstrap', {
-          version: previousVersion,
-          total: previousTotal,
-          lastSync: snapshot.syncLog,
-        })
-      );
+      safeEnqueue('visits:bootstrap', {
+        version: previousVersion,
+        total: previousTotal,
+        lastSync: snapshot.syncLog,
+      });
 
       keepAliveTimer = setInterval(() => {
         if (closed) return;
-        controller.enqueue(formatSseEvent('heartbeat', { t: Date.now() }));
+        safeEnqueue('heartbeat', { t: Date.now() });
       }, heartbeatInterval);
 
       const poll = async () => {
@@ -174,20 +184,16 @@ export async function GET() {
               latest.syncLog?.timestamp || previousSyncTimestamp;
             previousSyncStatus = currentSync ? { ...currentSync } : null;
 
-            controller.enqueue(
-              formatSseEvent('visits:refresh', {
-                version: previousVersion,
-                total: previousTotal,
-                lastSync: latest.syncLog,
-              })
-            );
+            safeEnqueue('visits:refresh', {
+              version: previousVersion,
+              total: previousTotal,
+              lastSync: latest.syncLog,
+            });
           }
         } catch (error) {
-          controller.enqueue(
-            formatSseEvent('visits:error', {
-              message: error.message,
-            })
-          );
+          safeEnqueue('visits:error', {
+            message: error.message,
+          });
         }
       };
 
