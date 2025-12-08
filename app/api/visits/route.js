@@ -537,16 +537,16 @@ export async function GET(request) {
           },
         }
       : {
-          data: visits,
-          pagination: {
-            total: totalVisits,
-            page: isFetchAll ? 1 : page,
-            limit: isFetchAll ? totalVisits : limit,
-            totalPages,
-            hasNextPage: isFetchAll ? false : page < totalPages,
-            hasPrevPage: isFetchAll ? false : page > 1,
-          },
-        };
+      data: visits,
+      pagination: {
+        total: totalVisits,
+        page: isFetchAll ? 1 : page,
+        limit: isFetchAll ? totalVisits : limit,
+        totalPages,
+        hasNextPage: isFetchAll ? false : page < totalPages,
+        hasPrevPage: isFetchAll ? false : page > 1,
+      },
+    };
 
     // Cache response only for non-search queries (30 seconds TTL)
     if (!hasSearchOrFilters) {

@@ -141,8 +141,8 @@ export async function POST(request) {
       }
     } catch (cacheError) {
       console.warn('⚠️  Could not verify cache count:', cacheError.message);
-    }
-    
+      }
+
     // Step 2: Copy from cache to visits table
     console.log('📤 Step 2: Copying from visits_cache to visits table...');
     const copyResult = await runScript('scripts/copy-cache-to-visits.js');
@@ -150,7 +150,7 @@ export async function POST(request) {
     // Log copy result for debugging
     if (copyResult.stdout) {
       console.log('📋 Copy script output (first 1000 chars):', copyResult.stdout.substring(0, 1000));
-    }
+        }
     if (copyResult.stderr) {
       console.warn('⚠️  Copy script stderr:', copyResult.stderr.substring(0, 500));
     }
@@ -200,7 +200,7 @@ export async function POST(request) {
     } catch (cacheError) {
       console.error('⚠️  Failed to invalidate cache:', cacheError);
     }
-    
+
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     
     // Parse results from stdout if possible

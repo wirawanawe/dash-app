@@ -17,20 +17,20 @@ export async function GET(request) {
       // Query from 'insurances' table (plural) - actual table name in database
       // Table structure: id, name, code, contact_person, phone, email, address, created_at, updated_at
       const result = await query(
-        `SELECT 
-          id,
-          name,
-          COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
-          created_at,
-          updated_at
-        FROM insurances 
+              `SELECT 
+                id,
+                name,
+                COALESCE(code, LOWER(REPLACE(name, ' ', '_'))) as code,
+                created_at,
+                updated_at
+              FROM insurances 
         WHERE name IS NOT NULL
-          AND name != ''
-        ORDER BY name ASC`
-      );
+                AND name != ''
+              ORDER BY name ASC`
+            );
       insurances = Array.isArray(result) ? result : [];
-      tableUsed = 'insurances';
-      console.log(`✅ Fetched from 'insurances' table: ${insurances.length} items`);
+            tableUsed = 'insurances';
+            console.log(`✅ Fetched from 'insurances' table: ${insurances.length} items`);
     } catch (queryError) {
       console.error('❌ Error fetching from insurances table:', queryError);
       
@@ -86,7 +86,7 @@ export async function GET(request) {
       
       return {
         id: code || insurance.id,
-        name: insurance.name,
+      name: insurance.name,
         code: code,
         type: type,
         description: null

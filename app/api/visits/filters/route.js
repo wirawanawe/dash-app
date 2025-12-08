@@ -85,17 +85,17 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('❌ Error fetching filter options:', error);
-      return NextResponse.json(
-        { 
-          success: false,
-          error: "Failed to fetch filter options",
-          doctors: [],
-          clinics: [],
+    return NextResponse.json(
+      { 
+        success: false,
+        error: "Failed to fetch filter options",
+        doctors: [],
+        clinics: [],
           facilityNames: [],
-          doctorPoliMapping: {},
-        },
-        { status: 500 }
-      );
+        doctorPoliMapping: {},
+      },
+      { status: 500 }
+    );
   }
 }
 

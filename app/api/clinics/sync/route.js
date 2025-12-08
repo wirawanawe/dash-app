@@ -75,7 +75,7 @@ export async function POST(request) {
     }
     
     console.log('✅ Step 1 completed: API sync to cache successful');
-    
+
     // Step 2: Copy from cache to clinics table
     console.log('📤 Step 2: Copying from clinics_cache to clinics table...');
     const copyResult = await runScript('scripts/copy-cache-to-clinics.js');
