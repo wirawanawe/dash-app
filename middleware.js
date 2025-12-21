@@ -46,6 +46,14 @@ const routePermissions = {
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
   
+  // Skip middleware for static files (images, fonts, etc.)
+  const staticFileExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.woff', '.woff2', '.ttf', '.eot', '.css', '.js'];
+  const isStaticFile = staticFileExtensions.some(ext => pathname.toLowerCase().endsWith(ext));
+  
+  if (isStaticFile) {
+    return NextResponse.next();
+  }
+  
   // Redirect root path to login
   if (pathname === "/") {
     const token = request.cookies.get("token");

@@ -221,27 +221,6 @@ export default function VisitHistory({ mrNumber, patientId }) {
           )}
         </h3>
         
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed min-w-[40px] min-h-[40px] flex items-center justify-center"
-            >
-              <FaChevronLeft className="h-3 w-3 lg:h-4 lg:w-4" />
-            </button>
-            <span className="text-xs lg:text-sm text-gray-600 px-2">
-              Halaman {currentPage} dari {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed min-w-[40px] min-h-[40px] flex items-center justify-center"
-            >
-              <FaChevronRight className="h-3 w-3 lg:h-4 lg:w-4" />
-            </button>
-          </div>
-        )}
       </div>
 
       {visits.length === 0 ? (
@@ -446,31 +425,6 @@ export default function VisitHistory({ mrNumber, patientId }) {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-6 pagination-safe-area">
-          <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
-              title="Halaman sebelumnya"
-            >
-              Sebelumnya
-            </button>
-            <span className="px-4 py-2 text-sm text-gray-600 bg-gray-50 border-r border-gray-200">
-              {currentPage} dari {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Halaman selanjutnya"
-            >
-              Selanjutnya
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

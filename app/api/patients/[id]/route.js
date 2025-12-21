@@ -4,21 +4,43 @@ import { query } from "@/lib/db";
 // GET single patient
 export async function GET(request, { params }) {
   try {
-    const [patient] = await query("SELECT * FROM patients WHERE id = ?", [
-      parseInt(params.id),
+    const patientId = params.id;
+    
+    // Support both INT and UUID/VARCHAR for patient ID
+    // Also check external_id since frontend uses external_id as patient ID
+    const patientQuery = `
+      SELECT * FROM patients 
+      WHERE id = ? 
+         OR CAST(id AS CHAR) = ? 
+         OR external_id = ?
+         OR CAST(external_id AS CHAR) = ?
+         OR BINARY external_id = ?
+      LIMIT 1
+    `;
+    
+    const patientResult = await query(patientQuery, [
+      patientId, 
+      String(patientId), 
+      patientId, 
+      String(patientId),
+      patientId
     ]);
 
-    if (!patient) {
+    if (patientResult.length === 0) {
+      console.log(`[Patient API] Patient not found with ID: ${patientId}`);
       return NextResponse.json(
         { error: "Pasien tidak ditemukan" },
         { status: 404 }
       );
     }
 
-    // Get insurance data if exists
+    const patient = patientResult[0];
+    console.log(`[Patient API] Found patient: ${patient.id}, external_id: ${patient.external_id}, nik: ${patient.nik}`);
+
+    // Get insurance data if exists - use patient.id from result
     const [insurance] = await query(
       "SELECT * FROM insurance WHERE patient_id = ?",
-      [parseInt(params.id)]
+      [patient.id]
     );
 
     return NextResponse.json({
@@ -26,9 +48,13 @@ export async function GET(request, { params }) {
       insurance: insurance || null,
     });
   } catch (error) {
-
+    console.error(`[Patient API] Error fetching patient ${params.id}:`, error);
     return NextResponse.json(
-      { error: "Gagal mengambil data pasien" },
+      { 
+        error: "Gagal mengambil data pasien",
+        message: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

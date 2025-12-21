@@ -290,7 +290,7 @@ export default function PatientVisitHistory({ patientId }) {
                   </div>
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Keluhan
+                  Nama Faskes
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Diagnosis
@@ -334,13 +334,13 @@ export default function PatientVisitHistory({ patientId }) {
                     <div className="flex items-center">
                       <FaMapMarkerAlt className="h-4 w-4 text-gray-400 mr-2" />
                       <div className="text-sm text-gray-900">
-                        {visit.clinic_name || "Klinik tidak diketahui"}
+                        {visit.clinic_name || visit.clinic || visit.room || "Klinik tidak diketahui"}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.complaint || "Tidak ada keluhan"}>
-                      {visit.complaint || "Tidak ada keluhan"}
+                    <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.facility_name || "Tidak ada nama faskes"}>
+                      {visit.facility_name || "Tidak ada nama faskes"}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -403,31 +403,6 @@ export default function PatientVisitHistory({ patientId }) {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-6 pagination-safe-area">
-          <div className="inline-flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border-r border-gray-200 transition-colors"
-              title="Halaman sebelumnya"
-            >
-              Sebelumnya
-            </button>
-            <span className="px-4 py-2 text-sm text-gray-600 bg-gray-50 border-r border-gray-200">
-              {currentPage} dari {totalPages}
-            </span>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title="Halaman selanjutnya"
-            >
-              Selanjutnya
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

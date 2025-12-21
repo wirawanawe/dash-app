@@ -1206,7 +1206,7 @@ export default function PatientDetailModal({ patient, onClose }) {
                             Penjamin
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Keluhan
+                            Nama Faskes
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Diagnosa
@@ -1245,8 +1245,8 @@ export default function PatientDetailModal({ patient, onClose }) {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.complaint || visit.Rekam_Medis?.[0]?.Subject || "-"}>
-                                {visit.complaint || visit.Rekam_Medis?.[0]?.Subject || "-"}
+                              <div className="text-sm text-gray-900 max-w-xs truncate" title={visit.facility_name || "-"}>
+                                {visit.facility_name || "-"}
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -1287,29 +1287,7 @@ export default function PatientDetailModal({ patient, onClose }) {
           )}
         </div>
 
-        {/* Footer - Always Visible */}
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium"
-          >
-            Tutup
-          </button>
-          <button
-            onClick={() => window.open(`/patients/${patient.id}/edit`, "_blank")}
-            className="px-6 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors duration-200 font-medium flex items-center"
-          >
-            <FaEdit className="mr-2" />
-            Edit Pasien
-          </button>
-          <button
-            onClick={() => window.open(`/visits?patientId=${patient.id}`, "_blank")}
-            className="px-6 py-3 bg-[#E22345] text-white rounded-lg hover:bg-red-600 transition-colors duration-200 font-medium flex items-center"
-          >
-            <FaPlus className="mr-2" />
-            Tambah Kunjungan
-          </button>
-        </div>
+       
       </div>
     </div>
   );
