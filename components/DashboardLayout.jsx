@@ -155,18 +155,7 @@ const DashboardLayout = ({ children }) => {
 
   return (
     <div className="flex min-h-screen bg-gray-100 overflow-x-hidden dashboard-container">
-      {/* Enhanced Mobile Menu Button - Better positioning and touch targets */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="mobile-menu-button fixed top-4 left-4 z-50 md:hidden p-3 bg-white rounded-xl shadow-lg border border-gray-200 hover:bg-gray-50 transition-all duration-200 touch-manipulation min-h-[48px] min-w-[48px] flex items-center justify-center"
-        aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
-      >
-        {isSidebarOpen ? (
-          <X className="h-6 w-6 text-gray-600" />
-        ) : (
-          <Menu className="h-6 w-6 text-gray-600" />
-        )}
-      </button>
+      {/* Mobile Menu Button - Moved to Navbar for better positioning */}
 
       {/* Enhanced Sidebar with better mobile support - FIXED POSITION */}
       <div className={`sidebar-container fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out ${
@@ -190,7 +179,10 @@ const DashboardLayout = ({ children }) => {
       
       {/* Main Content - Enhanced responsive padding and spacing */}
       <div className={`flex-1 flex flex-col overflow-x-hidden ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-        <Navbar />
+        <Navbar 
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+        />
         <main className="flex-1 p-3 sm:p-4 md:p-6 pb-16 sm:pb-20 lg:pb-28">
           <div className="max-w-7xl mx-auto">
             {children}

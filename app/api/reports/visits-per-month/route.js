@@ -8,10 +8,12 @@ export const dynamic = 'force-dynamic';
 // - start: YYYY-MM-01 (inclusive)
 // - end: YYYY-MM-DD (inclusive)
 // - facility_code: filter by facility code
+// - employee_status: filter by employee status ('Pensiunan' or 'Pegawai Aktif')
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const facilityCode = searchParams.get('facility_code');
+    const employeeStatus = searchParams.get('employee_status'); // 'Pensiunan' or 'Pegawai Aktif'
     const start = searchParams.get('start');
     const end = searchParams.get('end');
 
@@ -21,6 +23,10 @@ export async function GET(request) {
     const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const startStr = start || `${defaultStart.getFullYear()}-${String(defaultStart.getMonth() + 1).padStart(2, '0')}-01`;
     const endStr = end || `${defaultEnd.getFullYear()}-${String(defaultEnd.getMonth() + 1).padStart(2, '0')}-${String(defaultEnd.getDate()).padStart(2, '0')}`;
+
+    // Calculate current year and current YY (2-digit year)
+    const currentYear = now.getFullYear();
+    const currentYY = currentYear % 100;
 
     let sql = `
       SELECT 
@@ -35,6 +41,46 @@ export async function GET(request) {
     if (facilityCode) {
       sql += ` AND facility_code = ?`;
       params.push(facilityCode);
+    }
+
+    // Add employee status filter based on NIP
+    // NIP format: 2 digit awal adalah tahun lahir (YY format)
+    // Calculate age from NIP and filter by status
+    if (employeeStatus) {
+      const minBirthYear = currentYear - 56; // Minimum birth year for Pensiunan (age >= 56)
+      const maxBirthYear = currentYear - 55; // Maximum birth year for Pegawai Aktif (age < 56)
+      const minBirthYearYY = minBirthYear % 100;
+      
+      if (employeeStatus === 'Pensiunan') {
+        // Age >= 56: born in year <= (currentYear - 56)
+        // If YY <= currentYY, it's 2000s, else 1900s
+        sql += ` AND (
+          patient_nip IS NOT NULL 
+          AND patient_nip != ''
+          AND LENGTH(patient_nip) >= 2
+          AND CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED) BETWEEN 0 AND 99
+          AND (
+            (CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED) <= ? AND (2000 + CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED)) <= ?)
+            OR
+            (CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED) > ? AND (1900 + CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED)) <= ?)
+          )
+        )`;
+        params.push(currentYY, minBirthYear, currentYY, minBirthYear);
+      } else if (employeeStatus === 'Pegawai Aktif') {
+        // Age < 56: born in year >= (currentYear - 55)
+        sql += ` AND (
+          patient_nip IS NOT NULL 
+          AND patient_nip != ''
+          AND LENGTH(patient_nip) >= 2
+          AND CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED) BETWEEN 0 AND 99
+          AND (
+            (CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED) <= ? AND (2000 + CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED)) >= ?)
+            OR
+            (CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED) > ? AND (1900 + CAST(SUBSTRING(patient_nip, 1, 2) AS UNSIGNED)) >= ?)
+          )
+        )`;
+        params.push(currentYY, maxBirthYear, currentYY, maxBirthYear);
+      }
     }
 
     sql += `

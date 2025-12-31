@@ -17,6 +17,7 @@ export default function ReportsVisitsPage() {
   });
   const [clinics, setClinics] = useState([]);
   const [visitsRows, setVisitsRows] = useState([]);
+  const [employeeStatus, setEmployeeStatus] = useState(""); // Filter for employee status
 
   useEffect(() => {
     (async () => {
@@ -38,6 +39,7 @@ export default function ReportsVisitsPage() {
       sp.append('start', period.start);
       sp.append('end', period.end);
       if (facilityCode) sp.append('facility_code', facilityCode);
+      if (employeeStatus) sp.append('employee_status', employeeStatus);
 
       const res = await fetch(`/api/reports/visits-per-month?${sp.toString()}`);
       if (!res.ok) throw new Error('Gagal mengambil report kunjungan');
@@ -54,7 +56,7 @@ export default function ReportsVisitsPage() {
   useEffect(() => {
     fetchReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facilityCode, period.start, period.end]);
+  }, [facilityCode, period.start, period.end, employeeStatus]);
 
   const monthsInRange = useMemo(() => {
     const s = new Date(period.start);
@@ -123,10 +125,10 @@ export default function ReportsVisitsPage() {
       <div className="space-y-6 text-black">
         <div className="bg-white rounded-2xl p-6 shadow">
           <h1 className="text-2xl font-bold mb-2">Report Kunjungan</h1>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm mb-1">Faskes</label>
-              <select value={facilityCode} onChange={(e) => setFacilityCode(e.target.value)} className="w-full border rounded px-3 py-2 text-black">
+              <select value={facilityCode} onChange={(e) => setFacilityCode(e.target.value)} className="w-full border rounded px-3 py-2 text-black bg-white">
                 <option value="">Semua</option>
                 {clinics.map(c => (
                   <option key={c.id} value={c.code}>{c.name}</option>
@@ -134,12 +136,20 @@ export default function ReportsVisitsPage() {
               </select>
             </div>
             <div>
+              <label className="block text-sm mb-1">Status Pegawai</label>
+              <select value={employeeStatus} onChange={(e) => setEmployeeStatus(e.target.value)} className="w-full border rounded px-3 py-2 text-black bg-white">
+                <option value="">Semua</option>
+                <option value="Pegawai Aktif">Pegawai Aktif</option>
+                <option value="Pensiunan">Pensiunan</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-sm mb-1">Mulai</label>
-              <input type="date" value={period.start} onChange={(e) => setPeriod(p => ({ ...p, start: e.target.value }))} className="w-full border rounded px-3 py-2 text-black" />
+              <input type="date" value={period.start} onChange={(e) => setPeriod(p => ({ ...p, start: e.target.value }))} className="w-full border rounded px-3 py-2 text-black bg-white" />
             </div>
             <div>
               <label className="block text-sm mb-1">Selesai</label>
-              <input type="date" value={period.end} onChange={(e) => setPeriod(p => ({ ...p, end: e.target.value }))} className="w-full border rounded px-3 py-2 text-black" />
+              <input type="date" value={period.end} onChange={(e) => setPeriod(p => ({ ...p, end: e.target.value }))} className="w-full border rounded px-3 py-2 text-black bg-white" />
             </div>
           </div>
         </div>

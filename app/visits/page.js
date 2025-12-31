@@ -169,6 +169,60 @@ const expandPrescriptions = (prescriptions = []) => {
   return rows;
 };
 
+// Helper function to calculate employee status from NIP
+// NIP format: 2 digit awal adalah tahun lahir (YY format)
+// Contoh: NIP "5681124K3" -> 2 digit awal = "56" -> tahun lahir = 1956
+const getEmployeeStatus = (nip) => {
+  if (!nip || typeof nip !== 'string' || nip.length < 2) {
+    return null;
+  }
+  
+  try {
+    // Ambil 2 digit pertama sebagai tahun lahir (format YY)
+    const birthYearYY = parseInt(nip.substring(0, 2));
+    
+    // Validasi bahwa 2 digit pertama adalah angka
+    if (isNaN(birthYearYY)) {
+      return null;
+    }
+    
+    // Tentukan abad berdasarkan tahun lahir
+    // Jika YY >= 0 dan <= tahun sekarang (mod 100), kemungkinan tahun 2000-an
+    // Jika YY > tahun sekarang (mod 100), kemungkinan tahun 1900-an
+    const currentYear = new Date().getFullYear();
+    const currentYY = currentYear % 100;
+    
+    let birthYear;
+    if (birthYearYY <= currentYY && birthYearYY >= 0) {
+      // Tahun 2000-an (00-30 untuk tahun 2000-2030)
+      birthYear = 2000 + birthYearYY;
+    } else {
+      // Tahun 1900-an (31-99 untuk tahun 1931-1999)
+      birthYear = 1900 + birthYearYY;
+    }
+    
+    // Hitung usia
+    const age = currentYear - birthYear;
+    
+    // Validasi usia masuk akal (antara 0-120 tahun)
+    if (age < 0 || age > 120) {
+      return null;
+    }
+    
+    // Tentukan status
+    // Usia >= 56 = Pensiunan
+    // Usia < 56 = Pegawai Aktif
+    if (age >= 56) {
+      return 'Pensiunan';
+    } else {
+      return 'Pegawai Aktif';
+    }
+  } catch (error) {
+    console.error('Error calculating employee status from NIP:', error);
+    return null;
+  }
+};
+
 export default function VisitsPage() {
   const router = useRouter();
   const [allVisits, setAllVisits] = useState([]); // Store ALL visits
@@ -1967,8 +2021,8 @@ export default function VisitsPage() {
               </div>
             ) : (
               <>
-                {/* Visits Table */}
-                <div className="overflow-x-auto overflow-hidden rounded-xl border border-gray-200">
+                {/* Visits Table - Desktop View */}
+                <div className="hidden lg:block overflow-x-auto overflow-hidden rounded-xl border border-gray-200">
                   <table className="w-full min-w-max">
                     <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
                       <tr>
@@ -1989,6 +2043,9 @@ export default function VisitsPage() {
                         </th>
                         <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
+                        </th>
+                        <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Keterangan
                         </th>
                         <th className="px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tanggal
@@ -2060,6 +2117,25 @@ export default function VisitsPage() {
                                 {visit.status || "Aktif"}
                               </span>
                             </td>
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              {(() => {
+                                const employeeStatus = getEmployeeStatus(visit.patient?.nip);
+                                if (!employeeStatus) {
+                                  return <span className="text-sm text-gray-400">-</span>;
+                                }
+                                return (
+                                  <span
+                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                      employeeStatus === "Pensiunan"
+                                        ? "bg-orange-100 text-orange-800"
+                                        : "bg-blue-100 text-blue-800"
+                                    }`}
+                                  >
+                                    {employeeStatus}
+                                  </span>
+                                );
+                              })()}
+                            </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                               {visit.visitDate
                                 ? new Date(visit.visitDate).toLocaleDateString("id-ID", {
@@ -2095,6 +2171,126 @@ export default function VisitsPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="lg:hidden space-y-4">
+                  {visits.length === 0 ? (
+                    <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                        <Calendar className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">Tidak Ada Data Kunjungan</h3>
+                      <p className="text-gray-500">Belum ada kunjungan yang tercatat dalam sistem</p>
+                    </div>
+                  ) : (
+                    visits.map((visit) => {
+                      const employeeStatus = getEmployeeStatus(visit.patient?.nip);
+                      return (
+                        <div key={visit.uniqueId || visit.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="text-sm font-bold text-gray-900">#{visit.visitNumber || visit.id}</div>
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    visit.status === "Selesai"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {visit.status || "Aktif"}
+                                </span>
+                                {employeeStatus && (
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      employeeStatus === "Pensiunan"
+                                        ? "bg-orange-100 text-orange-800"
+                                        : "bg-blue-100 text-blue-800"
+                                    }`}
+                                  >
+                                    {employeeStatus}
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="text-base font-semibold text-gray-900 mb-1">
+                                {visit.patient?.name || "-"}
+                              </h3>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedVisitDetail(visit);
+                                setShowDetailModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+                              title="Detail"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <span className="text-gray-500">NIK:</span>
+                              <div className="font-medium text-gray-900">{visit.patient?.nik || "-"}</div>
+                            </div>
+                            {visit.patient?.nip && (
+                              <div>
+                                <span className="text-gray-500">NIP:</span>
+                                <div className="font-medium text-gray-900">{visit.patient.nip}</div>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-gray-500">Dokter:</span>
+                              <div className="font-medium text-gray-900">{visit.doctor?.name || "-"}</div>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Tanggal:</span>
+                              <div className="font-medium text-gray-900">
+                                {visit.visitDate
+                                  ? new Date(visit.visitDate).toLocaleDateString("id-ID", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric"
+                                    })
+                                  : visit.createdAt
+                                  ? new Date(visit.createdAt).toLocaleDateString("id-ID", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric"
+                                    })
+                                  : "-"}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {visit.diagnosis || visit.complaint ? (
+                            <div>
+                              <span className="text-gray-500 text-sm">Diagnosa/Keluhan:</span>
+                              <div className="text-sm font-medium text-gray-900 mt-1">
+                                {visit.diagnosis || visit.complaint}
+                              </div>
+                            </div>
+                          ) : null}
+                          
+                          {visit.clinic || visit.room || visit.facility?.code ? (
+                            <div className="flex flex-wrap gap-2">
+                              {visit.clinic || visit.room ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  Poli: {visit.clinic || visit.room}
+                                </span>
+                              ) : null}
+                              {visit.facility?.code ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                  Klinik: {visit.facility.code}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Data Info and Pagination */}

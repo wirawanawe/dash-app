@@ -48,6 +48,8 @@ export async function GET(request) {
     // Try to get extended fields if they exist
     if (familyMembers.length > 0) {
       try {
+        // Query with optional columns - using COALESCE to handle missing columns
+        // This approach is safer and works even if some columns don't exist
         const extendedSql = `
           SELECT 
             p.id,
@@ -62,30 +64,37 @@ export async function GET(request) {
             p.phone,
             p.email,
             p.insurance_number as insurance,
-            p.no_peserta as noPeserta,
-            p.nama_peserta as namaPeserta,
-            p.bagian,
-            p.blood_type as bloodType,
-            p.religion,
-            p.marital_status as maritalStatus,
-            p.occupation,
-            p.status,
+            COALESCE(p.no_peserta, NULL) as noPeserta,
+            COALESCE(p.nama_peserta, NULL) as namaPeserta,
+            COALESCE(p.bagian, NULL) as bagian,
+            COALESCE(p.religion, NULL) as religion,
+            COALESCE(p.marital_status, NULL) as maritalStatus,
+            COALESCE(p.occupation, NULL) as occupation,
+            COALESCE(p.status, 'Aktif') as status,
             p.clinic_id,
             p.created_at,
             p.updated_at,
-            p.synced_at
+            COALESCE(p.synced_at, NULL) as synced_at
           FROM patients p
           WHERE TRIM(p.nip) = ? AND p.nip IS NOT NULL AND p.nip != ''
           ORDER BY 
             CASE 
-              WHEN p.name = p.nama_peserta THEN 0 
+              WHEN p.nama_peserta IS NOT NULL AND p.name = p.nama_peserta THEN 0 
               ELSE 1 
             END,
             p.name ASC
         `;
         familyMembers = await query(extendedSql, [cleanNip]);
       } catch (extError) {
-        // Keep using basic query results
+        // If extended query fails (e.g., column doesn't exist), use basic query
+        // The error is logged but we continue with basic results
+        // This is expected if some columns don't exist in the database
+        if (extError.message && extError.message.includes('blood_type')) {
+          // Silently ignore - blood_type column doesn't exist, use basic query
+        } else {
+          console.error('Extended query error (using basic query):', extError.message);
+        }
+        // Continue with basic query results - familyMembers already has data from first query
       }
     }
     

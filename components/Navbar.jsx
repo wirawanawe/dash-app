@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./Providers";
 import { useRouter } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import {
   FaUser,
   FaCaretDown,
@@ -10,7 +11,7 @@ import {
   FaSignOutAlt,
 } from "react-icons/fa";
 
-const Navbar = () => {
+const Navbar = ({ onToggleSidebar, isSidebarOpen }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { user, logout, mounted } = useAuth();
   const router = useRouter();
@@ -121,11 +122,25 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 relative z-50">
+    <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="px-3 sm:px-4 lg:px-6 xl:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16 lg:h-18">
           {/* Left section - Title with better mobile responsiveness */}
-          <div className="flex items-center min-w-0 flex-1">
+          <div className="flex items-center min-w-0 flex-1 gap-3">
+            {/* Mobile Menu Button - Integrated in Navbar */}
+            {onToggleSidebar && (
+              <button
+                onClick={onToggleSidebar}
+                className="md:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+              >
+                {isSidebarOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </button>
+            )}
             <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
               PHC Dashboard
             </h1>
